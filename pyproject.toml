@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ctdose-core"
+version = "0.1.0"
+description = "Open, auditable CT dose surveillance: CTDIvol, DLP, SSDE and effective dose from DICOM, with a physics fallback when the dose tags are missing."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Institute of One, LISIT Co., Ltd." }]
+keywords = ["CT", "dosimetry", "CTDIvol", "SSDE", "DICOM", "radiation dose", "DRL"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Healthcare Industry",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+  "pydicom>=2.3",
+  "numpy>=1.23",
+  "scipy>=1.9",
+]
+
+[project.optional-dependencies]
+ai = ["TotalSegmentator>=2.0", "nibabel>=5.0"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4"]
+
+[project.scripts]
+ctdose = "ctdose_core.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/lisit-ioo/ctdose-core"
+Issues = "https://github.com/lisit-ioo/ctdose-core/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ctdose_core"]
+
+[tool.hatch.build.targets.sdist]
+include = ["ctdose_core", "tests", "tools", "examples", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "fixture_data: needs the bundled DOSE_TARO DICOM fixture",
+  "network: needs network access to TCIA",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]

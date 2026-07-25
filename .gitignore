@@ -1,0 +1,43 @@
+# --- data hygiene: never publish these -------------------------------------------
+# The MATLAB reference implementation, its runtime and any real patient imaging stay
+# outside this repository. See README, "Provenance of the coefficient tables".
+*.m
+*.fig
+*.exe
+*.mp4
+MATLAB_Runtime_*
+MATLAB_Runtime_*.zip
+
+# Patient / clinical imaging. The only DICOM that belongs here is the scrubbed
+# dummy-patient fixture under data/DOSE_TARO/.
+*.DCM
+*.ima
+*.IMA
+*.nii
+*.nii.gz
+!data/DOSE_TARO/*.dcm
+
+# Segmentation output and downloaded archives
+_ctdose_segmentation/
+*.zip
+tcia_downloads/
+
+# --- python -----------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- editors / os ------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

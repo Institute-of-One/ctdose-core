@@ -1,0 +1,154 @@
+{
+  "provenance": {
+    "name": "Japan DRLs 2015",
+    "long_name": "National Diagnostic Reference Levels Established in 2015 (J-RIME)",
+    "source_files": [
+      "the published J-RIME 2015 adult table",
+      "the published J-RIME 2015 paediatric table"
+    ],
+    "extracted_by": "tools/extract_drl_tables.py",
+    "units": {
+      "ctdivol_mgy": "mGy",
+      "dlp_mgycm": "mGy*cm"
+    },
+    "note": "Adult brain DRLs refer to the 16 cm head CTDI phantom; body examinations refer to the 32 cm body phantom. Paediatric DRLs refer to the 16 cm phantom."
+  },
+  "adult": [
+    {
+      "examination": "Routine brain",
+      "key": "routine_brain",
+      "ctdivol_mgy": 85.0,
+      "dlp_mgycm": 1350.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Routine chest",
+      "key": "routine_chest",
+      "ctdivol_mgy": 15.0,
+      "dlp_mgycm": 550.0,
+      "phantom_cm": 32
+    },
+    {
+      "examination": "Chest to pelvis",
+      "key": "chest_to_pelvis",
+      "ctdivol_mgy": 18.0,
+      "dlp_mgycm": 1300.0,
+      "phantom_cm": 32
+    },
+    {
+      "examination": "Abdomen to pelvis CT",
+      "key": "abdomen_to_pelvis",
+      "ctdivol_mgy": 20.0,
+      "dlp_mgycm": 1000.0,
+      "phantom_cm": 32
+    },
+    {
+      "examination": "Liver, multi-phase",
+      "key": "liver_multiphase",
+      "ctdivol_mgy": 15.0,
+      "dlp_mgycm": 1800.0,
+      "phantom_cm": 32
+    },
+    {
+      "examination": "Coronary CTA",
+      "key": "coronary_cta",
+      "ctdivol_mgy": 90.0,
+      "dlp_mgycm": 1400.0,
+      "phantom_cm": 32
+    }
+  ],
+  "pediatric": [
+    {
+      "examination": "Head",
+      "key": "head",
+      "age_band": "<1 year",
+      "age_min_years": 0.0,
+      "age_max_years": 1.0,
+      "ctdivol_mgy": 38.0,
+      "dlp_mgycm": 500.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Head",
+      "key": "head",
+      "age_band": "1-5 years",
+      "age_min_years": 1.0,
+      "age_max_years": 6.0,
+      "ctdivol_mgy": 47.0,
+      "dlp_mgycm": 660.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Head",
+      "key": "head",
+      "age_band": "6-10 years",
+      "age_min_years": 6.0,
+      "age_max_years": 11.0,
+      "ctdivol_mgy": 60.0,
+      "dlp_mgycm": 850.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Chest",
+      "key": "chest",
+      "age_band": "<1 year",
+      "age_min_years": 0.0,
+      "age_max_years": 1.0,
+      "ctdivol_mgy": 11.0,
+      "dlp_mgycm": 210.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Chest",
+      "key": "chest",
+      "age_band": "1-5 years",
+      "age_min_years": 1.0,
+      "age_max_years": 6.0,
+      "ctdivol_mgy": 14.0,
+      "dlp_mgycm": 300.0,
+      "phantom_cm": 16,
+      "source_value_ctdivol_mgy": 141.0,
+      "data_quality_note": "MATLAB source literal is 141; corrected to 14 (single-digit insertion). Verify against the J-RIME Japan DRLs 2015 publication before citing."
+    },
+    {
+      "examination": "Chest",
+      "key": "chest",
+      "age_band": "6-10 years",
+      "age_min_years": 6.0,
+      "age_max_years": 11.0,
+      "ctdivol_mgy": 15.0,
+      "dlp_mgycm": 410.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Abdomen",
+      "key": "abdomen",
+      "age_band": "<1 year",
+      "age_min_years": 0.0,
+      "age_max_years": 1.0,
+      "ctdivol_mgy": 11.0,
+      "dlp_mgycm": 220.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Abdomen",
+      "key": "abdomen",
+      "age_band": "1-5 years",
+      "age_min_years": 1.0,
+      "age_max_years": 6.0,
+      "ctdivol_mgy": 16.0,
+      "dlp_mgycm": 400.0,
+      "phantom_cm": 16
+    },
+    {
+      "examination": "Abdomen",
+      "key": "abdomen",
+      "age_band": "6-10 years",
+      "age_min_years": 6.0,
+      "age_max_years": 11.0,
+      "ctdivol_mgy": 17.0,
+      "dlp_mgycm": 530.0,
+      "phantom_cm": 16
+    }
+  ]
+}
