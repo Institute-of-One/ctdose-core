@@ -22,11 +22,31 @@ _MANUFACTURER_PREFIXES = {
     "ge medical systems": "GE",
     "gems": "GE",
     "toshiba": "Canon/Toshiba",
+    "toshiba medical systems": "Canon/Toshiba",
     "canon medical systems": "Canon/Toshiba",
     "siemens": "Siemens",
     "siemens healthineers": "Siemens",
     "philips": "Philips",
+    "philips medical systems": "Philips",
 }
+
+#: Which vendor each coefficient-table model name belongs to, keyed by name prefix.
+#: Used to forbid cross-vendor matches outright: a Philips scanner must never be costed
+#: against a GE coefficient row, however many tokens the two names happen to share
+#: (``Mx8000 IDT 16`` and ``GE LightSpeed 16`` share "16").
+_TABLE_MODEL_VENDORS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("GE",), "GE"),
+    (("Aquilion", "Alexion"), "Canon/Toshiba"),
+    (("Definition", "Sensation", "Perspective", "Volume Zoom"), "Siemens"),
+    (("Brilliance", "Ingenuity"), "Philips"),
+)
+
+
+def table_model_vendor(table_model: str) -> str:
+    for prefixes, vendor in _TABLE_MODEL_VENDORS:
+        if table_model.startswith(prefixes):
+            return vendor
+    return ""
 
 
 def _normalise(text: str) -> str:
@@ -58,8 +78,10 @@ def _bowtie_of(table_model: str) -> str | None:
 def match_models(model_name: str, manufacturer: str = "") -> list[ModelMatch]:
     """Rank coefficient-table model names against a DICOM model name.
 
-    Scoring is token overlap (Jaccard) with a small bonus when the manufacturer
-    agrees. Returns every candidate that shares at least one token, best first.
+    Scoring is token overlap (Jaccard), with a small bonus when the manufacturer agrees.
+    When the manufacturer is recognised, rows belonging to a *different* vendor are
+    excluded outright rather than merely scored down. Returns every remaining candidate
+    that shares at least one token, best first.
     """
     want = _tokens(model_name)
     if not want:
@@ -67,14 +89,15 @@ def match_models(model_name: str, manufacturer: str = "") -> list[ModelMatch]:
     vendor = _MANUFACTURER_PREFIXES.get(_normalise(manufacturer), "")
     out: list[ModelMatch] = []
     for table_model in scanner_models():
+        row_vendor = table_model_vendor(table_model)
+        if vendor and row_vendor and row_vendor != vendor:
+            continue
         have = _tokens(table_model)
         overlap = want & have
         if not overlap:
             continue
         score = len(overlap) / len(want | have)
-        if vendor == "GE" and table_model.startswith("GE") or vendor == "Canon/Toshiba" and table_model.startswith(("Aquilion", "Alexion")) or vendor == "Siemens" and table_model.startswith(
-            ("Definition", "Sensation", "Perspective", "Volume Zoom")
-        ) or vendor == "Philips" and table_model.startswith(("Brilliance", "Ingenuity")):
+        if vendor and row_vendor == vendor:
             score += 0.05
         out.append(ModelMatch(table_model, score, _bowtie_of(table_model)))
     out.sort(key=lambda m: (-m.score, m.table_model))
@@ -93,12 +116,24 @@ class AmbiguousScannerError(LookupError):
         )
 
 
+#: Minimum token-overlap score for a match to be accepted.
+#:
+#: Calibrated against the 40 distinct DICOM model names found in a stratified sample of
+#: public CT (see ``results/survey.csv``): every correct match there scores >= 0.45
+#: (``Sensation 64`` -> ``Sensation 40/64``, 0.72; ``Aquilion PRIME`` ->
+#: ``Aquilion Prime``, 0.72), while every spurious one scores <= 0.38
+#: (``Aquilion`` -> ``Aquilion Prime``, 0.38, wrong family; ``SOMATOM Definition Flash``
+#: -> ``Definition Edge``, 0.30, a model the table does not contain). Reporting a model
+#: as unknown is preferable to costing it against the wrong coefficient row.
+MIN_MATCH_SCORE = 0.45
+
+
 def resolve_model(
     model_name: str,
     manufacturer: str = "",
     *,
     bowtie: str | None = None,
-    min_score: float = 0.3,
+    min_score: float = MIN_MATCH_SCORE,
 ) -> tuple[str, list[str]]:
     """Resolve a DICOM model name to exactly one coefficient-table model name.
 

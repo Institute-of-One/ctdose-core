@@ -64,6 +64,58 @@ def test_model_matching_resolves_to_the_vct_family(dose_taro_images):
     assert warnings  # low-confidence match is reported, not hidden
 
 
+def test_model_matching_never_crosses_vendors(dose_taro_images):
+    """A Philips model must not be costed against a GE coefficient row."""
+    from ctdose_core.scanners import table_model_vendor
+
+    for name, manufacturer, vendor in (
+        ("Mx8000 IDT 16", "Philips Medical Systems", "Philips"),
+        ("Biograph64", "SIEMENS", "Siemens"),
+        ("SOMATOM PLUS 4", "SIEMENS", "Siemens"),
+        ("GEMINI TF TOF 16", "Philips", "Philips"),
+    ):
+        for candidate in match_models(name, manufacturer):
+            assert table_model_vendor(candidate.table_model) in ("", vendor), (
+                name,
+                candidate.table_model,
+            )
+
+
+@pytest.mark.parametrize(
+    "name,manufacturer,expected",
+    [
+        ("Sensation 64", "SIEMENS", "Sensation 40/64"),
+        ("Sensation 16", "SIEMENS", "Sensation 10/16"),
+        ("SOMATOM Definition Edge", "SIEMENS", "Definition Edge"),
+        ("Brilliance 64", "Philips", "Brilliance 40/64"),
+        ("LightSpeed QX/i", "GE MEDICAL SYSTEMS", "GE LightSpeed QX/i"),
+        ("HiSpeed NX/i", "GE MEDICAL SYSTEMS", "GE HiSpeed NX/i"),
+    ],
+)
+def test_real_archive_model_names_resolve_correctly(name, manufacturer, expected):
+    """Model names taken verbatim from the public-archive survey."""
+    assert resolve_model(name, manufacturer)[0] == expected
+
+
+@pytest.mark.parametrize(
+    "name,manufacturer",
+    [
+        # A whole family name that does not identify a coefficient row.
+        ("Aquilion", "TOSHIBA"),
+        # Models the table does not contain at all.
+        ("SOMATOM Definition Flash", "SIEMENS"),
+        ("iCT 256", "Philips"),
+        ("Brilliance Big Bore", "Philips"),
+        ("Discovery CT750 HD", "GE MEDICAL SYSTEMS"),
+        ("Mx8000 IDT 16", "Philips Medical Systems"),
+    ],
+)
+def test_weak_matches_are_reported_as_unknown_rather_than_guessed(name, manufacturer):
+    """Costing a scanner against the wrong coefficient row is worse than saying so."""
+    with pytest.raises(LookupError):
+        resolve_model(name, manufacturer)
+
+
 def test_water_equivalent_diameter_is_physiologically_plausible(dose_taro_images):
     """A 41 kg, 1.46 m adult chest-pelvis scan: D_w should sit in the small-adult range."""
     series = load_series(dose_taro_images)

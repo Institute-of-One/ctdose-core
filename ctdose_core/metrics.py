@@ -13,6 +13,7 @@ Which route was taken is always visible in the returned :class:`Quantity`.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -110,21 +111,63 @@ def estimate_ctdivol(acq: Acquisition, coef: ScannerCoefficients) -> Quantity:
     )
 
 
+#: Where a recorded dose value may come from, most authoritative first. The RDSR is the
+#: scanner's own dose record for the irradiation event and outranks the image header;
+#: the image header outranks free-text dose comments; a physics reconstruction is used
+#: only when none of them is available.
+SOURCE_PRIORITY: tuple[Source, ...] = (
+    Source.RDSR,
+    Source.DICOM_TAG,
+    Source.DICOM_TEXT,
+    Source.USER,
+    Source.PHYSICS_FALLBACK,
+)
+
+
+def most_authoritative(candidates: Iterable[Quantity]) -> Quantity | None:
+    """Pick the recorded value with the highest-authority source.
+
+    Args:
+        candidates: recorded values for the same quantity from different origins.
+    """
+    ranked = sorted(
+        (q for q in candidates if q is not None),
+        key=lambda q: SOURCE_PRIORITY.index(q.source)
+        if q.source in SOURCE_PRIORITY
+        else len(SOURCE_PRIORITY),
+    )
+    return ranked[0] if ranked else None
+
+
 def ctdivol(
     acq: Acquisition,
     coef: ScannerCoefficients,
     *,
-    recorded_mgy: float | None = None,
+    recorded_mgy: float | Quantity | None = None,
+    recorded_source: Source = Source.DICOM_TAG,
     prefer_recorded: bool = True,
 ) -> Quantity:
-    """CTDIvol, preferring the recorded value and falling back to physics."""
+    """CTDIvol, preferring the recorded value and falling back to physics.
+
+    Args:
+        recorded_mgy: a recorded CTDIvol, either as a bare number or as a
+            :class:`~ctdose_core.provenance.Quantity` that already carries its origin.
+        recorded_source: origin to record when ``recorded_mgy`` is a bare number.
+    """
     if prefer_recorded and recorded_mgy:
+        if isinstance(recorded_mgy, Quantity):
+            return recorded_mgy
+        source_labels = {
+            Source.RDSR: ("CT Radiation Dose SR, Mean CTDIvol", "DCM 113830"),
+            Source.DICOM_TAG: ("CTDI Volume (0018,9345)", "(0018,9345)"),
+        }
+        formula, tag = source_labels.get(recorded_source, ("recorded CTDIvol", ""))
         return Quantity(
             value=float(recorded_mgy),
             unit="mGy",
-            source=Source.DICOM_TAG,
-            formula="CTDI Volume (0018,9345)",
-            inputs={"tag": "(0018,9345)"},
+            source=recorded_source,
+            formula=formula,
+            inputs={"tag": tag} if tag else {},
         )
     if coef.nctdi_w is None:
         raise ValueError("no nCTDIw coefficient for this scanner/region/size combination")
@@ -172,17 +215,25 @@ def dlp(
     coef: ScannerCoefficients,
     ctdivol_mgy: Quantity | float,
     *,
-    recorded_mgycm: float | None = None,
+    recorded_mgycm: float | Quantity | None = None,
+    recorded_source: Source = Source.DICOM_TEXT,
     prefer_recorded: bool = True,
 ) -> Quantity:
     """DLP, preferring a recorded value and falling back to ``CTDIvol x length``."""
     if prefer_recorded and recorded_mgycm:
+        if isinstance(recorded_mgycm, Quantity):
+            return recorded_mgycm
+        source_labels = {
+            Source.RDSR: ("CT Radiation Dose SR, DLP", "DCM 113838"),
+            Source.DICOM_TEXT: ("recorded dose-length product", "(0040,0310)"),
+        }
+        formula, tag = source_labels.get(recorded_source, ("recorded DLP", ""))
         return Quantity(
             value=float(recorded_mgycm),
             unit="mGy*cm",
-            source=Source.DICOM_TEXT,
-            formula="recorded dose-length product",
-            inputs={"tag": "(0040,0310)"},
+            source=recorded_source,
+            formula=formula,
+            inputs={"tag": tag} if tag else {},
         )
     return estimate_dlp(acq, coef, ctdivol_mgy)
 
@@ -214,8 +265,8 @@ def dose_metrics(
     acq: Acquisition,
     coef: ScannerCoefficients,
     *,
-    recorded_ctdivol_mgy: float | None = None,
-    recorded_dlp_mgycm: float | None = None,
+    recorded_ctdivol_mgy: float | Quantity | None = None,
+    recorded_dlp_mgycm: float | Quantity | None = None,
     prefer_recorded: bool = True,
 ) -> dict[str, Quantity]:
     """CTDIvol, DLP and DLP-in-air in one call."""
@@ -225,6 +276,24 @@ def dose_metrics(
     if coef.nctdi_air is not None:
         out["dlp_air"] = dlp_in_air(acq, coef)
     return out
+
+
+def agreement(a: Quantity, b: Quantity) -> dict[str, Any]:
+    """Compare two independent records of the same quantity.
+
+    Used when an RDSR and the image header both carry a dose index: rather than
+    discarding the lower-authority one, both are kept and their difference reported.
+    A disagreement usually means the SR event was matched to the wrong series.
+    """
+    va, vb = float(a), float(b)
+    denominator = abs(va) if va else None
+    return {
+        "a": {"value": va, "source": a.source.value, "unit": a.unit},
+        "b": {"value": vb, "source": b.source.value, "unit": b.unit},
+        "absolute_difference": vb - va,
+        "relative_difference": (vb - va) / denominator if denominator else None,
+        "percent_difference": 100.0 * (vb - va) / denominator if denominator else None,
+    }
 
 
 def fallback_error(recorded: float, estimated: float) -> dict[str, Any]:

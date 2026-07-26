@@ -15,6 +15,7 @@ import numpy as np
 from . import alert as alert_mod
 from . import drl as drl_mod
 from . import metrics as metrics_mod
+from . import rdsr as rdsr_mod
 from . import segmentation as seg
 from . import ssde as ssde_mod
 from .effdose import effective_dose
@@ -68,6 +69,13 @@ class DoseReport:
     drl_comparisons: list[drl_mod.DRLComparison] = field(default_factory=list)
     alerts: list[alert_mod.Alert] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    #: The dose SR used, the event it was matched to, and how confident that match is.
+    rdsr: rdsr_mod.RdsrReport | None = None
+    rdsr_match: rdsr_mod.AcquisitionMatch | None = None
+    #: Every recorded value found, whichever source won. Keyed by quantity name.
+    recorded_candidates: dict[str, list[Quantity]] = field(default_factory=dict)
+    #: RDSR-vs-image-header comparisons for quantities recorded in both places.
+    source_agreement: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def ctdivol(self) -> Quantity:
@@ -114,8 +122,176 @@ class DoseReport:
             "drl": [c.to_dict() for c in self.drl_comparisons],
             "alerts": [a.to_dict() for a in self.alerts],
             "alert_summary": alert_mod.summarise(self.alerts),
+            "rdsr": self.rdsr.to_dict() if self.rdsr else None,
+            "rdsr_match": self.rdsr_match.to_dict() if self.rdsr_match else None,
+            "recorded_candidates": {
+                name: [q.to_dict() for q in qs] for name, qs in self.recorded_candidates.items()
+            },
+            "source_agreement": self.source_agreement,
             "warnings": list(self.warnings),
         }
+
+
+@dataclass
+class RecordedDose:
+    """Every recorded CTDIvol/DLP found for a series, and which one wins."""
+
+    ctdivol_candidates: list[Quantity] = field(default_factory=list)
+    dlp_candidates: list[Quantity] = field(default_factory=list)
+    report: rdsr_mod.RdsrReport | None = None
+    match: rdsr_mod.AcquisitionMatch | None = None
+    phantom_cm: int | None = None
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def ctdivol(self) -> Quantity | None:
+        return metrics_mod.most_authoritative(self.ctdivol_candidates)
+
+    @property
+    def dlp(self) -> Quantity | None:
+        return metrics_mod.most_authoritative(self.dlp_candidates)
+
+    def agreement(self) -> dict[str, dict[str, Any]]:
+        """Pairwise comparison whenever a quantity was recorded in more than one place."""
+        out: dict[str, dict[str, Any]] = {}
+        for name, candidates in (("ctdivol", self.ctdivol_candidates), ("dlp", self.dlp_candidates)):
+            if len(candidates) < 2:
+                continue
+            winner = metrics_mod.most_authoritative(candidates)
+            others = [q for q in candidates if q is not winner]
+            out[name] = metrics_mod.agreement(winner, others[0])
+            if len(others) > 1:
+                out[name]["additional"] = [
+                    metrics_mod.agreement(winner, q) for q in others[1:]
+                ]
+        return out
+
+
+#: Relative disagreement between an RDSR and an image-header dose value above which the
+#: event match is treated as suspect rather than as a rounding difference.
+SOURCE_DISAGREEMENT_TOLERANCE = 0.02
+
+
+def collect_recorded_dose(
+    series: ScanSeries,
+    *,
+    use_rdsr: bool = True,
+    rdsr_path: Path | str | None = None,
+) -> RecordedDose:
+    """Gather every recorded CTDIvol/DLP for a series, from the SR and the image header.
+
+    Both origins are kept. The RDSR outranks the image header (it is the scanner's own
+    per-event dose record, written for exactly this purpose), but the header value is
+    not discarded: the two are compared, and a disagreement is reported because it
+    usually means the SR event was matched to the wrong series.
+
+    Args:
+        use_rdsr: search for a CT Radiation Dose SR. Set False to force the image-header
+            and physics routes only.
+        rdsr_path: an explicit SR file or directory, bypassing the search.
+    """
+    out = RecordedDose()
+
+    if series.ctdivol_tag and series.ctdivol_tag.value:
+        out.ctdivol_candidates.append(
+            Quantity(
+                value=float(series.ctdivol_tag.value),
+                unit="mGy",
+                source=Source.DICOM_TAG,
+                formula="CTDI Volume (0018,9345)",
+                inputs={"tag": series.ctdivol_tag.tag},
+            )
+        )
+    if series.dlp_tag and series.dlp_tag.value:
+        out.dlp_candidates.append(
+            Quantity(
+                value=float(series.dlp_tag.value),
+                unit="mGy*cm",
+                source=Source.DICOM_TEXT,
+                formula="recorded dose-length product",
+                inputs={"tag": series.dlp_tag.tag, "text": series.dlp_tag.note},
+            )
+        )
+
+    if not use_rdsr:
+        return out
+
+    reports: list[rdsr_mod.RdsrReport] = []
+    if rdsr_path is not None:
+        p = Path(rdsr_path)
+        if p.is_file():
+            report = rdsr_mod.read_rdsr(p)
+            if report is None:
+                out.warnings.append(f"{p} is not a CT Radiation Dose SR")
+            else:
+                reports = [report]
+        else:
+            reports = rdsr_mod.find_rdsr(p)
+    elif series.source_root is not None:
+        reports = rdsr_mod.find_rdsr(
+            series.source_root, study_instance_uid=series.study_instance_uid or None
+        )
+    if not reports:
+        return out
+
+    if len(reports) > 1:
+        out.warnings.append(
+            f"{len(reports)} CT Radiation Dose SR objects found for this study; "
+            f"using {reports[0].path.name if reports[0].path else 'the first'}"
+        )
+    out.report = reports[0]
+    out.match = rdsr_mod.match_acquisition(
+        out.report,
+        protocol_name=series.protocol_name,
+        series_description=series.series_description,
+        scanning_length_mm=series.scan_range_mm or None,
+    )
+    out.warnings.extend(out.match.notes)
+
+    acq = out.match.acquisition
+    if acq is None:
+        out.warnings.append(
+            "a dose SR was found but no irradiation event could be attributed to this "
+            "series; recorded values from it are not used"
+        )
+        return out
+
+    out.phantom_cm = rdsr_mod.phantom_cm(acq.phantom_type)
+    if acq.ctdivol:
+        out.ctdivol_candidates.append(
+            Quantity(
+                value=float(acq.ctdivol),
+                unit="mGy",
+                source=Source.RDSR,
+                formula="CT Radiation Dose SR, Mean CTDIvol",
+                inputs={
+                    "code": "DCM 113830",
+                    "protocol": acq.protocol,
+                    "phantom": acq.phantom_type,
+                    "phantom_cm": out.phantom_cm,
+                    "match_method": out.match.method,
+                    "match_confidence": out.match.confidence,
+                },
+                reference="DICOM PS3.16 TID 10013",
+            )
+        )
+    if acq.dlp:
+        out.dlp_candidates.append(
+            Quantity(
+                value=float(acq.dlp),
+                unit="mGy*cm",
+                source=Source.RDSR,
+                formula="CT Radiation Dose SR, DLP",
+                inputs={
+                    "code": "DCM 113838",
+                    "protocol": acq.protocol,
+                    "match_method": out.match.method,
+                    "match_confidence": out.match.confidence,
+                },
+                reference="DICOM PS3.16 TID 10013",
+            )
+        )
+    return out
 
 
 def measure_patient_size(
@@ -188,6 +364,8 @@ def analyze_series(
     measure_size: bool = True,
     prefer_recorded: bool = True,
     series_uid: str | None = None,
+    use_rdsr: bool = True,
+    rdsr_path: Path | str | None = None,
 ) -> DoseReport:
     """Run the full dose analysis on a CT series.
 
@@ -207,6 +385,9 @@ def analyze_series(
         prefer_recorded: use recorded CTDIvol/DLP when present. Set False to force the
             physics fallback -- which is how the fallback is validated against series
             that do carry the tags.
+        use_rdsr: look for a CT Radiation Dose SR beside the series and prefer its
+            recorded dose over the image header.
+        rdsr_path: an explicit SR file or directory, bypassing the search.
     """
     series = path if isinstance(path, ScanSeries) else load_series(path, series_uid=series_uid)
     warnings = list(series.warnings)
@@ -229,15 +410,25 @@ def analyze_series(
     factors = lookup_conversion(region, size_label, series.patient_sex)
     acq = metrics_mod.acquisition_from_series(series)
 
-    recorded_ctdivol = series.ctdivol_tag.value if series.ctdivol_tag else None
-    recorded_dlp = series.dlp_tag.value if series.dlp_tag else None
+    recorded = collect_recorded_dose(series, use_rdsr=use_rdsr, rdsr_path=rdsr_path)
+    warnings.extend(recorded.warnings)
     quantities = metrics_mod.dose_metrics(
         acq,
         coef,
-        recorded_ctdivol_mgy=recorded_ctdivol,
-        recorded_dlp_mgycm=recorded_dlp,
+        recorded_ctdivol_mgy=recorded.ctdivol,
+        recorded_dlp_mgycm=recorded.dlp,
         prefer_recorded=prefer_recorded,
     )
+
+    source_agreement = recorded.agreement()
+    for name, cmp in source_agreement.items():
+        pct = cmp.get("percent_difference")
+        if pct is not None and abs(pct) > 100 * SOURCE_DISAGREEMENT_TOLERANCE:
+            warnings.append(
+                f"{name}: the {cmp['a']['source']} value {cmp['a']['value']:.4g} and the "
+                f"{cmp['b']['source']} value {cmp['b']['value']:.4g} differ by "
+                f"{pct:+.1f}%; the dose SR event may not correspond to this series"
+            )
 
     diameter: Quantity | None = None
     size_detail: dict[str, Any] = {}
@@ -248,7 +439,12 @@ def analyze_series(
 
     ssde_result = None
     if diameter is not None:
-        phantom = ssde_mod.phantom_for(region, float(diameter))
+        # A CTDIvol from an RDSR states its own reference phantom; trust that over the
+        # region-based guess, because using the wrong phantom mis-scales the SSDE.
+        if recorded.phantom_cm is not None and quantities["ctdivol"].source is Source.RDSR:
+            phantom = recorded.phantom_cm
+        else:
+            phantom = ssde_mod.phantom_for(region, float(diameter))
         ssde_result = ssde_mod.ssde(
             quantities["ctdivol"],
             diameter,
@@ -298,6 +494,13 @@ def analyze_series(
         drl_comparisons=comparisons,
         alerts=alerts,
         warnings=warnings,
+        rdsr=recorded.report,
+        rdsr_match=recorded.match,
+        recorded_candidates={
+            "ctdivol": recorded.ctdivol_candidates,
+            "dlp": recorded.dlp_candidates,
+        },
+        source_agreement=source_agreement,
     )
     if size_detail:
         report.quantities.setdefault(

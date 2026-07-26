@@ -28,10 +28,11 @@ jobs:
       - name: Test
         run: pytest --cov=ctdose_core --cov-report=term-missing
 
-  extraction-is-reproducible:
-    # The coefficient tables are generated from a MATLAB reference that is not part of
-    # this repository. This job checks the committed JSON is self-consistent, which is
-    # what a downstream user can verify without that source.
+  shipped-data-is-self-consistent:
+    # Two things a downstream user can verify without any input this repository does not
+    # carry: that the coefficient tables extracted from the MATLAB reference are
+    # internally consistent, and that the committed results/ agree with the per-row data
+    # they summarise. The latter is what catches a stale or hand-edited results file.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,4 +42,8 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
-      - run: pytest tests/test_tables.py tests/test_matlab_parity.py -q
+      - run: |
+          pytest -q \
+            tests/test_tables.py \
+            tests/test_matlab_parity.py \
+            tests/test_results_integrity.py

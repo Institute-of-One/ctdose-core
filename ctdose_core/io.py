@@ -241,6 +241,10 @@ class ScanSeries:
     station_name: str = ""
     protocol_name: str = ""
     series_description: str = ""
+    study_instance_uid: str = ""
+    series_instance_uid: str = ""
+    #: Directory the series was loaded from; where a sibling dose SR is looked for.
+    source_root: Path | None = None
 
     kvp: float | None = None
     tube_current_ma: np.ndarray = field(default_factory=lambda: np.array([], dtype=float))
@@ -339,6 +343,9 @@ class ScanSeries:
             "manufacturer": self.manufacturer,
             "model_name": self.model_name,
             "protocol_name": self.protocol_name,
+            "series_description": self.series_description,
+            "study_instance_uid": self.study_instance_uid,
+            "series_instance_uid": self.series_instance_uid,
             "kvp": self.kvp,
             "mean_tube_current_ma": self.mean_tube_current_ma if self.tube_current_ma.size else None,
             "rotation_time_s": p(self.rotation_time_s),
@@ -489,6 +496,9 @@ def load_series(
         station_name=str(_get(first, (0x0008, 0x1010)) or "").strip(),
         protocol_name=str(_get(first, (0x0018, 0x1030)) or "").strip(),
         series_description=str(_get(first, (0x0008, 0x103E)) or "").strip(),
+        study_instance_uid=str(_get(first, (0x0020, 0x000D)) or "").strip(),
+        series_instance_uid=str(_get(first, (0x0020, 0x000E)) or "").strip(),
+        source_root=Path(path),
         kvp=_as_float(_get(first, T_KVP)),
         tube_current_ma=np.asarray(currents, dtype=float),
         rotation_time_s=rot,

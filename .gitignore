@@ -17,10 +17,13 @@ MATLAB_Runtime_*.zip
 *.nii.gz
 !data/DOSE_TARO/*.dcm
 
-# Segmentation output and downloaded archives
+# Segmentation output and downloaded archives. Survey results under results/ ARE
+# committed -- they are derived numbers the manuscript cites; the imaging they were
+# derived from stays in the archive.
 _ctdose_segmentation/
 *.zip
 tcia_downloads/
+.tcia_work/
 
 # --- python -----------------------------------------------------------------------
 __pycache__/

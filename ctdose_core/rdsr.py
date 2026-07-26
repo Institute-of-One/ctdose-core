@@ -58,6 +58,22 @@ C_MODULATION_TYPE = "113842"       # "X-Ray Modulation Type" (text)
 C_XRAY_TUBE_CURRENT_ALT = "113505"
 
 
+def phantom_cm(phantom_type: str) -> int | None:
+    """Map the RDSR CTDIw phantom code meaning to its diameter in cm.
+
+    The SR records the phantom as a coded concept -- ``IEC Head Dosimetry Phantom``
+    (16 cm) or ``IEC Body Dosimetry Phantom`` (32 cm). Which one a CTDIvol refers to
+    decides which TG-204 conversion table applies, so it must never be guessed from
+    the body region alone.
+    """
+    text = str(phantom_type).lower()
+    if "head" in text:
+        return 16
+    if "body" in text:
+        return 32
+    return None
+
+
 def _concept(item: Dataset) -> tuple[str, str, str]:
     """Return (scheme, code, meaning) of a content item's ConceptNameCodeSequence."""
     seq = getattr(item, "ConceptNameCodeSequence", None)
@@ -140,7 +156,22 @@ class RdsrReport:
     station_name: str = ""
     study_date: str = ""
     total_dlp: Quantity | None = None
+    #: Reference phantom the accumulated DLP refers to. Vendors may attach a phantom
+    #: code to the accumulated total as well as to each event.
+    total_dlp_phantom_type: str = ""
     acquisitions: list[RdsrAcquisition] = field(default_factory=list)
+    path: Path | None = None
+    study_instance_uid: str = ""
+
+    @property
+    def summed_event_dlp(self) -> float | None:
+        """Sum of the per-event DLPs, for cross-checking against the recorded total."""
+        values = [float(a.dlp) for a in self.acquisitions if a.dlp]
+        return sum(values) if values else None
+
+    @property
+    def phantom_types(self) -> tuple[str, ...]:
+        return tuple(sorted({a.phantom_type for a in self.acquisitions if a.phantom_type}))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -148,7 +179,12 @@ class RdsrReport:
             "model_name": self.model_name,
             "station_name": self.station_name,
             "study_date": self.study_date,
+            "study_instance_uid": self.study_instance_uid,
+            "path": str(self.path) if self.path else None,
             "total_dlp": self.total_dlp.to_dict() if self.total_dlp else None,
+            "total_dlp_phantom_type": self.total_dlp_phantom_type,
+            "summed_event_dlp": self.summed_event_dlp,
+            "phantom_types": list(self.phantom_types),
             "acquisitions": [a.to_dict() for a in self.acquisitions],
         }
 
@@ -267,6 +303,12 @@ def parse_rdsr(ds: Dataset) -> RdsrReport:
                         value=v, unit=unit or "mGycm", source=Source.RDSR,
                         reference="DCM 113813 CT Dose Length Product Total",
                     )
+                # The phantom code is a child of the total-DLP item, not a sibling.
+                for child in getattr(dlp_item, "ContentSequence", []) or []:
+                    scheme_c, code_c, _ = _concept(child)
+                    if scheme_c == DCM and code_c == C_CTDIW_PHANTOM:
+                        report.total_dlp_phantom_type = _code_meaning(child)
+                        break
     return report
 
 
@@ -275,4 +317,153 @@ def read_rdsr(path: str | Path) -> RdsrReport | None:
     ds = pydicom.dcmread(str(path), force=True)
     if not is_ct_rdsr(ds):
         return None
-    return parse_rdsr(ds)
+    report = parse_rdsr(ds)
+    report.path = Path(path)
+    report.study_instance_uid = str(getattr(ds, "StudyInstanceUID", "")).strip()
+    return report
+
+
+# --- locating and matching an RDSR for a given image series ---------------------------
+
+
+def _has_dicm_preamble(path: Path) -> bool:
+    """Cheap gate so a directory scan does not force-parse READMEs and archives."""
+    try:
+        with path.open("rb") as fh:
+            return fh.read(132)[128:132] == b"DICM"
+    except OSError:
+        return False
+
+
+def find_rdsr(
+    root: str | Path,
+    *,
+    study_instance_uid: str | None = None,
+    search_parent: bool = True,
+) -> list[RdsrReport]:
+    """Find CT Radiation Dose SR objects for a series.
+
+    Vendors file the SR either inside the series directory or one level up with the rest
+    of the study. The series directory is searched first; the parent is searched only if
+    that found nothing, so a directory of unrelated studies is not pulled in
+    gratuitously. Pass ``search_parent=False`` to look only below ``root``.
+
+    Args:
+        study_instance_uid: keep only reports from this study. Strongly recommended --
+            without it a directory holding several studies would cross-contaminate.
+    """
+    root = Path(root)
+    base = root if root.is_dir() else root.parent
+
+    def scan(directory: Path) -> list[RdsrReport]:
+        found: list[RdsrReport] = []
+        for path in sorted(directory.rglob("*")):
+            if not path.is_file() or not _has_dicm_preamble(path):
+                continue
+            try:
+                ds = pydicom.dcmread(str(path), stop_before_pixels=True)
+            except Exception:
+                continue
+            if str(getattr(ds, "Modality", "")).upper() != "SR" or not is_ct_rdsr(ds):
+                continue
+            report = parse_rdsr(ds)
+            report.path = path
+            report.study_instance_uid = str(getattr(ds, "StudyInstanceUID", "")).strip()
+            if study_instance_uid and report.study_instance_uid != study_instance_uid:
+                continue
+            found.append(report)
+        return found
+
+    out = scan(base)
+    if not out and search_parent and base.parent != base:
+        out = scan(base.parent)
+    return out
+
+
+@dataclass
+class AcquisitionMatch:
+    """Which RDSR irradiation event was taken to describe a given image series."""
+
+    acquisition: RdsrAcquisition | None
+    method: str
+    confidence: str  # "exact" | "probable" | "ambiguous" | "none"
+    candidates: int = 0
+    notes: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "matched": self.acquisition is not None,
+            "method": self.method,
+            "confidence": self.confidence,
+            "candidates": self.candidates,
+            "protocol": self.acquisition.protocol if self.acquisition else "",
+            "notes": list(self.notes),
+        }
+
+
+def _norm(text: str) -> str:
+    return "".join(ch for ch in str(text).lower() if ch.isalnum())
+
+
+def match_acquisition(
+    report: RdsrReport,
+    *,
+    protocol_name: str = "",
+    series_description: str = "",
+    scanning_length_mm: float | None = None,
+    length_tolerance_mm: float = 30.0,
+) -> AcquisitionMatch:
+    """Pick the irradiation event that corresponds to one reconstructed series.
+
+    An RDSR describes a whole study: a chest-abdomen-pelvis examination with a
+    localiser and two helical passes has three events, and only one of them produced
+    the series in hand. Matching is attempted on protocol name first, then on scanning
+    length. When neither discriminates, no event is returned rather than an arbitrary
+    one -- picking the wrong event would attach a wrong CTDIvol to the series, which is
+    worse than falling back to the physics estimate.
+    """
+    events = [a for a in report.acquisitions if a.ctdivol or a.dlp]
+    if not events:
+        return AcquisitionMatch(None, "no irradiation event carries a dose value", "none")
+    if len(events) == 1:
+        return AcquisitionMatch(events[0], "single irradiation event in the report", "exact", 1)
+
+    wanted = {_norm(t) for t in (protocol_name, series_description) if str(t).strip()}
+    if wanted:
+        by_protocol = [a for a in events if a.protocol and _norm(a.protocol) in wanted]
+        if len(by_protocol) == 1:
+            return AcquisitionMatch(by_protocol[0], "protocol name", "exact", 1)
+        if len(by_protocol) > 1:
+            events = by_protocol  # narrowed; fall through to the length test
+
+    if scanning_length_mm is not None:
+        near = [
+            a
+            for a in events
+            if a.scanning_length_mm is not None
+            and abs(a.scanning_length_mm - scanning_length_mm) <= length_tolerance_mm
+        ]
+        if len(near) == 1:
+            return AcquisitionMatch(
+                near[0],
+                f"scanning length within {length_tolerance_mm:g} mm",
+                "probable",
+                1,
+                notes=(
+                    "matched on irradiated length, not on protocol name; verify before "
+                    "using this series in a dose survey",
+                ),
+            )
+        if len(near) > 1:
+            events = near
+
+    return AcquisitionMatch(
+        None,
+        "no unambiguous match",
+        "ambiguous",
+        len(events),
+        notes=(
+            f"{len(events)} irradiation events could correspond to this series; the "
+            "recorded dose is not attributed to avoid assigning the wrong event",
+        ),
+    )

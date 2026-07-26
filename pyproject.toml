@@ -30,6 +30,11 @@ dependencies = [
 
 [project.optional-dependencies]
 ai = ["TotalSegmentator>=2.0", "nibabel>=5.0"]
+# The public-archive survey works over the NBIA REST API with the standard library
+# alone. tcia_utils is used automatically when importable, but is not required: its
+# transitive idc-index dependency pins pandas<3 and does not build on every supported
+# Python.
+tcia = ["tcia_utils>=2.0"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4"]
 
 [project.scripts]
@@ -43,7 +48,7 @@ Issues = "https://github.com/lisit-ioo/ctdose-core/issues"
 packages = ["ctdose_core"]
 
 [tool.hatch.build.targets.sdist]
-include = ["ctdose_core", "tests", "tools", "examples", "README.md", "LICENSE"]
+include = ["ctdose_core", "tests", "tools", "examples", "results", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -51,6 +56,7 @@ addopts = "-ra"
 markers = [
   "fixture_data: needs the bundled DOSE_TARO DICOM fixture",
   "network: needs network access to TCIA",
+  "rdsr_samples: needs CTDOSE_RDSR_SAMPLES pointing at third-party CT RDSR objects",
 ]
 
 [tool.ruff]

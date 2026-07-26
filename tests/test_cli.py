@@ -92,3 +92,30 @@ def test_survey_reports_tag_coverage(dose_taro_images, capsys):
     assert payload["coverage"]["n_series"] >= 1
     assert payload["coverage"]["fraction_needing_fallback"] == 1.0
     assert "TCIA Data Usage Policy" in payload["coverage"]["note"]
+
+
+def test_survey_without_a_path_or_tcia_is_rejected(capsys):
+    assert main(["survey"]) == 2
+    assert "--tcia" in capsys.readouterr().out
+
+
+@pytest.mark.fixture_data
+def test_analyze_accepts_the_rdsr_flags(dose_taro_images, capsys):
+    """--no-rdsr must be accepted and must not change a series that has no SR."""
+    code = main(
+        [
+            "analyze",
+            str(dose_taro_images),
+            "--region",
+            "Chest",
+            "--scanner-model",
+            "GE LightSpeed VCT (small BS)",
+            "--no-size",
+            "--no-rdsr",
+            "--json",
+        ]
+    )
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["rdsr"] is None
+    assert payload["quantities"]["ctdivol"]["source"] == "physics_fallback"
