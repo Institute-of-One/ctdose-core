@@ -37,7 +37,14 @@ ai = ["TotalSegmentator>=2.0", "nibabel>=5.0"]
 tcia = ["tcia_utils>=2.0"]
 # Optional inspection GUI (developer/verification front-end; not the product GUI).
 gui = ["streamlit>=1.30", "matplotlib>=3.7"]
-dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4"]
+# reportlab builds the submission PDF and is imported by its tests; pypdf inspects the
+# result; PyYAML reads CITATION.cff. The tests skip cleanly without the last two, but CI
+# installs them so the checks actually run rather than silently passing as skips.
+dev = [
+  "pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4",
+  "tomli>=2.0; python_version < '3.11'",
+  "reportlab>=4.0", "pypdf>=4.0", "PyYAML>=6.0",
+]
 
 [project.scripts]
 ctdose = "ctdose_core.cli:main"

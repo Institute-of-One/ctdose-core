@@ -57,6 +57,10 @@
     "n_fallback_cases": 38,
     "n_distinct_pairs": 35,
     "n_duplicate_pairs": 3,
-    "note": "Public archives re-release the same acquisition under different collection names, and the screening sample is drawn round-robin from collections rather than from independent examinations. The effective sample size is therefore smaller than n in both analyses: the bootstrap interval is narrower than the true interval, and the chi-squared p-value is smaller than the true p-value. Both are reported as lower bounds on the uncertainty."
+    "headline_n": 23,
+    "headline_n_distinct_pairs": 23,
+    "headline_n_duplicate_pairs": 0,
+    "headline_n_collections": 15,
+    "note": "Two distinct dependence concerns, which apply to different analyses. (1) Public archives re-release the same acquisition under different collection names: that affects the 38-case pooled figures, but the headline stratum contains no duplicated pair, so it does not affect the bootstrap interval. (2) Both analyses draw several series from the same collection, and series within a collection share a scanner and an export configuration, so they are not independent observations. The effective sample size is therefore smaller than n, and the interval and the p-value may both be optimistic. We do not claim a direction of bias beyond that: clustering does not make either statistic a strict bound."
   }
 }

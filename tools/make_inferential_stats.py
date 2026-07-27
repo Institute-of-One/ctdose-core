@@ -136,6 +136,20 @@ def main() -> int:
     n_cases = fallback["independence"]["n_cases"]
     n_distinct = fallback["independence"]["n_distinct_recorded_estimated_pairs"]
 
+    # Which of those concerns actually reach the stratum the interval is computed on?
+    # The duplicate re-releases are a property of the 38, and it does not follow that
+    # they are in the 23; saying so without checking would misdescribe the interval.
+    headline_rows = [
+        c
+        for c in cases
+        if c["recorded_ctdivol_mgy"] >= threshold and c["collimation_measured"]
+    ]
+    headline_pairs = {
+        (round(c["recorded_ctdivol_mgy"], 6), round(c["estimated_ctdivol_mgy"], 6))
+        for c in headline_rows
+    }
+    headline_collections = {c["collection"] for c in headline_rows}
+
     payload = {
         "provenance": {
             "generated_by": "tools/make_inferential_stats.py",
@@ -158,14 +172,21 @@ def main() -> int:
             "n_fallback_cases": n_cases,
             "n_distinct_pairs": n_distinct,
             "n_duplicate_pairs": n_cases - n_distinct,
+            "headline_n": len(headline_rows),
+            "headline_n_distinct_pairs": len(headline_pairs),
+            "headline_n_duplicate_pairs": len(headline_rows) - len(headline_pairs),
+            "headline_n_collections": len(headline_collections),
             "note": (
-                "Public archives re-release the same acquisition under different "
-                "collection names, and the screening sample is drawn round-robin from "
-                "collections rather than from independent examinations. The effective "
-                "sample size is therefore smaller than n in both analyses: the bootstrap "
-                "interval is narrower than the true interval, and the chi-squared p-value "
-                "is smaller than the true p-value. Both are reported as lower bounds on "
-                "the uncertainty."
+                "Two distinct dependence concerns, which apply to different analyses. "
+                "(1) Public archives re-release the same acquisition under different "
+                "collection names: that affects the 38-case pooled figures, but the "
+                "headline stratum contains no duplicated pair, so it does not affect the "
+                "bootstrap interval. (2) Both analyses draw several series from the same "
+                "collection, and series within a collection share a scanner and an export "
+                "configuration, so they are not independent observations. The effective "
+                "sample size is therefore smaller than n, and the interval and the "
+                "p-value may both be optimistic. We do not claim a direction of bias "
+                "beyond that: clustering does not make either statistic a strict bound."
             ),
         },
     }
@@ -181,9 +202,15 @@ def main() -> int:
         f"vendor vs CTDIvol presence: chi2({v['dof']}) = {v['chi2']:.1f}, "
         f"p {v['p_value_formatted']}, Cramer's V = {v['cramers_v']:.2f}, n = {v['n']}"
     )
+    cav = payload["independence_caveat"]
     print(
-        f"  (independence not satisfied: {payload['independence_caveat']['n_duplicate_pairs']} "
-        "duplicate pairs among the fallback cases; both figures are lower bounds)"
+        f"  headline stratum: {cav['headline_n']} cases, "
+        f"{cav['headline_n_duplicate_pairs']} duplicated pairs, "
+        f"{cav['headline_n_collections']} collections"
+    )
+    print(
+        f"  ({cav['n_duplicate_pairs']} duplicated pairs among all {cav['n_fallback_cases']} "
+        "cases; clustering by collection affects both analyses)"
     )
     print(f"\nwrote {args.out}")
     return 0

@@ -14,7 +14,11 @@ import re
 from pathlib import Path
 
 import pytest
-import tomllib
+
+try:  # tomllib is standard-library from Python 3.11; fall back on 3.10.
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised only on Python 3.10
+    import tomli as tomllib
 
 from ctdose_core import __version__
 

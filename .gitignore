@@ -55,3 +55,5 @@ paper/jacmp_submission_kit.md
 paper/Scientific_Audit_Report*.md
 docs/HANDOFF_*.md
 docs/NEXT_STEPS_*.md
+docs/CI_*.md
+# Only docs/REPRODUCING_FIGURES.md is published; it is the one a reader needs.

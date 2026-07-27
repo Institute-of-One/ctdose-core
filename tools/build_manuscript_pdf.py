@@ -41,7 +41,166 @@ BOLD_FONT, ITALIC_FONT = "Times-Bold", "Times-Italic"
 MONO_FONT, MONO_SIZE = "Courier", 9.5
 LEADING = 2.0 * BODY_SIZE  # double-spaced
 
+# --- embedded fonts ---------------------------------------------------------------------
+#
+# The base-14 fonts (Times-Roman and friends) are *referenced*, never embedded: a PDF
+# using them relies on the reader having them. Several publishers reject that, and it
+# also means the file renders differently depending on the machine. We therefore embed a
+# real serif face. Times New Roman is preferred because it is what the journal expects;
+# DejaVu Serif is the fallback because it ships with matplotlib, which is already a
+# dependency of the figure pipeline, so the build stays reproducible on any machine.
+
+FONT_CANDIDATES: tuple[tuple[str, dict[str, str]], ...] = (
+    (
+        "TimesNewRoman",
+        {
+            "": "C:/Windows/Fonts/times.ttf",
+            "Bold": "C:/Windows/Fonts/timesbd.ttf",
+            "Italic": "C:/Windows/Fonts/timesi.ttf",
+            "BoldItalic": "C:/Windows/Fonts/timesbi.ttf",
+        },
+    ),
+    (
+        "DejaVuSerif",
+        {
+            "": "{mpl}/DejaVuSerif.ttf",
+            "Bold": "{mpl}/DejaVuSerif-Bold.ttf",
+            "Italic": "{mpl}/DejaVuSerif-Italic.ttf",
+            "BoldItalic": "{mpl}/DejaVuSerif-BoldItalic.ttf",
+        },
+    ),
+)
+
+MONO_CANDIDATES: tuple[tuple[str, str], ...] = (
+    ("DejaVuSansMono", "{mpl}/DejaVuSansMono.ttf"),
+    ("CourierNew", "C:/Windows/Fonts/cour.ttf"),
+)
+
+
+def _mpl_font_dir() -> str:
+    try:
+        import matplotlib
+
+        return str(Path(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf")
+    except Exception:  # pragma: no cover - matplotlib always present with the figures
+        return ""
+
+
+def register_fonts() -> str:
+    """Embed a serif family, returning the name used. Falls back to the base-14 fonts.
+
+    Rebinds the module-level font names so every caller picks up the embedded family
+    without threading a parameter through the whole renderer.
+    """
+    global BODY_FONT, BOLD_FONT, ITALIC_FONT, MONO_FONT
+
+    from reportlab.lib.fonts import addMapping
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    mpl = _mpl_font_dir()
+    for family, faces in FONT_CANDIDATES:
+        paths = {k: Path(v.format(mpl=mpl)) for k, v in faces.items()}
+        if not mpl and any("{mpl}" in v for v in faces.values()):
+            continue
+        if not all(p.is_file() for p in paths.values()):
+            continue
+        try:
+            for suffix, path in paths.items():
+                pdfmetrics.registerFont(TTFont(f"{family}{suffix}", str(path)))
+        except Exception:  # pragma: no cover - a corrupt system font
+            continue
+        addMapping(family, 0, 0, family)
+        addMapping(family, 1, 0, f"{family}Bold")
+        addMapping(family, 0, 1, f"{family}Italic")
+        addMapping(family, 1, 1, f"{family}BoldItalic")
+        BODY_FONT, BOLD_FONT, ITALIC_FONT = family, f"{family}Bold", f"{family}Italic"
+
+        for mono_name, mono_path in MONO_CANDIDATES:
+            p = Path(mono_path.format(mpl=mpl))
+            if p.is_file():
+                try:
+                    pdfmetrics.registerFont(TTFont(mono_name, str(p)))
+                except Exception:  # pragma: no cover
+                    continue
+                MONO_FONT = mono_name
+                break
+        return family
+    return "base-14 (not embedded)"
+
+
+# Registered at import, before the dataclasses below capture the font names as their
+# field defaults. Doing it lazily would leave every default bound to the base-14 names.
+EMBEDDED_FAMILY = register_fonts()
+
 HEADING_SIZES = {1: 15.0, 2: 12.5, 3: 11.5}
+
+
+# --- glyph safety -----------------------------------------------------------------------
+#
+# The base-14 PDF fonts are limited to WinAnsi (cp1252). A character outside it does not
+# fail loudly: ReportLab draws a black square, which is easy to miss in proof and
+# embarrassing in submission. One shipped draft carried nine of them -- every negative
+# percentage -- because a typographic minus sign is not a hyphen.
+#
+# Characters that have a faithful WinAnsi equivalent are substituted here. Anything else
+# must be written as inline math in the source (``$\chi^2$``), which is rasterised with an
+# embedded font; :func:`assert_encodable` fails the build rather than let it through.
+
+SAFE_SUBSTITUTIONS = {
+    "−": "-",   # MINUS SIGN -> hyphen-minus
+    "‐": "-",   # HYPHEN
+    "‑": "-",   # NON-BREAKING HYPHEN
+    " ": " ",   # NO-BREAK SPACE
+    " ": " ",   # THIN SPACE
+    " ": " ",   # NARROW NO-BREAK SPACE
+    "′": "'",   # PRIME
+    "″": '"',   # DOUBLE PRIME
+}
+
+
+def sanitise(text: str) -> str:
+    for bad, good in SAFE_SUBSTITUTIONS.items():
+        text = text.replace(bad, good)
+    return text
+
+
+def unencodable(text: str) -> list[str]:
+    """Characters that would render as a black square, after substitution."""
+    out = []
+    for ch in sanitise(text):
+        try:
+            ch.encode("cp1252")
+        except UnicodeEncodeError:
+            out.append(ch)
+    return out
+
+
+def assert_encodable(markdown: str) -> None:
+    """Refuse to build a PDF containing characters the body font cannot draw.
+
+    Math and code spans are exempt: ``$...$`` is rasterised with mathtext, which embeds
+    its own font, so Greek letters and superscripts belong there rather than in prose.
+    """
+    # Display math first: stripping inline math first leaves the `$$` delimiters behind,
+    # and the odd `$` then pairs across paragraphs and hides real offenders. Inline math
+    # is not allowed to span a blank line, so an unbalanced `$` can only damage one
+    # paragraph rather than the rest of the document.
+    prose = re.sub(r"\$\$.*?\$\$", " ", markdown, flags=re.DOTALL)
+    prose = re.sub(r"\$[^$\n]+?\$", " ", prose)
+    prose = re.sub(r"`[^`\n]+?`", " ", prose)
+    offenders = sorted(set(unencodable(prose)))
+    if offenders:
+        import unicodedata
+
+        detail = ", ".join(
+            f"U+{ord(c):04X} ({unicodedata.name(c, '?')})" for c in offenders
+        )
+        raise SystemExit(
+            "manuscript contains characters the PDF body font cannot render, which would "
+            f"appear as black squares: {detail}.\n"
+            "Write them as inline math -- $\\chi^2$, $\\geq$ -- so they are rasterised "
+            "with an embedded font, or use an ASCII equivalent."
+        )
 
 
 @dataclass
@@ -55,6 +214,9 @@ class Run:
     image_w: float = 0.0
     image_h: float = 0.0
 
+    def __post_init__(self) -> None:
+        self.text = sanitise(self.text)
+
     def width(self) -> float:
         if self.image is not None:
             return self.image_w
@@ -62,8 +224,25 @@ class Run:
 
 
 @dataclass
+class Cell:
+    """One table cell: wrapped lines of styled runs, plus its horizontal alignment."""
+
+    lines: list[list[Run]] = field(default_factory=list)
+    align: str = "left"
+
+
+@dataclass
+class TableRow:
+    """One rendered table row. ``header`` rows are drawn bold with a rule beneath."""
+
+    cells: list[Cell] = field(default_factory=list)
+    header: bool = False
+    height: float = 0.0
+
+
+@dataclass
 class Line:
-    """One rendered line: either styled runs, or an image to place."""
+    """One rendered line: styled runs, an image to place, or a table row."""
 
     runs: list[Run] = field(default_factory=list)
     space_before: float = 0.0
@@ -72,6 +251,11 @@ class Line:
     image_w: float = 0.0
     image_h: float = 0.0
     align: str = "left"
+    row: TableRow | None = None
+    col_x: list[float] = field(default_factory=list)
+    col_w: list[float] = field(default_factory=list)
+    rule_below: bool = False
+    rule_above: bool = False
 
 
 # --- inline markup ---------------------------------------------------------------------------
@@ -155,6 +339,109 @@ def wrap_runs(runs: list[Run], width: float) -> list[list[Run]]:
             lines[-1].append(Run(token, run.font, run.size))
             x += w
     return [ln for ln in lines if ln]
+
+
+# --- tables ---------------------------------------------------------------------------------
+
+TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")
+#: A GitHub-flavoured alignment row: ``| --- | ---: | :---: |``
+TABLE_RULE = re.compile(r"^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
+
+#: Table text is set smaller than the body so a five-column table fits the measure.
+TABLE_SIZE = 9.5
+TABLE_LEADING = 1.35 * TABLE_SIZE
+TABLE_PAD = 4.0
+
+
+def split_row(raw: str) -> list[str]:
+    return [c.strip() for c in raw.strip().strip("|").split("|")]
+
+
+def column_alignments(rule: str, n: int) -> list[str]:
+    """Read ``:---``/``---:``/``:---:`` into left/right/centre, defaulting to left."""
+    out = []
+    for spec in split_row(rule):
+        left, right = spec.startswith(":"), spec.endswith(":")
+        out.append("center" if left and right else "right" if right else "left")
+    while len(out) < n:
+        out.append("left")
+    return out[:n]
+
+
+def measure_columns(rows: list[list[str]], width: float) -> list[float]:
+    """Allocate width by natural content width, shrinking only what overflows.
+
+    A fixed equal split wastes space on ``Manufacturer`` and starves the wide
+    ``Recoverable by either route``; a purely natural split overflows the measure. This
+    gives every column what it needs when the total fits, and scales proportionally when
+    it does not, with a floor so no column collapses to nothing.
+    """
+    n = max(len(r) for r in rows)
+    natural = [0.0] * n
+    for row in rows:
+        for i, cell in enumerate(row):
+            plain = re.sub(r"\*\*|`|\*", "", sanitise(cell))
+            font = BOLD_FONT if row is rows[0] else BODY_FONT
+            natural[i] = max(natural[i], pdfmetrics.stringWidth(plain, font, TABLE_SIZE))
+    pad = 2 * TABLE_PAD
+    total = sum(natural) + n * pad
+    if total <= width:
+        slack = (width - total) / n
+        return [w + pad + slack for w in natural]
+    floor = 0.09 * width
+    scaled = [max(floor, (w + pad) * width / total) for w in natural]
+    over = sum(scaled) - width
+    if over > 0:  # trim the widest columns until it fits
+        order = sorted(range(n), key=lambda i: -scaled[i])
+        for i in order:
+            take = min(over, scaled[i] - floor)
+            scaled[i] -= take
+            over -= take
+            if over <= 1e-6:
+                break
+    return scaled
+
+
+def build_table(
+    raw_rows: list[str], runs_for, width: float
+) -> list[Line]:
+    """Turn a markdown pipe table into laid-out table rows.
+
+    Rendered as a journal-style booktabs table: a rule above the header, one beneath it
+    and one below the body, no vertical rules, numeric columns right-aligned.
+    """
+    header = split_row(raw_rows[0])
+    aligns = column_alignments(raw_rows[1], len(header))
+    body = [split_row(r) for r in raw_rows[2:]]
+    cols = measure_columns([header, *body], width)
+
+    xs, x = [], 0.0
+    for w in cols:
+        xs.append(x)
+        x += w
+
+    def make_row(cells: list[str], is_header: bool) -> Line:
+        built = []
+        for i, text in enumerate(cells):
+            base = BOLD_FONT if is_header else BODY_FONT
+            inner = cols[i] - 2 * TABLE_PAD
+            wrapped = wrap_runs(runs_for(text, base, TABLE_SIZE), inner)
+            # The header follows its column's alignment: a right-aligned number under a
+            # left-aligned heading reads as belonging to the column to its left.
+            built.append(Cell(lines=wrapped or [[Run("", base, TABLE_SIZE)]],
+                              align=aligns[i]))
+        height = max(len(c.lines) for c in built) * TABLE_LEADING + 2 * TABLE_PAD
+        row = TableRow(cells=built, header=is_header, height=height)
+        return Line(row=row, col_x=xs, col_w=cols, numbered=True)
+
+    lines = [make_row(header, True)]
+    lines[0].space_before = 8.0
+    lines[0].rule_above = True
+    lines[0].rule_below = True
+    for cells in body:
+        lines.append(make_row(cells, False))
+    lines[-1].rule_below = True
+    return lines
 
 
 # --- equations ------------------------------------------------------------------------------
@@ -296,6 +583,17 @@ def build_lines(markdown: str, work_dir: Path, *, include_figures: bool = True) 
             i += 1
             continue
 
+        # A pipe table: a header row, an alignment rule, then the body. Without this the
+        # rows fall through to the paragraph branch and the pipes are typeset literally.
+        if TABLE_ROW.match(raw) and i + 1 < len(blocks) and TABLE_RULE.match(blocks[i + 1]):
+            table_rows = [blocks[i], blocks[i + 1]]
+            i += 2
+            while i < len(blocks) and TABLE_ROW.match(blocks[i]):
+                table_rows.append(blocks[i])
+                i += 1
+            lines.extend(build_table(table_rows, runs_for, COLUMN_W))
+            continue
+
         if stripped.startswith(">"):  # block quote
             para(stripped.lstrip("> ").strip(), ITALIC_FONT, BODY_SIZE, space=6.0)
             i += 1
@@ -326,26 +624,83 @@ def build_lines(markdown: str, work_dir: Path, *, include_figures: bool = True) 
 
 
 def draw(lines: list[Line], out_path: Path, title: str) -> Path:
-    c = pdfcanvas.Canvas(str(out_path), pagesize=LETTER)
+    # initialFontName matters even though every draw call sets its own font: ReportLab
+    # writes the canvas default into each page's initial graphics state, so leaving it at
+    # Helvetica lists an unembedded font on every page of an otherwise fully embedded PDF.
+    c = pdfcanvas.Canvas(
+        str(out_path),
+        pagesize=LETTER,
+        initialFontName=BODY_FONT,
+        initialFontSize=BODY_SIZE,
+    )
     c.setTitle(title)
     y = PAGE_H - MARGIN_T
     lineno = 0
     page = 1
 
     def footer() -> None:
-        c.setFont("Times-Roman", 9)
+        c.setFont(BODY_FONT, 9)
         c.setFillGray(0.45)
         c.drawCentredString(PAGE_W / 2, MARGIN_B - 26, f"{page}")
         c.setFillGray(0)
 
+    def draw_rule(y_at: float, weight: float = 0.9) -> None:
+        c.setLineWidth(weight)
+        c.setStrokeGray(0.25)
+        c.line(MARGIN_L, y_at, MARGIN_L + COLUMN_W, y_at)
+        c.setStrokeGray(0)
+
     for line in lines:
-        needed = (line.image_h if line.image else LEADING) + line.space_before
+        if line.row is not None:
+            needed = line.row.height + line.space_before
+        elif line.image:
+            needed = line.image_h + line.space_before
+        else:
+            needed = LEADING + line.space_before
         if y - needed < MARGIN_B:
             footer()
             c.showPage()
             page += 1
             y = PAGE_H - MARGIN_T
         y -= line.space_before
+
+        if line.row is not None:
+            row = line.row
+            if line.rule_above:
+                draw_rule(y + 2, 1.1)
+            # The line number sits against the row's first text baseline, so a table row
+            # numbers once however many lines its cells wrap to.
+            lineno += 1
+            c.setFont(BODY_FONT, 8)
+            c.setFillGray(0.5)
+            c.drawRightString(LINENO_X, y - TABLE_SIZE - TABLE_PAD, str(lineno))
+            c.setFillGray(0)
+
+            for idx, cell in enumerate(row.cells):
+                cx, cw = MARGIN_L + line.col_x[idx], line.col_w[idx]
+                inner = cw - 2 * TABLE_PAD
+                cy = y - TABLE_PAD
+                for run_line in cell.lines:
+                    cy -= TABLE_LEADING
+                    text_w = sum(r.width() for r in run_line)
+                    if cell.align == "right":
+                        tx = cx + TABLE_PAD + inner - text_w
+                    elif cell.align == "center":
+                        tx = cx + TABLE_PAD + (inner - text_w) / 2
+                    else:
+                        tx = cx + TABLE_PAD
+                    for run in run_line:
+                        if run.image is not None:
+                            c.drawImage(str(run.image), tx, cy - 0.28 * run.image_h,
+                                        width=run.image_w, height=run.image_h, mask="auto")
+                        else:
+                            c.setFont(run.font, run.size)
+                            c.drawString(tx, cy, run.text)
+                        tx += run.width()
+            y -= row.height
+            if line.rule_below:
+                draw_rule(y + 2)
+            continue
 
         if line.image is not None:
             x = MARGIN_L + (COLUMN_W - line.image_w) / 2 if line.align == "center" else MARGIN_L
@@ -355,7 +710,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
             continue
 
         lineno += 1
-        c.setFont("Times-Roman", 8)
+        c.setFont(BODY_FONT, 8)
         c.setFillGray(0.5)
         c.drawRightString(LINENO_X, y - BODY_SIZE, str(lineno))
         c.setFillGray(0)
@@ -393,13 +748,18 @@ def main() -> int:
     out = args.out or args.source.with_suffix(".pdf")
 
     markdown = args.source.read_text(encoding="utf-8")
+    assert_encodable(markdown)
     with tempfile.TemporaryDirectory() as tmp:
         lines = build_lines(markdown, Path(tmp), include_figures=not args.no_figures)
         title = markdown.splitlines()[0].lstrip("# ").strip()
         draw(lines, out, title)
 
     n_numbered = sum(1 for ln in lines if ln.image is None)
-    print(f"wrote {out}  ({n_numbered} numbered lines)")
+    n_tables = sum(1 for ln in lines if ln.row is not None and ln.row.header)
+    print(
+        f"wrote {out}  ({n_numbered} numbered lines, {n_tables} table(s), "
+        f"font {EMBEDDED_FAMILY})"
+    )
     return 0
 
 

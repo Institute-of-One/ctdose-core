@@ -357,7 +357,9 @@ def test_headline_per_vendor_is_quoted_correctly(text, survey):
 def test_diagnostic_threshold_is_quoted_correctly(text, survey):
     threshold = survey["fallback_error"]["diagnostic_acquisitions_only"]["threshold_mgy"]
     remaining = survey["fallback_error"]["diagnostic_acquisitions_only"]["n"]
-    assert_quoted(text, f"recorded CTDIvol ≥ {threshold} mGy", "threshold")
+    # Spelled out rather than "≥": U+2265 is outside WinAnsi and renders as a black
+    # square in the submission PDF. See tools/build_manuscript_pdf.py::assert_encodable.
+    assert_quoted(text, f"recorded CTDIvol of at least {threshold} mGy", "threshold")
     assert_quoted(text, f"leaves {remaining} cases", "n diagnostic")
 
 
@@ -434,9 +436,21 @@ def test_the_demonstration_case_is_public_and_identified(text):
     if fig4 is None:
         pytest.skip("image figures not generated")
     assert fig4["public_case"], "the image figures were generated from a non-public series"
-    for field in ("collection", "subject_id", "series_instance_uid"):
+    for field in ("collection", "subject_id"):
         assert_quoted(text, str(fig4[field]), f"demonstration {field}")
     assert "not redistributed" in text or "are not redistributed" in text
+
+    # The Series Instance UID is deliberately *not* in the manuscript body -- it is 40
+    # unreadable digits mid-sentence -- but a figure a reader cannot re-fetch is not
+    # reproducible, so it has to be exactly where the manuscript says it is.
+    guide = REPO / "docs" / "REPRODUCING_FIGURES.md"
+    assert guide.exists(), "the manuscript points readers at a retrieval guide that is missing"
+    assert_quoted(text, "docs/REPRODUCING_FIGURES.md", "pointer to the retrieval guide")
+    assert_quoted(
+        guide.read_text(encoding="utf-8"),
+        str(fig4["series_instance_uid"]),
+        "demonstration UID in the retrieval guide",
+    )
 
 
 def test_organ_index_numbers_are_quoted_correctly(text):
@@ -489,11 +503,32 @@ def test_the_uncertainty_on_the_headline_claims_is_quoted_correctly(text):
         "headline CI",
     )
     v = stats["vendor_effect_on_ctdivol_availability"]
-    assert_quoted(text, f"χ²({v['dof']}) = {v['chi2']:.1f}", "vendor chi-squared")
+    # Written as inline math so mathtext rasterises the chi with an embedded font; a
+    # literal Greek chi is outside WinAnsi and renders as a black square.
+    assert_quoted(text, rf"$\chi^2$({v['dof']}) = {v['chi2']:.1f}", "vendor chi-squared")
     assert_quoted(text, f"Cramér's V = {v['cramers_v']:.2f}", "Cramer's V")
-    # The dependence caveat must travel with both figures, not be left to the reader.
-    assert "not fully independent" in text or "does not satisfy" in text
-    assert "lower bound" in text
+
+    # A nominal p-value, not an exact tail probability: the sample is clustered by
+    # collection, so the test's independence assumption does not hold and the effect
+    # size carries the claim.
+    assert "nominal p < 0.001" in text
+    assert "may not be independent" in text
+    assert "effect size is therefore emphasised" in text
+    # Neither the p-value nor the bootstrap interval may be called a bound: clustering
+    # does not sign the error in a way that justifies "upper" or "lower".
+    assert "lower bound" not in text, "clustering does not make either statistic a bound"
+    assert "p-value is a bound" not in text
+    assert "may underestimate uncertainty" in text
+
+    # The caveat must describe the stratum the interval is actually computed on. The
+    # duplicate re-releases are a property of the 38 pooled cases; asserting they widen
+    # the headline interval was wrong, because none of them is in the headline stratum.
+    cav = stats["independence_caveat"]
+    assert cav["headline_n_duplicate_pairs"] == 0
+    assert_quoted(text, f"All {cav['headline_n']} are distinct", "headline distinctness")
+    assert_quoted(
+        text, f"from only {cav['headline_n_collections']} collections", "collection count"
+    )
 
 
 def test_the_tube_voltage_correction_is_reported_both_ways(text, survey):
@@ -604,8 +639,25 @@ def test_submission_kit_agrees_with_the_manuscript(text):
     words = len(text.split())
     n_refs = len(re.findall(r"^\d+\. ", text, flags=re.MULTILINE))
     n_figs = len(re.findall(r"\*\*Figure \d\.\*\*", text))
-    assert f"| {words} |" in kit, f"the kit's word count is stale (manuscript has {words})"
-    assert f"| {n_refs} |" in kit, f"the kit's reference count is stale ({n_refs})"
+
+    # Read the compliance table's *actual* column rather than searching the whole file:
+    # "| 7500 |" also matches the limit column, so a manuscript sitting exactly on the
+    # limit made this assertion pass without the kit having been updated at all.
+    def kit_row(label: str) -> tuple[str, str]:
+        m = re.search(rf"^\|\s*{re.escape(label)}[^|]*\|([^|]*)\|([^|]*)\|", kit, re.MULTILINE)
+        assert m, f"the kit has no compliance row for {label!r}"
+        return m.group(1).strip(), m.group(2).strip()
+
+    limit, actual = kit_row("Total word count")
+    assert actual == str(words), (
+        f"the kit's word count is stale: it says {actual}, the manuscript has {words}"
+    )
+    assert int(words) <= int(limit), f"{words} words exceeds the kit's own stated limit"
+
+    _, actual_refs = kit_row("References")
+    assert actual_refs == str(n_refs), (
+        f"the kit's reference count is stale: it says {actual_refs}, there are {n_refs}"
+    )
     assert f"{n_figs} figures" in kit, f"the kit's figure count is stale ({n_figs})"
 
     # Figures quoted in the cover letter must be the ones the manuscript reports.
