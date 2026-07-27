@@ -1,0 +1,68 @@
+cff-version: 1.2.0
+title: >-
+  ctdose-core: open, auditable CT dose surveillance from DICOM, with a physics
+  reconstruction when the dose attributes are missing
+message: >-
+  If you use this software, please cite both the software (this file) and the
+  paper describing it, listed under preferred-citation.
+type: software
+authors:
+  - family-names: Yamamoto
+    given-names: Shuji
+    email: yamamoto@lisit.jp
+    affiliation: Institute of One, LISIT Co., Ltd., Tokyo, Japan
+repository-code: https://github.com/Institute-of-One/ctdose-core
+url: https://github.com/Institute-of-One/ctdose-core
+abstract: >-
+  A Python package that computes CTDIvol, dose-length product, size-specific dose
+  estimate and effective dose from CT DICOM data. It reads a recorded dose where
+  one exists -- from a CT Radiation Dose Structured Report or the image header --
+  and reconstructs one from acquisition physics where none does, which is the
+  common case in public imaging archives. Every value carries its formula, its
+  inputs and its provenance, so recorded and reconstructed figures never become
+  interchangeable by accident.
+keywords:
+  - computed tomography
+  - radiation dose
+  - CTDIvol
+  - size-specific dose estimate
+  - DICOM
+  - radiation dose structured report
+  - reproducibility
+license: MIT
+version: 1.0.0
+# Set to the tag date when the release is cut; Zenodo takes the date from the
+# GitHub release, so this is the human-readable copy rather than the authority.
+date-released: '2026-07-27'
+references:
+  - type: data
+    title: Low Dose CT Image and Projection Data
+    doi: 10.7937/9npb-2637
+    notes: >-
+      The public TCIA collection used for the demonstration figures and for the
+      external validation. No imaging from it is redistributed with this software;
+      see docs/REPRODUCING_FIGURES.md.
+    authors:
+      - family-names: Moen
+        given-names: Taylor R.
+      - family-names: Chen
+        given-names: Baiyu
+      - family-names: Holmes
+        given-names: David R.
+        name-suffix: III
+      - family-names: McCollough
+        given-names: Cynthia H.
+preferred-citation:
+  type: article
+  title: >-
+    Recorded, reconstructed or unrecoverable: auditable CT dose surveillance
+    across four manufacturers on public imaging archives
+  authors:
+    - family-names: Yamamoto
+      given-names: Shuji
+      affiliation: Institute of One, LISIT Co., Ltd., Tokyo, Japan
+  journal: Journal of Applied Clinical Medical Physics
+  year: 2026
+  # DOI is assigned at acceptance; until then this entry names the manuscript
+  # rather than a published article, and must not be cited as if it were one.
+  status: submitted

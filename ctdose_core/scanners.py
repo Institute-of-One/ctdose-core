@@ -172,3 +172,36 @@ def resolve_model(
             f"confidence ({best.score:.2f}); verify the coefficients apply"
         )
     return best.table_model, warnings
+
+
+def has_bowtie_variants(model_name: str, manufacturer: str = "") -> bool:
+    """Whether the coefficient table offers more than one bowtie/scan-field row for
+    this DICOM model name. When it does not, the bowtie choice is irrelevant."""
+    bowties = {m.bowtie for m in match_models(model_name, manufacturer) if m.bowtie}
+    return len(bowties) > 1
+
+
+#: Scan-field-of-view thresholds (mm) that map a Data Collection / Reconstruction
+#: Diameter to a bowtie / scan-field qualifier. These are a pragmatic tri-partition of
+#: the head/body/large-body field sizes, NOT a vendor-published mapping: DICOM does not
+#: record the selected bowtie filter, so it is inferred from the field of view and MUST
+#: be reported as an assumption. A scan at or below ``SMALL`` mm is treated as a small
+#: (head) field, at or below ``MEDIUM`` mm as a medium (body) field, and above that as
+#: a large (large-body) field.
+BOWTIE_FOV_THRESHOLDS_MM = {"small": 300.0, "medium": 450.0}
+
+
+def bowtie_from_scan_fov(diameter_mm: float | None) -> str | None:
+    """Infer a bowtie / scan-field qualifier from a scan field of view in mm.
+
+    Returns ``"small"``, ``"medium"`` or ``"large"``, or ``None`` when no diameter is
+    available. This is a heuristic (see :data:`BOWTIE_FOV_THRESHOLDS_MM`); the caller
+    should surface it as an assumption and treat an explicit ``bowtie`` as authoritative.
+    """
+    if diameter_mm is None or diameter_mm <= 0:
+        return None
+    if diameter_mm <= BOWTIE_FOV_THRESHOLDS_MM["small"]:
+        return "small"
+    if diameter_mm <= BOWTIE_FOV_THRESHOLDS_MM["medium"]:
+        return "medium"
+    return "large"

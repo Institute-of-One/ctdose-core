@@ -51,6 +51,16 @@ def assert_quoted(text: str, value: str, label: str) -> None:
     assert value in text, f"{label}: {value!r} is not in the manuscript"
 
 
+def _signed(value: float, digits: int = 1) -> str:
+    """A percentage with its sign, the way the manuscript writes it.
+
+    The sign has to come from the value rather than from the sentence: an earlier version
+    of this test hard-coded a leading minus on the lower quartile, which silently stopped
+    checking anything once the quartile turned positive.
+    """
+    return f"{'−' if value < 0 else '+'}{abs(value):.{digits}f}%"
+
+
 # --- Layer 1 -------------------------------------------------------------------------------
 
 
@@ -277,7 +287,7 @@ def test_headline_stratum_is_quoted_correctly(text, survey):
     assert_quoted(text, f"median relative error of +{h['median']:.1f}%", "headline median")
     assert_quoted(
         text,
-        f"interquartile range −{abs(h['p25']):.1f}% to +{h['p75']:.1f}%",
+        f"interquartile range {_signed(h['p25'])} to {_signed(h['p75'])}",
         "headline IQR",
     )
     assert_quoted(text, f"mean absolute error {h['mean_absolute']:.1f}%", "headline MAE")
@@ -286,7 +296,7 @@ def test_headline_stratum_is_quoted_correctly(text, survey):
     )
     assert_quoted(text, f"{100 * h['within_50_percent']:.1f}% within ±50%", "within 50")
     assert_quoted(
-        text, f"range −{abs(h['min']):.1f}% to +{h['max']:.1f}%", "headline range"
+        text, f"range {_signed(h['min'])} to {_signed(h['max'])}", "headline range"
     )
 
 
@@ -400,14 +410,31 @@ def test_demonstration_series_numbers_are_quoted_correctly(text):
     fig4 = data.get("fig4_modulation_and_wed")
     if fig4 is None:
         pytest.skip("image figures not generated")
-    assert_quoted(text, f"{fig4['n_slices']} slices", "n slices")
-    assert_quoted(text, f"{fig4['kvp']:.0f} kV", "kVp")
+    assert_quoted(text, f"{fig4['n_slices']} images", "image count")
+    assert_quoted(text, f"{fig4['kvp']:.0f} kVp", "kVp")
     assert_quoted(
         text,
         f"{fig4['min_tube_current_ma']:.0f}–{fig4['max_tube_current_ma']:.0f} mA",
         "tube current range",
     )
     assert_quoted(text, f"mean of {fig4['mean_tube_current_ma']:.1f} mA", "mean mA")
+
+
+def test_the_demonstration_case_is_public_and_identified(text):
+    """Figures made from images a reader cannot obtain are not reproducible.
+
+    The figure script records what it actually read; this binds the manuscript to it, so
+    the text cannot describe one dataset while the figures show another -- which is
+    exactly what happened when an earlier draft's private series was replaced.
+    """
+    data = _load(FIGURE_DATA)
+    fig4 = data.get("fig4_modulation_and_wed")
+    if fig4 is None:
+        pytest.skip("image figures not generated")
+    assert fig4["public_case"], "the image figures were generated from a non-public series"
+    for field in ("collection", "subject_id", "series_instance_uid"):
+        assert_quoted(text, str(fig4[field]), f"demonstration {field}")
+    assert "not redistributed" in text or "are not redistributed" in text
 
 
 def test_organ_index_numbers_are_quoted_correctly(text):
@@ -420,6 +447,61 @@ def test_organ_index_numbers_are_quoted_correctly(text):
     assert_quoted(
         text, f"{fig5['tube_current_range_pct_of_mean']:.1f}% of the mean", "modulation depth"
     )
+
+
+def test_the_external_validation_is_quoted_correctly(text):
+    """Section 3.6 quotes the reference doses read from the collection's own report."""
+    path = RESULTS / "tcia_validation.json"
+    if not path.exists():
+        pytest.skip("validation not run")
+    payload = _load(path)
+    cases = {c["subject_id"]: c for c in payload["cases"] if "skipped" not in c}
+    assert cases, "no validation case was evaluated"
+    for subject, c in cases.items():
+        assert_quoted(text, subject, f"{subject} subject id")
+        assert_quoted(
+            text,
+            f"published {c['reference_ctdivol_mgy']:.2f} mGy",
+            f"{subject} reference CTDIvol",
+        )
+        assert_quoted(
+            text,
+            f"{c['reconstructed_ctdivol_corrected_mgy']:.2f} mGy",
+            f"{subject} reconstructed CTDIvol",
+        )
+    # The reference must not be transcribed into the repository: it is read at run time
+    # from the published report, and that is what makes it an external reference.
+    assert payload["provenance"]["reference_read_from"]["file"].endswith(".xlsx")
+
+
+def test_the_uncertainty_on_the_headline_claims_is_quoted_correctly(text):
+    """A point estimate quoted bare is not a result; the interval must be in the text."""
+    path = RESULTS / "inferential_stats.json"
+    if not path.exists():
+        pytest.skip("inferential statistics not computed")
+    stats = _load(path)
+    h = stats["headline_error_median"]
+    assert_quoted(
+        text,
+        f"95% percentile-bootstrap CI {_signed(h['ci95_low'])} to {_signed(h['ci95_high'])}",
+        "headline CI",
+    )
+    v = stats["vendor_effect_on_ctdivol_availability"]
+    assert_quoted(text, f"χ²({v['dof']}) = {v['chi2']:.1f}", "vendor chi-squared")
+    assert_quoted(text, f"Cramér's V = {v['cramers_v']:.2f}", "Cramer's V")
+    # The dependence caveat must travel with both figures, not be left to the reader.
+    assert "not fully independent" in text or "does not satisfy" in text
+    assert "lower bound" in text
+
+
+def test_the_tube_voltage_correction_is_reported_both_ways(text, survey):
+    """A correction reported only in its corrected form is an assertion, not a result."""
+    block = survey["fallback_error"]["by_tube_voltage"]
+    off = block["off_reference_voltage"]
+    assert_quoted(text, f"median error was {_signed(off['uncorrected']['median'])} uncorrected", "uncorrected")
+    assert_quoted(text, f"{_signed(off['corrected']['median'])} corrected", "corrected")
+    for kv, b in off["by_voltage"].items():
+        assert_quoted(text, f"at {kv} kV (n = {b['n']})", f"{kv} kV stratum")
 
 
 # --- integrity of the manuscript itself -------------------------------------------------------

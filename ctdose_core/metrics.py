@@ -79,35 +79,76 @@ def _geometry(acq: Acquisition, coef: ScannerCoefficients) -> tuple[Quantity, Qu
     return k_ob, l_rot
 
 
-def estimate_ctdivol(acq: Acquisition, coef: ScannerCoefficients) -> Quantity:
+def estimate_ctdivol(
+    acq: Acquisition, coef: ScannerCoefficients, *, kv_correction: bool = True
+) -> Quantity:
     """Rebuild CTDIvol from acquisition parameters (the tag-absent route).
 
-    ``CTDIvol = nCTDIw * (mA * t_rot) * k_OB / pitch``
+    ``CTDIvol = nCTDIw * (mA * t_rot) * k_OB / pitch * (kVp / kV_ref)^2``
 
     ``nCTDIw`` is the scanner's normalised weighted CTDI in the relevant reference
-    phantom (16 cm head / 32 cm body), in mGy per mAs.
+    phantom (16 cm head / 32 cm body), in mGy per mAs, tabulated at the scanner's
+    reference tube voltage ``kV_ref`` (typically 120 kVp).
+
+    Args:
+        kv_correction: when ``True`` (default), scale the tabulated nCTDIw from its
+            reference voltage to the acquisition's tube voltage by ``(kVp/kV_ref)^2``.
+            This is required for a scanner-model-neutral reconstruction to match the
+            as-delivered CTDIvol on non-reference-kVp scans (validated against a
+            vendor Source-of-Truth: a 100 kVp abdomen scan is otherwise overestimated
+            by ~46 %). Set ``False`` to reproduce the reference implementation's
+            uncorrected behaviour exactly (e.g. for MATLAB-parity checks); at the
+            reference voltage the two are identical.
 
     Note:
-        Following the reference implementation, no tube-voltage correction is applied
-        here: the scanner's nCTDIw already refers to its reference kV, and the DICOM
-        CTDIvol it substitutes for is likewise an as-delivered figure. The tube-voltage
-        factors enter on the effective-dose route only.
+        The exponent 2 follows the reference implementation's ``kvfu1`` free-in-air
+        CTDI scaling and is the same factor used on the effective-dose route
+        (:func:`~ctdose_core.geometry.kv_corrections`). It is applied only when the
+        acquisition's ``kvp`` is known and differs from ``kV_ref``.
     """
     k_ob, _ = _geometry(acq, coef)
     value = coef.nctdi_w * acq.mas_per_rotation * float(k_ob) / acq.pitch
+
+    inputs = {
+        "nCTDIw_mGy_per_mAs": coef.nctdi_w,
+        "mAs_rot": acq.mas_per_rotation,
+        "k_OB": float(k_ob),
+        "pitch": acq.pitch,
+    }
+    formula = "CTDIvol = nCTDIw * mAs_rot * k_OB / pitch"
+    notes = ["reconstructed because CTDIvol (0018,9345) was not available"]
+
+    apply_kv = (
+        kv_correction
+        and acq.kvp is not None
+        and coef.kv_reference
+        and float(acq.kvp) != float(coef.kv_reference)
+    )
+    if apply_kv:
+        k_kv = (float(acq.kvp) / float(coef.kv_reference)) ** 2
+        value *= k_kv
+        inputs["kVp"] = float(acq.kvp)
+        inputs["kV_ref"] = float(coef.kv_reference)
+        inputs["k_kV"] = k_kv
+        formula = "CTDIvol = nCTDIw * mAs_rot * k_OB / pitch * (kVp/kV_ref)^2"
+        notes.append(
+            f"tube-voltage corrected from {float(coef.kv_reference):g} kVp "
+            f"to {float(acq.kvp):g} kVp by (kVp/kV_ref)^2 = {k_kv:.4f}"
+        )
+    elif kv_correction and acq.kvp is not None and coef.kv_reference:
+        notes.append(
+            f"tube voltage {float(acq.kvp):g} kVp equals reference "
+            f"{float(coef.kv_reference):g} kVp; no correction needed"
+        )
+
     return Quantity(
         value=value,
         unit="mGy",
         source=Source.PHYSICS_FALLBACK,
-        formula="CTDIvol = nCTDIw * mAs_rot * k_OB / pitch",
-        inputs={
-            "nCTDIw_mGy_per_mAs": coef.nctdi_w,
-            "mAs_rot": acq.mas_per_rotation,
-            "k_OB": float(k_ob),
-            "pitch": acq.pitch,
-        },
+        formula=formula,
+        inputs=inputs,
         reference="CT-Expo scanner coefficients (via the reference implementation)",
-        notes=("reconstructed because CTDIvol (0018,9345) was not available",),
+        notes=tuple(notes),
     )
 
 
@@ -146,6 +187,7 @@ def ctdivol(
     recorded_mgy: float | Quantity | None = None,
     recorded_source: Source = Source.DICOM_TAG,
     prefer_recorded: bool = True,
+    kv_correction: bool = True,
 ) -> Quantity:
     """CTDIvol, preferring the recorded value and falling back to physics.
 
@@ -153,6 +195,8 @@ def ctdivol(
         recorded_mgy: a recorded CTDIvol, either as a bare number or as a
             :class:`~ctdose_core.provenance.Quantity` that already carries its origin.
         recorded_source: origin to record when ``recorded_mgy`` is a bare number.
+        kv_correction: forwarded to :func:`estimate_ctdivol` for the physics
+            fallback (tube-voltage scaling of the tabulated nCTDIw).
     """
     if prefer_recorded and recorded_mgy:
         if isinstance(recorded_mgy, Quantity):
@@ -171,7 +215,7 @@ def ctdivol(
         )
     if coef.nctdi_w is None:
         raise ValueError("no nCTDIw coefficient for this scanner/region/size combination")
-    return estimate_ctdivol(acq, coef)
+    return estimate_ctdivol(acq, coef, kv_correction=kv_correction)
 
 
 def irradiated_length_cm(acq: Acquisition, coef: ScannerCoefficients) -> Quantity:
@@ -268,9 +312,16 @@ def dose_metrics(
     recorded_ctdivol_mgy: float | Quantity | None = None,
     recorded_dlp_mgycm: float | Quantity | None = None,
     prefer_recorded: bool = True,
+    kv_correction: bool = True,
 ) -> dict[str, Quantity]:
     """CTDIvol, DLP and DLP-in-air in one call."""
-    c = ctdivol(acq, coef, recorded_mgy=recorded_ctdivol_mgy, prefer_recorded=prefer_recorded)
+    c = ctdivol(
+        acq,
+        coef,
+        recorded_mgy=recorded_ctdivol_mgy,
+        prefer_recorded=prefer_recorded,
+        kv_correction=kv_correction,
+    )
     d = dlp(acq, coef, c, recorded_mgycm=recorded_dlp_mgycm, prefer_recorded=prefer_recorded)
     out: dict[str, Quantity] = {"ctdivol": c, "dlp": d}
     if coef.nctdi_air is not None:

@@ -1,0 +1,52 @@
+{
+  "title": "ctdose-core: open, auditable CT dose surveillance from DICOM, with a physics reconstruction when the dose attributes are missing",
+  "description": "<p>A Python package (MIT) that computes CTDIvol, dose-length product, size-specific dose estimate and effective dose from CT DICOM data. It reads a recorded dose where one exists &mdash; from a CT Radiation Dose Structured Report or the image header &mdash; and reconstructs one from acquisition physics where none does, which is the common case in public imaging archives. Every value carries its formula, its inputs and its provenance, so a recorded and a reconstructed figure never become interchangeable by accident.</p><p>This archive accompanies the manuscript <em>Recorded, reconstructed or unrecoverable: auditable CT dose surveillance across four manufacturers on public imaging archives</em>. It includes the measured results the manuscript quotes, under <code>results/</code>, together with the scripts that generate them.</p><p><strong>No imaging data is redistributed.</strong> The surveyed series are identified by Series Instance UID with their per-series licence; the demonstration and validation subjects are identified in <code>paper/demonstration_cases.json</code> and retrievable from The Cancer Imaging Archive following <code>docs/REPRODUCING_FIGURES.md</code>; the GPL-3.0 RDSR sample objects remain with their distributor.</p>",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "version": "1.0.0",
+  "language": "eng",
+  "creators": [
+    {
+      "name": "Yamamoto, Shuji",
+      "affiliation": "Institute of One, LISIT Co., Ltd., Tokyo, Japan"
+    }
+  ],
+  "keywords": [
+    "computed tomography",
+    "radiation dose",
+    "CTDIvol",
+    "size-specific dose estimate",
+    "DICOM",
+    "radiation dose structured report",
+    "reproducibility",
+    "open source"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/Institute-of-One/ctdose-core",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.7937/9npb-2637",
+      "relation": "references",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1002/mp.14594",
+      "relation": "references",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1055/s-2002-35937",
+      "relation": "references",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    }
+  ],
+  "notes": "Add the article DOI as an isSupplementTo relation once the manuscript is accepted. The reference list here names only the works this software is built on, not everything the manuscript cites."
+}

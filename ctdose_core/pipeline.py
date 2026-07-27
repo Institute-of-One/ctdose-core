@@ -21,7 +21,7 @@ from . import ssde as ssde_mod
 from .effdose import effective_dose
 from .io import ScanSeries, load_series
 from .provenance import Quantity, Source
-from .scanners import resolve_model
+from .scanners import bowtie_from_scan_fov, has_bowtie_variants, resolve_model
 from .tables import (
     HEAD_REGIONS,
     PEDIATRIC_KFACTOR_SIZES,
@@ -366,6 +366,7 @@ def analyze_series(
     series_uid: str | None = None,
     use_rdsr: bool = True,
     rdsr_path: Path | str | None = None,
+    kv_correction: bool = True,
 ) -> DoseReport:
     """Run the full dose analysis on a CT series.
 
@@ -393,6 +394,28 @@ def analyze_series(
     warnings = list(series.warnings)
 
     if scanner_model is None:
+        # Auto-infer the bowtie / scan-field only when the table actually offers a
+        # choice for this model and the caller did not specify one. An explicit
+        # bowtie= always wins; the inference is recorded as an assumption.
+        if bowtie is None and has_bowtie_variants(series.model_name, series.manufacturer):
+            fov_mm = series.data_collection_diameter_mm or series.reconstruction_diameter_mm
+            inferred = bowtie_from_scan_fov(fov_mm)
+            if inferred is not None:
+                bowtie = inferred
+                which = (
+                    "Data Collection Diameter (0018,0090)"
+                    if series.data_collection_diameter_mm
+                    else "Reconstruction Diameter (0018,1100)"
+                )
+                warnings.append(
+                    f"bowtie/scan-field not recorded in DICOM; inferred {inferred!r} "
+                    f"from {which} = {fov_mm:.0f} mm (assumption -- pass bowtie= to override)"
+                )
+            else:
+                warnings.append(
+                    "bowtie/scan-field not recorded and no scan field of view "
+                    "(0018,0090 / 0018,1100) to infer it from; pass bowtie= to choose"
+                )
         scanner_model, model_warnings = resolve_model(
             series.model_name, series.manufacturer, bowtie=bowtie
         )
@@ -418,6 +441,7 @@ def analyze_series(
         recorded_ctdivol_mgy=recorded.ctdivol,
         recorded_dlp_mgycm=recorded.dlp,
         prefer_recorded=prefer_recorded,
+        kv_correction=kv_correction,
     )
 
     source_agreement = recorded.agreement()

@@ -257,6 +257,11 @@ class ScanSeries:
     pixel_spacing_mm: tuple[float, float] | None = None
     rows: int | None = None
     columns: int | None = None
+    #: Scan field of view, from Data Collection Diameter (0018,0090); used to infer the
+    #: bowtie / scan-field configuration for scanners whose coefficients depend on it.
+    data_collection_diameter_mm: float | None = None
+    #: Reconstruction Diameter (0018,1100); a fallback proxy for the scan field of view.
+    reconstruction_diameter_mm: float | None = None
 
     ctdivol_tag: Provenanced | None = None
     dlp_tag: Provenanced | None = None
@@ -536,6 +541,8 @@ def load_series(
         pixel_spacing_mm=pixel_spacing,
         rows=int(_get(first, T_ROWS) or 0) or None,
         columns=int(_get(first, T_COLUMNS) or 0) or None,
+        data_collection_diameter_mm=_as_float(_get(first, (0x0018, 0x0090))),
+        reconstruction_diameter_mm=_as_float(_get(first, (0x0018, 0x1100))),
         ctdivol_tag=ctdivol,
         dlp_tag=dlp,
         patient_sex=str(_get(first, (0x0010, 0x0040)) or "").strip(),

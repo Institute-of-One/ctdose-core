@@ -357,22 +357,26 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
 # --- Optional image figures ------------------------------------------------------------------
 
 
-def figure_modulation(series_dir: Path) -> dict[str, Any]:
+def figure_modulation(series_dir: Path, case: dict[str, Any] | None = None) -> dict[str, Any]:
     from ctdose_core.figures import save_modulation_figure
     from ctdose_core.io import load_series
 
     series = load_series(series_dir)
+    # Title the figure by the public subject, not by the local folder: a reader has to be
+    # able to fetch the same images, and the subject ID is what identifies them in TCIA.
+    subject = f"{case['collection']} {case['subject_id']} - " if case else ""
     out = save_modulation_figure(
         series,
         FIGDIR / "fig4_modulation_and_wed.png",
         title=(
-            f"{series.manufacturer} {series.model_name} - {series.protocol_name} "
+            f"{subject}{series.manufacturer} {series.model_name} "
             f"({series.n_slices} slices, {series.kvp:.0f} kV)"
         ),
         dpi=DPI,
     )
     print(f"  wrote {out.relative_to(REPO)}")
     return {
+        **_case_identity(case),
         "series": f"{series.manufacturer} {series.model_name}",
         "protocol": series.protocol_name,
         "n_slices": series.n_slices,
@@ -384,7 +388,32 @@ def figure_modulation(series_dir: Path) -> dict[str, Any]:
     }
 
 
-def figure_organ_overlay(series_dir: Path, mask_dir: Path) -> dict[str, Any]:
+def _case_identity(case: dict[str, Any] | None) -> dict[str, Any]:
+    """The public identity of the demonstration case, carried into ``figure_data.json``.
+
+    Figures made from images a reader cannot obtain are not reproducible, so every image
+    figure records what to download rather than where it happened to live on one machine.
+    """
+    if not case:
+        return {
+            "public_case": False,
+            "note": "generated from a local series with no public identifier",
+        }
+    return {
+        "public_case": True,
+        "collection": case["collection"],
+        "subject_id": case["subject_id"],
+        "modality": case["modality"],
+        "series_description": case["series_description"],
+        "series_instance_uid": case["series_instance_uid"],
+        "acquisition": case["acquisition"],
+        "scanner": case["scanner"],
+    }
+
+
+def figure_organ_overlay(
+    series_dir: Path, mask_dir: Path, case: dict[str, Any] | None = None
+) -> dict[str, Any]:
     from ctdose_core.figures import organ_overlay_figure
     from ctdose_core.io import load_series
     from ctdose_core.organ import load_masks_from_dir, organ_weights_from_masks
@@ -394,7 +423,8 @@ def figure_organ_overlay(series_dir: Path, mask_dir: Path) -> dict[str, Any]:
     if not masks:
         raise SystemExit(f"no .nii.gz masks in {mask_dir}")
 
-    fig = organ_overlay_figure(series, masks=masks)
+    subject = f"{case['collection']} {case['subject_id']} - " if case else ""
+    fig = organ_overlay_figure(series, masks=masks, title=f"{subject}TotalSegmentator organs")
     _save(fig, "fig5_organ_overlay.png")
 
     profile = organ_weights_from_masks(masks, series.tube_current_ma)
@@ -428,6 +458,7 @@ def figure_organ_overlay(series_dir: Path, mask_dir: Path) -> dict[str, Any]:
     _save(fig2, "fig6_organ_exposure_index.png")
 
     return {
+        **_case_identity(case),
         "n_organs": len(masks),
         "relative_weights": weights,
         "w_min": round(min(weights.values()), 3),
@@ -448,9 +479,28 @@ def figure_organ_overlay(series_dir: Path, mask_dir: Path) -> dict[str, Any]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--series", type=Path, help="CT series directory for the image figures")
-    ap.add_argument("--masks", type=Path, help="directory of TotalSegmentator .nii.gz masks")
+    ap.add_argument(
+        "--cases",
+        type=Path,
+        default=REPO / "paper" / "demonstration_cases.json",
+        help="public demonstration cases; supplies the series and mask paths and the "
+        "subject identity recorded with the figures",
+    )
+    ap.add_argument("--series", type=Path, help="override the case file's series directory")
+    ap.add_argument("--masks", type=Path, help="override the case file's mask directory")
     args = ap.parse_args()
+
+    case: dict[str, Any] | None = None
+    series_dir, mask_dir = args.series, args.masks
+    if args.cases.is_file():
+        spec = json.loads(args.cases.read_text(encoding="utf-8"))
+        case = next((c for c in spec["cases"] if "figures" in c.get("role", "")), None)
+        if case is not None:
+            series_dir = series_dir or Path(case["local_path"])
+            mask_dir = mask_dir or (Path(case["mask_path"]) if case.get("mask_path") else None)
+    if series_dir is not None and not Path(series_dir).is_dir():
+        print(f"  (case images not present at {series_dir}; see docs/REPRODUCING_FIGURES.md)")
+        series_dir = None
 
     FIGDIR.mkdir(parents=True, exist_ok=True)
     layer1 = _load("rdsr_layer1.json")
@@ -467,10 +517,10 @@ def main() -> int:
         "fig2_recorded_dose_availability": figure_availability(survey),
         "fig3_fallback_error": figure_fallback_error(survey),
     }
-    if args.series:
-        data["fig4_modulation_and_wed"] = figure_modulation(args.series)
-        if args.masks:
-            data["fig5_organ_overlay"] = figure_organ_overlay(args.series, args.masks)
+    if series_dir:
+        data["fig4_modulation_and_wed"] = figure_modulation(series_dir, case)
+        if mask_dir:
+            data["fig5_organ_overlay"] = figure_organ_overlay(series_dir, mask_dir, case)
     else:
         print("  (skipping the image figures; pass --series to generate them)")
 

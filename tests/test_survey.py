@@ -411,19 +411,35 @@ def test_evaluate_fallback_needs_a_recorded_value(dose_taro_images):
     assert evaluate_fallback(screen, series) is None
 
 
+def _ambiguous_series(images, dest, *, scan_fov_mm: float | None):
+    """A copy of the fixture with a recorded CTDIvol, and with or without a scan field.
+
+    The scan field of view is what lets the bowtie be inferred, so a test about the
+    median-across-candidates path has to remove it, and a test about the inference has to
+    set it. Doing both from one helper keeps the two paths honestly distinguished.
+    """
+    import pydicom as pd
+
+    dest.mkdir()
+    for f in sorted(images.glob("*.dcm")):
+        ds = pd.dcmread(str(f))
+        ds.add_new((0x0018, 0x9345), "FD", 8.0)
+        for tag in ((0x0018, 0x0090), (0x0018, 0x1100)):
+            if tag in ds:
+                del ds[tag]
+        if scan_fov_mm is not None:
+            ds.add_new((0x0018, 0x0090), "DS", scan_fov_mm)
+        ds.save_as(str(dest / f.name), enforce_file_format=True)
+    return dest
+
+
 @pytest.mark.fixture_data
 def test_evaluate_fallback_reports_every_model_candidate(dose_taro_images, tmp_path):
     """When the model name cannot pick one coefficient row, all candidates are reported."""
-    import pydicom as pd
-
     from ctdose_core import load_series
 
-    work = tmp_path / "series"
-    work.mkdir()
-    for f in sorted(dose_taro_images.glob("*.dcm")):
-        ds = pd.dcmread(str(f))
-        ds.add_new((0x0018, 0x9345), "FD", 8.0)
-        ds.save_as(str(work / f.name), enforce_file_format=True)
+    # No scan field of view, so the bowtie cannot be inferred and the ambiguity stands.
+    work = _ambiguous_series(dose_taro_images, tmp_path / "series", scan_fov_mm=None)
 
     series = load_series(work)
     screen = SeriesScreen(
@@ -453,6 +469,44 @@ def test_evaluate_fallback_reports_every_model_candidate(dose_taro_images, tmp_p
     # The reported estimate is the median across candidates, not an arbitrary pick.
     assert case.estimated_ctdivol_mgy == sorted(case.alternatives.values())[1]
     assert abs(case.best_case_percent_error) <= abs(case.percent_error)
+    assert case.bowtie_inferred is None
+
+
+@pytest.mark.fixture_data
+def test_a_recorded_scan_field_resolves_the_bowtie_ambiguity(dose_taro_images, tmp_path):
+    """A scan field of view picks one coefficient row where the model name cannot.
+
+    DICOM never records the bowtie, but it is chosen with the scan field. Where the field
+    size is in the header the ambiguity is resolvable, and the result must be flagged as
+    an inference rather than presented as a recorded fact.
+    """
+    from ctdose_core import load_series
+
+    work = _ambiguous_series(dose_taro_images, tmp_path / "series", scan_fov_mm=500.0)
+    series = load_series(work)
+    screen = SeriesScreen(
+        vendor="GE",
+        manufacturer_raw="GE MEDICAL SYSTEMS",
+        collection="C",
+        series_uid="S",
+        model_name="LightSpeed VCT",
+        n_images=12,
+        body_part="CHEST",
+        has_ctdivol_tag=True,
+        model_resolution="ambiguous",
+        model_resolved=(
+            "GE LightSpeed VCT (small BS)|GE LightSpeed VCT (medium BS)|"
+            "GE LightSpeed VCT (large BS)"
+        ),
+    )
+    case = evaluate_fallback(screen, series)
+    assert case is not None
+    assert not case.model_ambiguous
+    assert len(case.alternatives) == 1
+    # 500 mm is above the medium threshold, so the large-body row applies.
+    assert case.bowtie_inferred == "large"
+    assert "large BS" in case.table_model
+    assert any("inferred" in n and "assumption" in n for n in case.notes)
 
 
 def test_region_defaults_to_the_body_branch():

@@ -26,6 +26,17 @@ def _load(name: str) -> dict:
     return json.loads((RESULTS / name).read_text(encoding="utf-8"))
 
 
+def _load_figures() -> dict:
+    """The figure data, which carries the identity of the public demonstration case.
+
+    The manuscript names a TCIA subject in three figure legends and in the Data section;
+    binding those strings to what the figure script actually read is what stops the text
+    from describing one dataset while the figures show another.
+    """
+    path = REPO / "paper" / "figures" / "figure_data.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
 def _pct(x: float | None) -> str:
     """Format a fraction as a percentage the way the manuscript writes it."""
     return "n/a" if x is None else f"{100.0 * x:.1f}"
@@ -50,6 +61,16 @@ def collect() -> dict[str, Any]:
     absence = survey["tag_absence"]
     fallback = survey["fallback_error"]
     headline = fallback["diagnostic_and_collimation_measured"]
+    voltage = fallback["by_tube_voltage"]
+    figures = _load_figures()
+    validation = (
+        _load("tcia_validation.json") if (RESULTS / "tcia_validation.json").exists() else None
+    )
+    inferential = (
+        _load("inferential_stats.json")
+        if (RESULTS / "inferential_stats.json").exists()
+        else None
+    )
 
     out: dict[str, Any] = {
         "_provenance": {
@@ -181,6 +202,42 @@ def collect() -> dict[str, Any]:
             },
             "exclusions": survey["fallback_exclusions"],
             "diagnostic_threshold_mgy": headline_threshold(fallback),
+            "n_bowtie_inferred": fallback["n_bowtie_inferred"],
+            "at_reference_kv_n": voltage["at_reference_voltage"]["n"],
+            "at_reference_kv_median": _sig(voltage["at_reference_voltage"]["median"]),
+            "off_reference_kv_n": voltage["off_reference_voltage"]["corrected"]["n"],
+            "off_reference_kv_median_corrected": _sig(
+                voltage["off_reference_voltage"]["corrected"]["median"]
+            ),
+            "off_reference_kv_median_uncorrected": _sig(
+                voltage["off_reference_voltage"]["uncorrected"]["median"]
+            ),
+            "off_reference_kv_by_voltage": {
+                kv: {
+                    "n": b["n"],
+                    "median_corrected": _sig(b["corrected"]["median"]),
+                    "median_uncorrected": _sig(b["uncorrected"]["median"]),
+                }
+                for kv, b in voltage["off_reference_voltage"]["by_voltage"].items()
+            },
+        },
+        "demonstration_case": _demonstration_case(figures),
+        "validation": None if validation is None else _validation(validation),
+        "inferential": None
+        if inferential is None
+        else {
+            "headline_median": _sig(inferential["headline_error_median"]["median"]),
+            "headline_ci95_low": _sig(inferential["headline_error_median"]["ci95_low"]),
+            "headline_ci95_high": _sig(inferential["headline_error_median"]["ci95_high"]),
+            "bootstrap_resamples": inferential["headline_error_median"]["resamples"],
+            "vendor_chi2": _sig(
+                inferential["vendor_effect_on_ctdivol_availability"]["chi2"]
+            ),
+            "vendor_dof": inferential["vendor_effect_on_ctdivol_availability"]["dof"],
+            "vendor_cramers_v": _sig(
+                inferential["vendor_effect_on_ctdivol_availability"]["cramers_v"], 2
+            ),
+            "n_duplicate_pairs": inferential["independence_caveat"]["n_duplicate_pairs"],
         },
         "size_and_dose": None
         if size is None
@@ -225,6 +282,77 @@ def collect() -> dict[str, Any]:
         },
     }
     return out
+
+
+def _demonstration_case(figures: dict) -> dict[str, Any] | None:
+    """Identity and measured technique of the case behind Figures 4-6."""
+    fig4 = figures.get("fig4_modulation_and_wed")
+    fig5 = figures.get("fig5_organ_overlay", {})
+    if not fig4:
+        return None
+    ma_lo, ma_hi = fig4["min_tube_current_ma"], fig4["max_tube_current_ma"]
+    return {
+        "public_case": fig4.get("public_case", False),
+        "collection": fig4.get("collection"),
+        "subject_id": fig4.get("subject_id"),
+        "modality": fig4.get("modality"),
+        "series_description": fig4.get("series_description"),
+        "series_instance_uid": fig4.get("series_instance_uid"),
+        "scanner": fig4.get("scanner"),
+        "acquisition": fig4.get("acquisition"),
+        "n_slices": fig4["n_slices"],
+        "kvp": _sig(fig4["kvp"], 0),
+        "tube_current_min_ma": _sig(ma_lo, 0),
+        "tube_current_max_ma": _sig(ma_hi, 0),
+        "tube_current_mean_ma": _sig(fig4["mean_tube_current_ma"]),
+        "modulation_depth_pct": _sig(
+            100.0 * (ma_hi - ma_lo) / fig4["mean_tube_current_ma"]
+        ),
+        "scan_range_mm": _sig(fig4["scan_range_mm"], 0),
+        "n_organs": fig5.get("n_organs"),
+        "w_min": _sig(fig5["w_min"], 3) if fig5 else None,
+        "w_max": _sig(fig5["w_max"], 3) if fig5 else None,
+    }
+
+
+def _validation(validation: dict) -> dict[str, Any]:
+    """The two-case check of the reconstruction against published per-series doses."""
+    cases = [c for c in validation["cases"] if "skipped" not in c]
+    return {
+        "n_cases": len(cases),
+        "reference_source": validation["provenance"]["reference_read_from"]["file"],
+        "by_subject": {
+            c["subject_id"]: {
+                "kvp": _sig(c["kvp"], 0),
+                "kv_correction_factor": _sig(c["kv_correction_factor"], 4),
+                "reference_ctdivol_mgy": _sig(c["reference_ctdivol_mgy"], 2),
+                "ctdivol_uncorrected_mgy": _sig(c["reconstructed_ctdivol_uncorrected_mgy"], 2),
+                "ctdivol_corrected_mgy": _sig(c["reconstructed_ctdivol_corrected_mgy"], 2),
+                "ctdivol_error_uncorrected_pct": _sig(c["ctdivol_error_uncorrected_pct"]),
+                "ctdivol_error_corrected_pct": _sig(c["ctdivol_error_corrected_pct"]),
+                "reference_ssde_mgy": _sig(c["reference_ssde_mgy"], 2),
+                "ssde_uncorrected_mgy": _sig(c.get("ssde_uncorrected_mgy"), 2),
+                "ssde_corrected_mgy": _sig(c.get("ssde_corrected_mgy"), 2),
+                "ssde_error_uncorrected_pct": _sig(c.get("ssde_error_uncorrected_pct")),
+                "ssde_error_corrected_pct": _sig(c.get("ssde_error_corrected_pct")),
+                "water_equivalent_diameter_cm": _sig(c.get("water_equivalent_diameter_cm")),
+                "collimation_source": c["collimation_source"],
+                "pitch_source": c["pitch_source"],
+                "pitch_reconciling_reference": _sig(
+                    (c.get("pitch_sensitivity") or {}).get("pitch_reconciling_reference"), 3
+                ),
+                "implied_collimation_mm": _sig(
+                    (c.get("pitch_sensitivity") or {}).get("implied_collimation_mm")
+                ),
+                "assumed_collimation_mm": _sig(
+                    (c.get("pitch_sensitivity") or {}).get(
+                        "implied_collimation_at_assumed_pitch_mm"
+                    )
+                ),
+            }
+            for c in cases
+        },
+    }
 
 
 def headline_threshold(fallback: dict) -> float:

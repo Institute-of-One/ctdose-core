@@ -45,7 +45,12 @@ import pydicom
 from .io import ScanSeries, load_series
 from .metrics import Acquisition, acquisition_from_series, estimate_ctdivol, fallback_error
 from .provenance import Source
-from .scanners import AmbiguousScannerError, resolve_model
+from .scanners import (
+    AmbiguousScannerError,
+    bowtie_from_scan_fov,
+    has_bowtie_variants,
+    resolve_model,
+)
 from .tables import UnknownScannerError, lookup_scanner
 
 NBIA_BASE = "https://services.cancerimagingarchive.net/nbia-api/services/v1"
@@ -343,6 +348,21 @@ class FallbackCase:
     collimation_mm: float | None = None
     collimation_note: str = ""
     pitch_measured: bool = True
+    #: Tube voltage of the series, and the voltage the coefficient row was tabulated at.
+    #: They differ for a minority of series, and the reconstruction then rests on a
+    #: correction rather than on a tabulated value.
+    kvp: float | None = None
+    kv_reference: float | None = None
+    kv_correction_factor: float | None = None
+    #: The same reconstruction with the tube-voltage correction switched off, so its
+    #: effect can be read off the results rather than taken on trust. Identical to
+    #: ``estimated_ctdivol_mgy`` whenever the series was acquired at the reference voltage.
+    estimated_uncorrected_mgy: float | None = None
+    percent_error_uncorrected: float | None = None
+    #: Bowtie / scan field inferred from the scan field of view to pick one coefficient
+    #: row, when the model name alone mapped to several. ``None`` when no inference was
+    #: needed or none was possible.
+    bowtie_inferred: str | None = None
     notes: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -355,6 +375,37 @@ def _candidate_models(screen: SeriesScreen) -> list[str]:
     if screen.model_resolution == "ambiguous" and screen.model_resolved:
         return screen.model_resolved.split("|")
     return []
+
+
+def _resolve_by_bowtie(screen: SeriesScreen, series: ScanSeries) -> tuple[str, str, str] | None:
+    """Try to collapse an ambiguous model name using the scan field of view.
+
+    The coefficient table splits some scanners by bowtie / scan field, which DICOM never
+    records. Where the series carries a Data Collection or Reconstruction Diameter, that
+    field size implies which row applies. Returns ``(table_model, bowtie, note)``, or
+    ``None`` when the ambiguity is not about the bowtie or there is no field of view to
+    infer from.
+    """
+    if not has_bowtie_variants(screen.model_name, screen.manufacturer_raw):
+        return None
+    fov = series.data_collection_diameter_mm or series.reconstruction_diameter_mm
+    bowtie = bowtie_from_scan_fov(fov)
+    if bowtie is None:
+        return None
+    try:
+        model, _ = resolve_model(screen.model_name, screen.manufacturer_raw, bowtie=bowtie)
+    except LookupError:
+        return None
+    which = (
+        "Data Collection Diameter (0018,0090)"
+        if series.data_collection_diameter_mm
+        else "Reconstruction Diameter (0018,1100)"
+    )
+    return model, bowtie, (
+        f"the DICOM model name does not identify the bowtie / scan field; {bowtie!r} was "
+        f"inferred from {which} = {fov:.0f} mm and used to select one coefficient row "
+        f"(an assumption, not a recorded value)"
+    )
 
 
 #: Region used when the series header does not say. The body branch of the coefficient
@@ -393,17 +444,28 @@ def evaluate_fallback(
     except ValueError:
         return None
 
+    notes: list[str] = []
+    bowtie_inferred: str | None = None
+    if len(models) > 1:
+        resolved = _resolve_by_bowtie(screen, series)
+        if resolved is not None:
+            models, bowtie_inferred, bowtie_note = [resolved[0]], resolved[1], resolved[2]
+            notes.append(bowtie_note)
+
     estimates: dict[str, float] = {}
+    uncorrected: dict[str, float] = {}
+    kv_reference: float | None = None
     for model in models:
         try:
             coef = lookup_scanner(model, region, "Adults")
         except UnknownScannerError:
             continue
         estimates[model] = float(estimate_ctdivol(acq, coef))
+        uncorrected[model] = float(estimate_ctdivol(acq, coef, kv_correction=False))
+        kv_reference = coef.kv_reference
     if not estimates:
         return None
 
-    notes: list[str] = []
     if len(estimates) == 1:
         primary_model, primary = next(iter(estimates.items()))
     else:
@@ -450,6 +512,16 @@ def evaluate_fallback(
         pitch_measured=(
             series.pitch is not None and series.pitch.source is not Source.PHYSICS_FALLBACK
         ),
+        kvp=series.kvp,
+        kv_reference=kv_reference,
+        kv_correction_factor=(
+            (series.kvp / kv_reference) ** 2 if series.kvp and kv_reference else None
+        ),
+        estimated_uncorrected_mgy=uncorrected[primary_model],
+        percent_error_uncorrected=fallback_error(
+            float(recorded), uncorrected[primary_model]
+        )["percent_error"],
+        bowtie_inferred=bowtie_inferred,
         notes=tuple(notes),
     )
 
@@ -551,6 +623,57 @@ def _describe(values: Sequence[float]) -> dict[str, Any]:
     }
 
 
+def _tube_voltage_block(cases: Sequence[FallbackCase]) -> dict[str, Any]:
+    """Split the cases by whether the tube-voltage correction did anything.
+
+    The coefficient tables are measured at one tube voltage per scanner. Where a series
+    was acquired at that voltage the correction is inert and the two error columns are
+    identical; where it was not, the reconstruction rests on the correction, and the
+    honest way to show its effect is to report the same cases both ways.
+    """
+    at_ref = [c for c in cases if c.kv_correction_factor == 1.0]
+    off_ref = [c for c in cases if c.kv_correction_factor not in (None, 1.0)]
+    unknown = [c for c in cases if c.kv_correction_factor is None]
+    return {
+        "at_reference_voltage": {
+            **_describe([c.percent_error for c in at_ref]),
+            "note": "The correction is inert here; these errors test the reconstruction itself.",
+        },
+        "off_reference_voltage": {
+            "corrected": _describe([c.percent_error for c in off_ref]),
+            "uncorrected": _describe(
+                [
+                    c.percent_error_uncorrected
+                    for c in off_ref
+                    if c.percent_error_uncorrected is not None
+                ]
+            ),
+            "by_voltage": {
+                str(int(kv)): {
+                    "n": sum(1 for c in off_ref if c.kvp == kv),
+                    "corrected": _describe(
+                        [c.percent_error for c in off_ref if c.kvp == kv]
+                    ),
+                    "uncorrected": _describe(
+                        [
+                            c.percent_error_uncorrected
+                            for c in off_ref
+                            if c.kvp == kv and c.percent_error_uncorrected is not None
+                        ]
+                    ),
+                }
+                for kv in sorted({c.kvp for c in off_ref if c.kvp})
+            },
+            "note": (
+                "Series acquired away from the voltage the coefficient row was tabulated "
+                "at, reported with and without the (kV/kV_ref)^2 correction so its effect "
+                "is measured rather than asserted."
+            ),
+        },
+        "tube_voltage_unknown": {"n": len(unknown)},
+    }
+
+
 def summarise_fallback(cases: Sequence[FallbackCase]) -> dict[str, Any]:
     """Signed relative-error distribution of the reconstruction, overall and per vendor."""
     vendors = sorted({c.vendor for c in cases})
@@ -621,8 +744,10 @@ def summarise_fallback(cases: Sequence[FallbackCase]) -> dict[str, Any]:
         "by_vendor_collimation_measured": {
             v: _describe([c.percent_error for c in measured if c.vendor == v]) for v in vendors
         },
+        "by_tube_voltage": _tube_voltage_block(cases),
         "best_case_if_model_variant_known": _describe(best),
         "n_model_ambiguous": sum(1 for c in cases if c.model_ambiguous),
+        "n_bowtie_inferred": sum(1 for c in cases if c.bowtie_inferred),
         "n_collimation_measured": len(measured),
         "n_collimation_reconstructed": len(assumed),
         "independence": {

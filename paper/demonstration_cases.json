@@ -1,0 +1,68 @@
+{
+  "_readme": [
+    "The public CT cases used for every figure and for the reconstruction validation.",
+    "",
+    "No DICOM and no clinical report is redistributed with this repository. Each case is",
+    "identified by the attributes a third party needs to retrieve exactly the same images",
+    "from TCIA: collection, subject ID, modality, series description and Series Instance",
+    "UID. See docs/REPRODUCING_FIGURES.md for step-by-step retrieval instructions.",
+    "",
+    "Reference CTDIvol and SSDE are NOT stored here. They are read at run time from the",
+    "collection's clinical data report by tools/validate_against_tcia_sot.py, matched on",
+    "Series Instance UID, so the published value is the single source of truth and cannot",
+    "drift from a transcription in this file.",
+    "",
+    "The 'local_path', 'mask_path' and 'clinical_report' entries are machine-local",
+    "conveniences. Point them wherever you extracted the data; nothing else in the",
+    "repository depends on those locations."
+  ],
+  "collection_citation": {
+    "name": "Low Dose CT Image and Projection Data (LDCT-and-Projection-data)",
+    "archive": "The Cancer Imaging Archive (TCIA)",
+    "doi": "10.7937/9npb-2637",
+    "licence": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "data_citation": "Moen TR, Chen B, Holmes DR III, Duan X, Yu Z, Yu L, Leng S, Fletcher JG, McCollough CH. Low-dose CT image and projection dataset. Med Phys. 2021;48(2):902-911. doi:10.1002/mp.14594",
+    "reference_dose_source": {
+      "file": "Abdomen_v9 Mar 2023.xlsx",
+      "distributed_as": "clinical data report accompanying the collection",
+      "sheet": "Abdomen",
+      "key_column": "SeriesUID",
+      "ctdivol_column": "CTDIvol_(mGy)",
+      "ssde_column": "SSDE_(mGy)",
+      "note": "The image headers of this collection carry no CTDIvol; the per-subject values live only in this report, so it is independent of the acquisition description the reconstruction uses."
+    }
+  },
+  "clinical_report": "D:/DevGit/CT-ExposureDose/TCIA-Clinical-data-Mar-2023/Abdomen_v9 Mar 2023.xlsx",
+  "cases": [
+    {
+      "subject_id": "L273",
+      "role": "figures, and validation at the scanner's reference tube voltage",
+      "collection": "LDCT-and-Projection-data",
+      "modality": "CT",
+      "series_description": "Full Dose Images",
+      "series_instance_uid": "1.2.840.113713.4.100.1.2.310086300212904160703482251540856",
+      "study_instance_uid": "1.2.840.113713.4.100.1.2.133047862112086394114062252207113",
+      "acquisition": "abdomen, 120 kVp, 5 mm reconstructed slices, tube-current modulated",
+      "scanner": "Siemens Healthcare SOMATOM Definition AS+",
+      "n_images": 165,
+      "patient_age_years": 28,
+      "region": "Whole abdomen",
+      "local_path": "D:/DevGit/CT-ExposureDose/data/L273-FULL-DOSE",
+      "mask_path": "D:/DevGit/ctdose-core/.tcia_work/demo/L273_seg"
+    },
+    {
+      "subject_id": "L277",
+      "role": "validation below the reference tube voltage, where the correction is decisive",
+      "collection": "LDCT-and-Projection-data",
+      "modality": "CT",
+      "series_description": "Full Dose Images",
+      "series_instance_uid": "1.2.840.113713.4.100.1.2.262990409213147100927629505622692",
+      "acquisition": "abdomen, 100 kVp, 5 mm reconstructed slices, tube-current modulated",
+      "scanner": "Siemens Healthcare SOMATOM Definition AS+",
+      "n_images": 214,
+      "patient_age_years": 71,
+      "region": "Whole abdomen",
+      "local_path": "D:/DevGit/ctdose-core/.tcia_work/demo/LDCT-and-Projection-data_L277_full-dose"
+    }
+  ]
+}

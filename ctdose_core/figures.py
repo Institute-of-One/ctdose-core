@@ -98,10 +98,19 @@ def modulation_figure(series: ScanSeries, *, title: str = "", wed_step: int = 1)
         axp.tick_params(axis="y", colors=colour)
         vmax, vmin = np.nanmax(profile), np.nanmin(profile)
         if np.isfinite(vmax):
+            # Put the labels on whichever side the curve leaves free. A profile that
+            # starts high hides a top-left label behind itself, which is how the first
+            # version of this figure came out.
+            half = len(profile) // 2 or 1
+            left_is_high = np.nanmean(profile[:half]) > np.nanmean(profile[half:])
+            x, ha = (0.98, "right") if left_is_high else (0.02, "left")
+            box = {"boxstyle": "round,pad=0.25", "fc": "white", "ec": "none", "alpha": 0.75}
             axp.annotate(f"Max {ylabel.split()[0]} = {vmax:.0f}{unit}",
-                         xy=(0.02, 0.92), xycoords="axes fraction", color=colour, fontsize=9)
+                         xy=(x, 0.92), xycoords="axes fraction", color=colour,
+                         fontsize=9, ha=ha, bbox=box)
             axp.annotate(f"Min {ylabel.split()[0]} = {vmin:.0f}{unit}",
-                         xy=(0.02, 0.05), xycoords="axes fraction", color=colour, fontsize=9)
+                         xy=(x, 0.05), xycoords="axes fraction", color=colour,
+                         fontsize=9, ha=ha, bbox=box)
         # Deliberately not "cranio-caudal": the sign of the slice-location axis depends on
         # patient position and vendor convention, which this figure does not establish.
         ax.set_xlabel("position along the scan axis (mm)", fontsize=9)
@@ -111,8 +120,9 @@ def modulation_figure(series: ScanSeries, *, title: str = "", wed_step: int = 1)
     ax1.set_title("Tube-current modulation", fontsize=10)
     _scout(ax2, p.wed_cm, "#d62728", "WED (cm)", "")
     ax2.set_title("Water-equivalent diameter", fontsize=10)
-    ax2.text(0.34, 0.92, r"$D_w = 2\sqrt{A_w/\pi}$", transform=ax2.transAxes,
-             fontsize=11, color="#d62728", ha="left")
+    ax2.text(0.5, 0.02, r"$D_w = 2\sqrt{A_w/\pi}$", transform=ax2.transAxes,
+             fontsize=11, color="#d62728", ha="center",
+             bbox={"boxstyle": "round,pad=0.25", "fc": "white", "ec": "none", "alpha": 0.75})
 
     if title:
         fig.suptitle(title, fontsize=11)
@@ -180,7 +190,8 @@ def organ_overlay_figure(series: ScanSeries, *, masks=None, volume=None,
         ax.imshow(rgba)
         ax.contour(sl, levels=[0.5], colors=[colour], linewidths=1.0)
         handles.append(Patch(color=colour, label=name.replace("_", " ")))
-    ax.set_title(title or f"TotalSegmentator organs (slice {slice_index})", fontsize=11)
+    # The slice index is always shown: without it the overlay cannot be regenerated.
+    ax.set_title(f"{title or 'TotalSegmentator organs'} (slice {slice_index})", fontsize=11)
     ax.axis("off")
     if handles:
         ax.legend(handles=handles, loc="center left", bbox_to_anchor=(1.01, 0.5),
