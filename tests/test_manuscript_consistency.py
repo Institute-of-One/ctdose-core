@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from ctdose_core.tables import drl_tables
+
 REPO = Path(__file__).resolve().parents[1]
 MANUSCRIPT = REPO / "paper" / "ctdose-core_jacmp.md"
 RESULTS = REPO / "results"
@@ -507,11 +509,26 @@ def test_the_tube_voltage_correction_is_reported_both_ways(text, survey):
 # --- integrity of the manuscript itself -------------------------------------------------------
 
 
-def test_the_flagged_pediatric_drl_is_not_used_as_a_result(text):
-    """The unverified J-RIME literal must be declared, not quoted as a finding."""
-    assert "We have not been able to verify the published J-RIME value" in text
-    assert "excluded from any analysis in this work" in text
-    assert "No paediatric DRL comparison is reported here" in text
+def test_the_corrected_pediatric_drl_carries_its_primary_source(text):
+    """The 141 mGy literal was a typo, and the correction must be checkable.
+
+    An earlier draft declared the value unverifiable and made no claim about it. It has
+    since been traced to the nationwide survey underlying the J-RIME 2015 paediatric
+    DRLs, so the manuscript now asserts the corrected value -- which means the primary
+    source and the numbers read from it have to be in the text, not just in the data.
+    """
+    drl = drl_tables()
+    row = next(r for r in drl["pediatric"] if "source_value_ctdivol_mgy" in r)
+    assert row["verified"] is True, "the manuscript asserts a value the table still flags"
+
+    assert "141 mGy" in text
+    assert f"{row['ctdivol_mgy']:.0f} mGy" in text
+    # The primary-source values, quoted rather than paraphrased.
+    assert "14.3 mGy" in text and "296.0 mGy·cm" in text
+    assert "[19]" in text, "the correction must cite the source it was checked against"
+    assert "No paediatric DRL comparison is reported in this work" in text
+    # ...and the superseded hedge must be gone, not merely contradicted elsewhere.
+    assert "We have not been able to verify the published J-RIME value" not in text
 
 
 def test_affiliation_and_licensing_are_correct(text):

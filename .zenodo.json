@@ -4,12 +4,13 @@
   "upload_type": "software",
   "license": "MIT",
   "access_right": "open",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "language": "eng",
   "creators": [
     {
       "name": "Yamamoto, Shuji",
-      "affiliation": "Institute of One, LISIT Co., Ltd., Tokyo, Japan"
+      "affiliation": "Institute of One, LISIT Co., Ltd., Tokyo, Japan",
+      "orcid": "0000-0001-9211-1071"
     }
   ],
   "keywords": [

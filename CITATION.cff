@@ -10,6 +10,7 @@ authors:
   - family-names: Yamamoto
     given-names: Shuji
     email: yamamoto@lisit.jp
+    orcid: 'https://orcid.org/0000-0001-9211-1071'
     affiliation: Institute of One, LISIT Co., Ltd., Tokyo, Japan
 repository-code: https://github.com/Institute-of-One/ctdose-core
 url: https://github.com/Institute-of-One/ctdose-core
@@ -30,10 +31,14 @@ keywords:
   - radiation dose structured report
   - reproducibility
 license: MIT
-version: 1.0.0
+version: 0.1.0
 # Set to the tag date when the release is cut; Zenodo takes the date from the
 # GitHub release, so this is the human-readable copy rather than the authority.
 date-released: '2026-07-27'
+# After the Zenodo release, add the *concept* DOI here (all versions) and the
+# *version* DOI in the manuscript's data-availability statement, so the paper
+# cites the exact snapshot while this file cites the project.
+# doi: 10.5281/zenodo.XXXXXXXX
 references:
   - type: data
     title: Low Dose CT Image and Projection Data
@@ -60,6 +65,7 @@ preferred-citation:
   authors:
     - family-names: Yamamoto
       given-names: Shuji
+      orcid: 'https://orcid.org/0000-0001-9211-1071'
       affiliation: Institute of One, LISIT Co., Ltd., Tokyo, Japan
   journal: Journal of Applied Clinical Medical Physics
   year: 2026
