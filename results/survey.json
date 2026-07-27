@@ -604,29 +604,29 @@
   "fallback_error": {
     "diagnostic_and_collimation_measured": {
       "n": 23,
-      "mean": 30.77889416535901,
+      "mean": 24.71292510534182,
       "median": 18.86436723684078,
-      "stdev": 56.38182613555232,
-      "min": -57.83196962404406,
-      "max": 198.30018375271385,
-      "p25": -2.8585840635601114,
-      "p75": 54.521036948893546,
-      "mean_absolute": 45.35574808660719,
-      "within_20_percent": 0.391304347826087,
-      "within_50_percent": 0.6086956521739131,
+      "stdev": 40.28723994849191,
+      "min": -56.30782394780471,
+      "max": 107.15290538382908,
+      "p25": 3.485315660263343,
+      "p75": 39.50816106172424,
+      "mean_absolute": 34.9345979090409,
+      "within_20_percent": 0.43478260869565216,
+      "within_50_percent": 0.7391304347826086,
       "n_excluded": 15,
       "by_vendor": {
         "Canon/Toshiba": {
           "n": 12,
-          "mean": 20.651203966672526,
-          "median": 16.951947923590748,
-          "stdev": 40.93947744330005,
-          "min": -57.83196962404406,
+          "mean": 25.973376960533955,
+          "median": 22.539157025163007,
+          "stdev": 39.65416730127999,
+          "min": -56.30782394780471,
           "max": 92.34295478958266,
-          "p25": -2.8585840635601114,
-          "p75": 27.521374377565923,
-          "mean_absolute": 32.251488365095035,
-          "within_20_percent": 0.5,
+          "p25": 15.039528610340712,
+          "p75": 39.50816106172424,
+          "mean_absolute": 36.274195590715706,
+          "within_20_percent": 0.3333333333333333,
           "within_50_percent": 0.75
         },
         "Philips": {
@@ -634,16 +634,16 @@
         },
         "Siemens": {
           "n": 11,
-          "mean": 41.82728347301699,
-          "median": 53.54301518754854,
-          "stdev": 69.94712344575794,
-          "min": -46.87736193992681,
-          "max": 198.30018375271385,
-          "p25": -15.136758067305596,
-          "p75": 80.0730084123758,
-          "mean_absolute": 59.651304146438655,
-          "within_20_percent": 0.2727272727272727,
-          "within_50_percent": 0.45454545454545453
+          "mean": 23.33788671785949,
+          "median": 9.242176561125513,
+          "stdev": 42.860834952152295,
+          "min": -27.694187084900353,
+          "max": 107.15290538382908,
+          "p25": -12.913380309243026,
+          "p75": 53.54301518754854,
+          "mean_absolute": 33.47321861994112,
+          "within_20_percent": 0.5454545454545454,
+          "within_50_percent": 0.7272727272727273
         }
       },
       "note": "Diagnostic acquisitions (recorded CTDIvol >= 0.5 mGy) whose header records total collimation. This is the stratum that isolates the dose model from the archive's metadata gaps, and the one to quote as the method's accuracy. Check 'vendor_by_collimation_provenance' first: collimation availability is itself vendor-dependent, so this stratum is not balanced across vendors."
@@ -664,29 +664,29 @@
     },
     "overall": {
       "n": 38,
-      "mean": 1764.4930200699907,
-      "median": 53.23049889812211,
-      "stdev": 10424.648767088886,
-      "min": -57.83196962404406,
-      "max": 64332.70440251572,
-      "p25": 3.485315660263343,
-      "p75": 154.9049416755037,
-      "mean_absolute": 1774.38973934326,
-      "within_20_percent": 0.2894736842105263,
-      "within_50_percent": 0.4473684210526316
+      "mean": 1242.8143202398824,
+      "median": 33.51476771964508,
+      "stdev": 7231.611652288653,
+      "min": -56.30782394780471,
+      "max": 44644.93361285814,
+      "p25": 7.3062756589538616,
+      "p75": 108.55890683229816,
+      "mean_absolute": 1249.9046792400738,
+      "within_20_percent": 0.3157894736842105,
+      "within_50_percent": 0.5263157894736842
     },
     "diagnostic_acquisitions_only": {
       "n": 37,
-      "mean": 73.4602800038899,
-      "median": 52.91798260869567,
-      "stdev": 95.19007326059169,
-      "min": -57.83196962404406,
+      "mean": 69.78406908803748,
+      "median": 27.521374377565923,
+      "stdev": 91.84895921530848,
+      "min": -56.30782394780471,
       "max": 283.67538819575486,
-      "p25": 3.485315660263343,
-      "p75": 108.55890683229816,
-      "mean_absolute": 83.62447817643668,
-      "within_20_percent": 0.2972972972972973,
-      "within_50_percent": 0.4594594594594595,
+      "p25": 7.3062756589538616,
+      "p75": 107.15290538382908,
+      "mean_absolute": 77.06605941255862,
+      "within_20_percent": 0.32432432432432434,
+      "within_50_percent": 0.5405405405405406,
       "threshold_mgy": 0.5,
       "n_excluded": 1,
       "note": "Restricted to series whose recorded CTDIvol is at least 0.5 mGy. Below that the recorded value belongs to a localiser or another non-diagnostic acquisition, and comparing it against a reconstruction of the diagnostic series compares two different irradiations. Those cases are kept in 'overall' and in the per-case rows; this stratum is the one to quote."
@@ -694,15 +694,15 @@
     "by_vendor": {
       "Canon/Toshiba": {
         "n": 14,
-        "mean": 16.243614393022067,
-        "median": 10.711506449864524,
-        "stdev": 39.38502727641359,
-        "min": -57.83196962404406,
+        "mean": 21.0552972801787,
+        "median": 20.499038371305033,
+        "stdev": 38.71057807743644,
+        "min": -56.30782394780471,
         "max": 92.34295478958266,
-        "p25": -3.3669474297786612,
-        "p75": 27.521374377565923,
-        "mean_absolute": 29.101550462778697,
-        "within_20_percent": 0.5714285714285714,
+        "p25": -2.130140403507128,
+        "p75": 39.50816106172424,
+        "mean_absolute": 32.337082357634735,
+        "within_20_percent": 0.42857142857142855,
         "within_50_percent": 0.7857142857142857
       },
       "Philips": {
@@ -720,42 +720,42 @@
       },
       "Siemens": {
         "n": 12,
-        "mean": 5399.400376726576,
-        "median": 54.03202606822104,
-        "stdev": 18559.297433170985,
-        "min": -46.87736193992681,
-        "max": 64332.70440251572,
+        "mean": 3741.80419722955,
+        "median": 14.037911876329286,
+        "stdev": 12881.209977150664,
+        "min": -27.694187084900353,
+        "max": 44644.93361285814,
         "p25": 3.485315660263343,
-        "p75": 80.0730084123758,
-        "mean_absolute": 5415.73906234388,
-        "within_20_percent": 0.25,
-        "within_50_percent": 0.4166666666666667
+        "p75": 53.54301518754854,
+        "mean_absolute": 3751.0949181397914,
+        "within_20_percent": 0.5,
+        "within_50_percent": 0.6666666666666666
       }
     },
     "by_collimation_provenance": {
       "measured": {
         "n": 24,
-        "mean": 2710.025790346624,
+        "mean": 1883.8887870950418,
         "median": 20.499038371305033,
-        "stdev": 13125.691411638205,
-        "min": -57.83196962404406,
-        "max": 64332.70440251572,
-        "p25": -2.8585840635601114,
-        "p75": 71.12045195580757,
-        "mean_absolute": 2723.995275354487,
-        "within_20_percent": 0.375,
-        "within_50_percent": 0.5833333333333334
+        "stdev": 9108.149633878771,
+        "min": -56.30782394780471,
+        "max": 44644.93361285814,
+        "p25": 3.485315660263343,
+        "p75": 49.79142589295017,
+        "mean_absolute": 1893.6845568652534,
+        "within_20_percent": 0.4166666666666667,
+        "within_50_percent": 0.7083333333333334
       },
       "reconstructed": {
         "n": 14,
-        "mean": 143.57969959576207,
+        "mean": 143.82951991675176,
         "median": 156.35162722970512,
-        "stdev": 105.80533526341047,
+        "stdev": 105.43550057776939,
         "min": -17.16758376110173,
         "max": 283.67538819575486,
         "p25": 52.91798260869567,
         "p75": 243.79302200751482,
-        "mean_absolute": 146.49453475258514,
+        "mean_absolute": 146.28203188262344,
         "within_20_percent": 0.14285714285714285,
         "within_50_percent": 0.21428571428571427
       },
@@ -764,15 +764,15 @@
     "by_vendor_collimation_measured": {
       "Canon/Toshiba": {
         "n": 12,
-        "mean": 20.651203966672526,
-        "median": 16.951947923590748,
-        "stdev": 40.93947744330005,
-        "min": -57.83196962404406,
+        "mean": 25.973376960533955,
+        "median": 22.539157025163007,
+        "stdev": 39.65416730127999,
+        "min": -56.30782394780471,
         "max": 92.34295478958266,
-        "p25": -2.8585840635601114,
-        "p75": 27.521374377565923,
-        "mean_absolute": 32.251488365095035,
-        "within_20_percent": 0.5,
+        "p25": 15.039528610340712,
+        "p75": 39.50816106172424,
+        "mean_absolute": 36.274195590715706,
+        "within_20_percent": 0.3333333333333333,
         "within_50_percent": 0.75
       },
       "Philips": {
@@ -780,32 +780,170 @@
       },
       "Siemens": {
         "n": 12,
-        "mean": 5399.400376726576,
-        "median": 54.03202606822104,
-        "stdev": 18559.297433170985,
-        "min": -46.87736193992681,
-        "max": 64332.70440251572,
+        "mean": 3741.80419722955,
+        "median": 14.037911876329286,
+        "stdev": 12881.209977150664,
+        "min": -27.694187084900353,
+        "max": 44644.93361285814,
         "p25": 3.485315660263343,
-        "p75": 80.0730084123758,
-        "mean_absolute": 5415.73906234388,
-        "within_20_percent": 0.25,
-        "within_50_percent": 0.4166666666666667
+        "p75": 53.54301518754854,
+        "mean_absolute": 3751.0949181397914,
+        "within_20_percent": 0.5,
+        "within_50_percent": 0.6666666666666666
+      }
+    },
+    "by_tube_voltage": {
+      "at_reference_voltage": {
+        "n": 29,
+        "mean": 82.82144239739866,
+        "median": 52.91798260869567,
+        "stdev": 98.0937485553153,
+        "min": -56.30782394780471,
+        "max": 283.67538819575486,
+        "p25": 9.242176561125513,
+        "p75": 154.9049416755037,
+        "mean_absolute": 89.31173574977781,
+        "within_20_percent": 0.3103448275862069,
+        "within_50_percent": 0.4482758620689655,
+        "note": "The correction is inert here; these errors test the reconstruction itself."
+      },
+      "off_reference_voltage": {
+        "corrected": {
+          "n": 9,
+          "mean": 4980.569148843441,
+          "median": 22.944604544556725,
+          "stdev": 14874.184911796496,
+          "min": -27.694187084900353,
+          "max": 44644.93361285814,
+          "p25": 7.3062756589538616,
+          "p75": 39.50816106172424,
+          "mean_absolute": 4989.593052708806,
+          "within_20_percent": 0.3333333333333333,
+          "within_50_percent": 0.7777777777777778
+        },
+        "uncorrected": {
+          "n": 9,
+          "mean": 7184.577090483774,
+          "median": 54.521036948893546,
+          "stdev": 21430.675726955542,
+          "min": -46.87736193992681,
+          "max": 64332.70440251572,
+          "p25": -2.8585840635601114,
+          "p75": 80.0730084123758,
+          "mean_absolute": 7203.633521528234,
+          "within_20_percent": 0.2222222222222222,
+          "within_50_percent": 0.4444444444444444
+        },
+        "by_voltage": {
+          "100": {
+            "n": 5,
+            "corrected": {
+              "n": 5,
+              "mean": 8960.655428275766,
+              "median": 25.0507002863721,
+              "stdev": 19948.157096243995,
+              "min": 7.3062756589538616,
+              "max": 44644.93361285814,
+              "p25": 18.833647191533057,
+              "p75": 107.15290538382908,
+              "mean_absolute": 8960.655428275766,
+              "within_20_percent": 0.4,
+              "within_50_percent": 0.6
+            },
+            "uncorrected": {
+              "n": 5,
+              "mean": 12947.343816717103,
+              "median": 80.0730084123758,
+              "stdev": 28725.346218591352,
+              "min": 54.521036948893546,
+              "max": 64332.70440251572,
+              "p25": 71.12045195580757,
+              "p75": 198.30018375271385,
+              "mean_absolute": 12947.343816717103,
+              "within_20_percent": 0.0,
+              "within_50_percent": 0.0
+            }
+          },
+          "135": {
+            "n": 2,
+            "corrected": {
+              "n": 2,
+              "mean": 31.22638280314048,
+              "median": 31.22638280314048,
+              "stdev": 11.712203133855782,
+              "min": 22.944604544556725,
+              "max": 39.50816106172424,
+              "p25": 22.944604544556725,
+              "p75": 39.50816106172424,
+              "mean_absolute": 31.22638280314048,
+              "within_20_percent": 0.0,
+              "within_50_percent": 1.0
+            },
+            "uncorrected": {
+              "n": 2,
+              "mean": 3.6850432024813675,
+              "median": 3.6850432024813675,
+              "stdev": 9.254086426750236,
+              "min": -2.8585840635601114,
+              "max": 10.228670468522846,
+              "p25": -2.8585840635601114,
+              "p75": 10.228670468522846,
+              "mean_absolute": 6.543627266041479,
+              "within_20_percent": 1.0,
+              "within_50_percent": 1.0
+            }
+          },
+          "140": {
+            "n": 2,
+            "corrected": {
+              "n": 2,
+              "mean": -20.30378369707169,
+              "median": -20.30378369707169,
+              "stdev": 10.451608702475365,
+              "min": -27.694187084900353,
+              "max": -12.913380309243026,
+              "p25": -27.694187084900353,
+              "p75": -12.913380309243026,
+              "mean_absolute": 20.30378369707169,
+              "within_20_percent": 0.5,
+              "within_50_percent": 1.0
+            },
+            "uncorrected": {
+              "n": 2,
+              "mean": -41.447677818256764,
+              "median": -41.447677818256764,
+              "stdev": 7.678732924267621,
+              "min": -46.87736193992681,
+              "max": -36.01799369658672,
+              "p25": -46.87736193992681,
+              "p75": -36.01799369658672,
+              "mean_absolute": 41.447677818256764,
+              "within_20_percent": 0.0,
+              "within_50_percent": 1.0
+            }
+          }
+        },
+        "note": "Series acquired away from the voltage the coefficient row was tabulated at, reported with and without the (kV/kV_ref)^2 correction so its effect is measured rather than asserted."
+      },
+      "tube_voltage_unknown": {
+        "n": 0
       }
     },
     "best_case_if_model_variant_known": {
       "n": 38,
-      "mean": 1762.3812605349437,
-      "median": 53.23049889812211,
-      "stdev": 10425.003818938885,
+      "mean": 1240.21774923532,
+      "median": 30.005645966247755,
+      "stdev": 7232.052122300441,
       "min": -56.30782394780471,
-      "max": 64332.70440251572,
-      "p25": 2.6461959733182456,
-      "p75": 154.9049416755037,
-      "mean_absolute": 1771.1610101490257,
-      "within_20_percent": 0.34210526315789475,
-      "within_50_percent": 0.4473684210526316
+      "max": 44644.93361285814,
+      "p25": 3.649476272683212,
+      "p75": 108.55890683229816,
+      "mean_absolute": 1246.7030422014418,
+      "within_20_percent": 0.39473684210526316,
+      "within_50_percent": 0.5263157894736842
     },
-    "n_model_ambiguous": 14,
+    "n_model_ambiguous": 10,
+    "n_bowtie_inferred": 4,
     "n_collimation_measured": 24,
     "n_collimation_reconstructed": 14,
     "independence": {
@@ -10445,6 +10583,12 @@
       "collimation_mm": 12.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 10.940202201304844,
+      "percent_error_uncorrected": -15.136758067305596,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10455,19 +10599,25 @@
       "table_model": "Definition AS series",
       "n_slices": 95,
       "recorded_ctdivol_mgy": 13.4999379375,
-      "estimated_ctdivol_mgy": 20.860244088482073,
-      "relative_error": 0.5452103694889354,
-      "percent_error": 54.521036948893546,
+      "estimated_ctdivol_mgy": 14.48628061700144,
+      "relative_error": 0.07306275658953862,
+      "percent_error": 7.3062756589538616,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Definition AS series": 20.860244088482073
+        "Definition AS series": 14.48628061700144
       },
-      "best_case_percent_error": 54.521036948893546,
+      "best_case_percent_error": 7.3062756589538616,
       "collimation_measured": true,
       "collimation_mm": 12.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 100.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 0.6944444444444445,
+      "estimated_uncorrected_mgy": 20.860244088482073,
+      "percent_error_uncorrected": 54.521036948893546,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10491,6 +10641,12 @@
       "collimation_mm": 19.2,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 7.55632648953301,
+      "percent_error_uncorrected": 53.54301518754854,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10501,19 +10657,25 @@
       "table_model": "Definition AS series",
       "n_slices": 115,
       "recorded_ctdivol_mgy": 28.02399560189573,
-      "estimated_ctdivol_mgy": 14.8870857535659,
-      "relative_error": -0.46877361939926804,
-      "percent_error": -46.87736193992681,
+      "estimated_ctdivol_mgy": 20.26297783124248,
+      "relative_error": -0.2769418708490035,
+      "percent_error": -27.694187084900353,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Definition AS series": 14.8870857535659
+        "Definition AS series": 20.26297783124248
       },
-      "best_case_percent_error": -46.87736193992681,
+      "best_case_percent_error": -27.694187084900353,
       "collimation_measured": true,
       "collimation_mm": 19.2,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 140.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.3611111111111114,
+      "estimated_uncorrected_mgy": 14.8870857535659,
+      "percent_error_uncorrected": -46.87736193992681,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10524,19 +10686,25 @@
       "table_model": "Sensation 10/16",
       "n_slices": 2,
       "recorded_ctdivol_mgy": 0.053,
-      "estimated_ctdivol_mgy": 34.14933333333333,
-      "relative_error": 643.3270440251573,
-      "percent_error": 64332.70440251572,
+      "estimated_ctdivol_mgy": 23.714814814814815,
+      "relative_error": 446.4493361285814,
+      "percent_error": 44644.93361285814,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Sensation 10/16": 34.14933333333333
+        "Sensation 10/16": 23.714814814814815
       },
-      "best_case_percent_error": 64332.70440251572,
+      "best_case_percent_error": 44644.93361285814,
       "collimation_measured": true,
       "collimation_mm": 2.0,
       "collimation_note": "",
       "pitch_measured": false,
+      "kvp": 100.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 0.6944444444444445,
+      "estimated_uncorrected_mgy": 34.14933333333333,
+      "percent_error_uncorrected": 64332.70440251572,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10547,19 +10715,25 @@
       "table_model": "Definition AS series",
       "n_slices": 109,
       "recorded_ctdivol_mgy": 3.3185613913043475,
-      "estimated_ctdivol_mgy": 5.975833333333333,
-      "relative_error": 0.800730084123758,
-      "percent_error": 80.0730084123758,
+      "estimated_ctdivol_mgy": 4.1498842592592595,
+      "relative_error": 0.25050700286372096,
+      "percent_error": 25.0507002863721,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Definition AS series": 5.975833333333333
+        "Definition AS series": 4.1498842592592595
       },
-      "best_case_percent_error": 80.0730084123758,
+      "best_case_percent_error": 25.0507002863721,
       "collimation_measured": true,
       "collimation_mm": 38.4,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 100.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 0.6944444444444445,
+      "estimated_uncorrected_mgy": 5.975833333333333,
+      "percent_error_uncorrected": 80.0730084123758,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10583,6 +10757,12 @@
       "collimation_mm": 19.2,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 18.117623019885404,
+      "percent_error_uncorrected": 87.84704342827787,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10593,19 +10773,25 @@
       "table_model": "Definition AS series",
       "n_slices": 158,
       "recorded_ctdivol_mgy": 52.662638,
-      "estimated_ctdivol_mgy": 33.694612364703715,
-      "relative_error": -0.36017993696586725,
-      "percent_error": -36.01799369658672,
+      "estimated_ctdivol_mgy": 45.862111274180066,
+      "relative_error": -0.12913380309243025,
+      "percent_error": -12.913380309243026,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Definition AS series": 33.694612364703715
+        "Definition AS series": 45.862111274180066
       },
-      "best_case_percent_error": -36.01799369658672,
+      "best_case_percent_error": -12.913380309243026,
       "collimation_measured": true,
       "collimation_mm": 19.2,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 140.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.3611111111111114,
+      "estimated_uncorrected_mgy": 33.694612364703715,
+      "percent_error_uncorrected": -36.01799369658672,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10629,6 +10815,12 @@
       "collimation_mm": 28.8,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 22.588166335978833,
+      "percent_error_uncorrected": 9.242176561125513,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10639,19 +10831,25 @@
       "table_model": "Definition Edge",
       "n_slices": 219,
       "recorded_ctdivol_mgy": 7.378683017589577,
-      "estimated_ctdivol_mgy": 22.010624999999997,
-      "relative_error": 1.9830018375271383,
-      "percent_error": 198.30018375271385,
+      "estimated_ctdivol_mgy": 15.28515625,
+      "relative_error": 1.071529053838291,
+      "percent_error": 107.15290538382908,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Definition Edge": 22.010624999999997
+        "Definition Edge": 15.28515625
       },
-      "best_case_percent_error": 198.30018375271385,
+      "best_case_percent_error": 107.15290538382908,
       "collimation_measured": true,
       "collimation_mm": 38.4,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 100.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 0.6944444444444445,
+      "estimated_uncorrected_mgy": 22.010624999999997,
+      "percent_error_uncorrected": 198.30018375271385,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10675,6 +10873,12 @@
       "collimation_mm": 19.2,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 15.096282399135285,
+      "percent_error_uncorrected": 3.485315660263343,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10685,19 +10889,25 @@
       "table_model": "Definition AS series",
       "n_slices": 132,
       "recorded_ctdivol_mgy": 8.732703693913043,
-      "estimated_ctdivol_mgy": 14.943442028985503,
-      "relative_error": 0.7112045195580757,
-      "percent_error": 71.12045195580757,
+      "estimated_ctdivol_mgy": 10.3773902979066,
+      "relative_error": 0.18833647191533057,
+      "percent_error": 18.833647191533057,
       "region": "Chest",
       "model_ambiguous": false,
       "alternatives": {
-        "Definition AS series": 14.943442028985503
+        "Definition AS series": 10.3773902979066
       },
-      "best_case_percent_error": 71.12045195580757,
+      "best_case_percent_error": 18.833647191533057,
       "collimation_measured": true,
       "collimation_mm": 19.2,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 100.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 0.6944444444444445,
+      "estimated_uncorrected_mgy": 14.943442028985503,
+      "percent_error_uncorrected": 71.12045195580757,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -10726,6 +10936,12 @@
       "collimation_mm": 39.97539975399754,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 16.73214808025745,
+      "percent_error_uncorrected": -17.16758376110173,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -10756,6 +10972,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 3.6981198569494116,
+      "percent_error_uncorrected": 27.521374377565923,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -10768,24 +10990,30 @@
       "table_model": "Aquilion Premium/ONE (large BS)",
       "n_slices": 112,
       "recorded_ctdivol_mgy": 68.9,
-      "estimated_ctdivol_mgy": 66.93043558020709,
-      "relative_error": -0.028585840635601115,
-      "percent_error": -2.8585840635601114,
+      "estimated_ctdivol_mgy": 84.70883253119959,
+      "relative_error": 0.22944604544556724,
+      "percent_error": 22.944604544556725,
       "region": "Chest",
       "model_ambiguous": true,
       "alternatives": {
-        "Aquilion ONE Vision (large BS)": 73.49668898740515,
-        "Aquilion ONE Vision (medium BS)": 65.86967409248577,
-        "Aquilion ONE Vision (small BS)": 70.72322902561628,
-        "Aquilion Premium/ONE (large BS)": 66.93043558020709,
-        "Aquilion Premium/ONE (medium BS)": 60.303659780186585,
-        "Aquilion Premium/ONE (small BS)": 63.61704768019683
+        "Aquilion ONE Vision (large BS)": 93.01924699968464,
+        "Aquilion ONE Vision (medium BS)": 83.3663062733023,
+        "Aquilion ONE Vision (small BS)": 89.5090867355456,
+        "Aquilion Premium/ONE (large BS)": 84.70883253119959,
+        "Aquilion Premium/ONE (medium BS)": 76.32181940929864,
+        "Aquilion Premium/ONE (small BS)": 80.51532597024912
       },
-      "best_case_percent_error": 2.6461959733182456,
+      "best_case_percent_error": 10.771871421333286,
       "collimation_measured": true,
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 135.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.265625,
+      "estimated_uncorrected_mgy": 66.93043558020709,
+      "percent_error_uncorrected": -2.8585840635601114,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -10816,6 +11044,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 28.8514432184374,
+      "percent_error_uncorrected": 92.34295478958266,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -10846,6 +11080,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 7.339779868754559,
+      "percent_error_uncorrected": 49.79142589295017,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -10855,26 +11095,30 @@
       "collection": "CMB-PCA",
       "series_uid": "1.3.6.1.4.1.14519.5.2.1.1.94922595707318122927882154409967341595",
       "model_name": "Aquilion PRIME",
-      "table_model": "Aquilion Prime (small BS)",
+      "table_model": "Aquilion Prime (large BS)",
       "n_slices": 147,
       "recorded_ctdivol_mgy": 16.1,
-      "estimated_ctdivol_mgy": 6.789052890528906,
-      "relative_error": -0.5783196962404407,
-      "percent_error": -57.83196962404406,
+      "estimated_ctdivol_mgy": 7.034440344403444,
+      "relative_error": -0.563078239478047,
+      "percent_error": -56.30782394780471,
       "region": "Chest",
-      "model_ambiguous": true,
+      "model_ambiguous": false,
       "alternatives": {
-        "Aquilion Prime (large BS)": 7.034440344403444,
-        "Aquilion Prime (medium BS)": 6.298277982779828,
-        "Aquilion Prime (small BS)": 6.789052890528906
+        "Aquilion Prime (large BS)": 7.034440344403444
       },
       "best_case_percent_error": -56.30782394780471,
       "collimation_measured": true,
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 7.034440344403444,
+      "percent_error_uncorrected": -56.30782394780471,
+      "bowtie_inferred": "large",
       "notes": [
-        "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
+        "the DICOM model name does not identify the bowtie / scan field; 'large' was inferred from Data Collection Diameter (0018,0090) = 500 mm and used to select one coefficient row (an assumption, not a recorded value)"
       ]
     },
     {
@@ -10882,26 +11126,30 @@
       "collection": "CMB-PCA",
       "series_uid": "1.3.6.1.4.1.14519.5.2.1.1.48334621342140726052462051664095307135",
       "model_name": "Aquilion Prime SP",
-      "table_model": "Aquilion Prime (small BS)",
+      "table_model": "Aquilion Prime (large BS)",
       "n_slices": 69,
       "recorded_ctdivol_mgy": 8.8,
-      "estimated_ctdivol_mgy": 9.361746617466174,
-      "relative_error": 0.06383484289388336,
-      "percent_error": 6.383484289388336,
+      "estimated_ctdivol_mgy": 12.276718173431734,
+      "relative_error": 0.39508161061724234,
+      "percent_error": 39.50816106172424,
       "region": "Chest",
-      "model_ambiguous": true,
+      "model_ambiguous": false,
       "alternatives": {
-        "Aquilion Prime (large BS)": 9.700123001230011,
-        "Aquilion Prime (medium BS)": 8.684993849938499,
-        "Aquilion Prime (small BS)": 9.361746617466174
+        "Aquilion Prime (large BS)": 12.276718173431734
       },
-      "best_case_percent_error": -1.306888068880705,
+      "best_case_percent_error": 39.50816106172424,
       "collimation_measured": true,
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 135.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.265625,
+      "estimated_uncorrected_mgy": 9.700123001230011,
+      "percent_error_uncorrected": 10.228670468522846,
+      "bowtie_inferred": "large",
       "notes": [
-        "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
+        "the DICOM model name does not identify the bowtie / scan field; 'large' was inferred from Data Collection Diameter (0018,0090) = 500 mm and used to select one coefficient row (an assumption, not a recorded value)"
       ]
     },
     {
@@ -10909,26 +11157,30 @@
       "collection": "CPTAC-PDA",
       "series_uid": "1.3.6.1.4.1.14519.5.2.1.2692.1975.150219996104977771802025879936",
       "model_name": "Aquilion PRIME",
-      "table_model": "Aquilion Prime (small BS)",
+      "table_model": "Aquilion Prime (large BS)",
       "n_slices": 76,
       "recorded_ctdivol_mgy": 8.8,
-      "estimated_ctdivol_mgy": 8.515208914373956,
-      "relative_error": -0.03236262336659604,
-      "percent_error": -3.2362623366596037,
+      "estimated_ctdivol_mgy": 8.822987549833254,
+      "relative_error": 0.0026122215719605953,
+      "percent_error": 0.2612221571960595,
       "region": "Chest",
-      "model_ambiguous": true,
+      "model_ambiguous": false,
       "alternatives": {
-        "Aquilion Prime (large BS)": 8.822987549833254,
-        "Aquilion Prime (medium BS)": 7.899651643455355,
-        "Aquilion Prime (small BS)": 8.515208914373956
+        "Aquilion Prime (large BS)": 8.822987549833254
       },
       "best_case_percent_error": 0.2612221571960595,
       "collimation_measured": false,
       "collimation_mm": 39.97539975399754,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 8.822987549833254,
+      "percent_error_uncorrected": 0.2612221571960595,
+      "bowtie_inferred": "large",
       "notes": [
-        "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
+        "the DICOM model name does not identify the bowtie / scan field; 'large' was inferred from Data Collection Diameter (0018,0090) = 500 mm and used to select one coefficient row (an assumption, not a recorded value)"
       ]
     },
     {
@@ -10957,6 +11209,12 @@
       "collimation_mm": 32.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 9.648563050955774,
+      "percent_error_uncorrected": 22.133709505769286,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -10987,6 +11245,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 36.697609626698686,
+      "percent_error_uncorrected": 15.039528610340712,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -11017,6 +11281,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 5.5080839965026165,
+      "percent_error_uncorrected": -3.3669474297786612,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -11047,6 +11317,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 8.439370073815695,
+      "percent_error_uncorrected": 18.86436723684078,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -11056,26 +11332,30 @@
       "collection": "CMB-PCA",
       "series_uid": "1.3.6.1.4.1.14519.5.2.1.1.25386400426020588397415243015859980811",
       "model_name": "Aquilion PRIME",
-      "table_model": "Aquilion Prime (small BS)",
+      "table_model": "Aquilion Prime (large BS)",
       "n_slices": 171,
       "recorded_ctdivol_mgy": 16.1,
-      "estimated_ctdivol_mgy": 15.207382951022495,
-      "relative_error": -0.05544205273152211,
-      "percent_error": -5.544205273152211,
+      "estimated_ctdivol_mgy": 15.757047395035354,
+      "relative_error": -0.02130140403507128,
+      "percent_error": -2.130140403507128,
       "region": "Chest",
-      "model_ambiguous": true,
+      "model_ambiguous": false,
       "alternatives": {
-        "Aquilion Prime (large BS)": 15.757047395035354,
-        "Aquilion Prime (medium BS)": 14.108054062996771,
-        "Aquilion Prime (small BS)": 15.207382951022495
+        "Aquilion Prime (large BS)": 15.757047395035354
       },
       "best_case_percent_error": -2.130140403507128,
       "collimation_measured": true,
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 15.757047395035354,
+      "percent_error_uncorrected": -2.130140403507128,
+      "bowtie_inferred": "large",
       "notes": [
-        "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
+        "the DICOM model name does not identify the bowtie / scan field; 'large' was inferred from Data Collection Diameter (0018,0090) = 500 mm and used to select one coefficient row (an assumption, not a recorded value)"
       ]
     },
     {
@@ -11104,6 +11384,12 @@
       "collimation_mm": 40.0,
       "collimation_note": "",
       "pitch_measured": true,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 17.421895073087743,
+      "percent_error_uncorrected": 85.33930928816747,
+      "bowtie_inferred": null,
       "notes": [
         "the DICOM model name does not identify the scanner variant (bowtie / scan field of view, or acquisition mode); the median across candidate coefficient rows is reported, and every candidate is listed in 'alternatives'"
       ]
@@ -11129,6 +11415,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 27.79992688251619,
+      "percent_error_uncorrected": 283.67538819575486,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11152,6 +11444,12 @@
       "collimation_mm": 5.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 33.229059561739135,
+      "percent_error_uncorrected": 189.82682532418002,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11175,6 +11473,12 @@
       "collimation_mm": 2.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 55.694469565217396,
+      "percent_error_uncorrected": 243.79302200751482,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11198,6 +11502,12 @@
       "collimation_mm": 5.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 30.65815930434783,
+      "percent_error_uncorrected": 108.55890683229816,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11221,6 +11531,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 27.79992688251619,
+      "percent_error_uncorrected": 283.67538819575486,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11244,6 +11560,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 41.8044104347826,
+      "percent_error_uncorrected": 154.9049416755037,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11267,6 +11589,12 @@
       "collimation_mm": 5.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 12.233438608695653,
+      "percent_error_uncorrected": 52.91798260869567,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11290,6 +11618,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 51.81746086956522,
+      "percent_error_uncorrected": 157.79831278390654,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11313,6 +11647,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 51.81746086956522,
+      "percent_error_uncorrected": 157.79831278390654,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11336,6 +11676,12 @@
       "collimation_mm": 5.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 30.65815930434783,
+      "percent_error_uncorrected": 89.24789694041871,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11359,6 +11705,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 27.79992688251619,
+      "percent_error_uncorrected": 283.67538819575486,
+      "bowtie_inferred": null,
       "notes": []
     },
     {
@@ -11382,6 +11734,12 @@
       "collimation_mm": 3.0,
       "collimation_note": "h_col = table feed per rotation / pitch",
       "pitch_measured": false,
+      "kvp": 120.0,
+      "kv_reference": 120.0,
+      "kv_correction_factor": 1.0,
+      "estimated_uncorrected_mgy": 21.04247699336772,
+      "percent_error_uncorrected": 24.647274894741685,
+      "bowtie_inferred": null,
       "notes": []
     }
   ],
@@ -11393,6 +11751,8 @@
     "access_started_utc": "2026-07-26T04:52:21+00:00",
     "access_finished_utc": "2026-07-26T05:00:45+00:00",
     "summary_rebuilt_by": "tools/rebuild_survey_summary.py",
-    "summary_rebuilt_note": "The per-series and per-case rows are from the original archive run recorded in access_started_utc/access_finished_utc; only the aggregation was recomputed."
+    "summary_rebuilt_note": "The per-series and per-case rows are from the original archive run recorded in access_started_utc/access_finished_utc; only the aggregation was recomputed.",
+    "fallback_recomputed_by": "tools/reevaluate_fallback.py",
+    "fallback_recomputed_note": "The sample, the screens and the exclusion counts are those of the archive run recorded in access_started_utc/access_finished_utc. Only the reconstructed CTDIvol of each case was recomputed, from the same cached images, after the tube-voltage correction and the bowtie inference were added to the estimator."
   }
 }

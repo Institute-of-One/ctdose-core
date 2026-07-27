@@ -1,0 +1,62 @@
+{
+  "provenance": {
+    "generated_by": "tools/make_inferential_stats.py",
+    "inputs": [
+      "results\\survey.json"
+    ],
+    "purpose": "Attach an interval to the headline reconstruction error and a test with an effect size to the manufacturer difference in recorded-dose availability, so neither point estimate is quoted bare."
+  },
+  "headline_error_median": {
+    "n": 23,
+    "median": 18.86436723684078,
+    "ci95_low": 7.3062756589538616,
+    "ci95_high": 39.50816106172424,
+    "ci_width": 32.20188540277037,
+    "method": "percentile bootstrap",
+    "resamples": 20000,
+    "seed": 20260727,
+    "bootstrap_se": 6.790453966492089,
+    "stratum": "diagnostic acquisitions with a recorded collimation",
+    "diagnostic_threshold_mgy": 0.5
+  },
+  "vendor_effect_on_ctdivol_availability": {
+    "vendors": [
+      "Canon/Toshiba",
+      "GE",
+      "Philips",
+      "Siemens"
+    ],
+    "table_present_absent": [
+      [
+        76,
+        24
+      ],
+      [
+        0,
+        100
+      ],
+      [
+        66,
+        34
+      ],
+      [
+        52,
+        48
+      ]
+    ],
+    "chi2": 137.20348313482134,
+    "dof": 3,
+    "p_value": 1.5149428492172505e-29,
+    "p_value_formatted": "< 1e-28",
+    "cramers_v": 0.5856694527095069,
+    "min_expected_count": 48.5,
+    "n": 400,
+    "note": "Chi-squared test of independence between manufacturer and whether the image header carries CTDIvol. Cramer's V is reported because with n = 400 a small p-value is not evidence of a large difference; here the effect size is what carries the claim. The test assumes independent observations, which this sample does not satisfy (see 'independence_caveat'), so the p-value is anti-conservative and should be read as direction and magnitude rather than as an exact tail probability."
+  },
+  "independence_caveat": {
+    "n_fallback_cases": 38,
+    "n_distinct_pairs": 35,
+    "n_duplicate_pairs": 3,
+    "note": "Public archives re-release the same acquisition under different collection names, and the screening sample is drawn round-robin from collections rather than from independent examinations. The effective sample size is therefore smaller than n in both analyses: the bootstrap interval is narrower than the true interval, and the chi-squared p-value is smaller than the true p-value. Both are reported as lower bounds on the uncertainty."
+  }
+}

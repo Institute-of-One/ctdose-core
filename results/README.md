@@ -8,18 +8,30 @@ carries a `provenance` block naming the script, the input and the access date.
 | --- | --- | --- |
 | `rdsr_layer1.json` / `.csv` | `tools/make_rdsr_layer1.py` | Layer 1: per-file and per-irradiation-event recorded dose read from real CT Radiation Dose SR objects across four vendors, plus two internal consistency checks |
 | `survey.json` / `survey.csv` | `tools/run_tcia_survey.py` | Layer 2 (a): per-series screening of public CT from TCIA — is CTDIvol present, is the physics reconstruction feasible at all — stratified by manufacturer |
-| `survey_fallback.csv` | `tools/run_tcia_survey.py` | Layer 2 (b): per-series comparison of the physics reconstruction against a recorded CTDIvol |
+| `survey_fallback.csv` | `tools/run_tcia_survey.py`, `tools/reevaluate_fallback.py` | Layer 2 (b): per-series comparison of the physics reconstruction against a recorded CTDIvol, with and without the tube-voltage correction |
+| `size_and_dose.json` / `.csv` | `tools/make_size_and_dose_layer.py` | Water-equivalent diameter, TG-204 conversion factor, SSDE and effective dose on the same archive series, with the inclusion criteria and every exclusion flag |
+| `tcia_validation.json` | `tools/validate_against_tcia_sot.py` | Layer 3: the reconstruction against **per-series CTDIvol and SSDE published with a public collection**, read from that collection's own clinical data report at run time rather than transcribed |
+| `inferential_stats.json` | `tools/make_inferential_stats.py` | A bootstrap interval on the headline error median and a χ² test with effect size for the manufacturer difference, each with the caveat that the sample is not independent |
 
 ## Regenerating
 
 ```bash
 CTDOSE_RDSR_SAMPLES=/path/to/CT-RDSR-samples python tools/make_rdsr_layer1.py
 python tools/run_tcia_survey.py --screen-per-vendor 100 --fallback-per-vendor 10
+python tools/make_size_and_dose_layer.py --series-root .tcia_work/series
+python tools/validate_against_tcia_sot.py      # needs the public case, see docs/REPRODUCING_FIGURES.md
+python tools/make_inferential_stats.py
 ```
 
 The survey is seeded (`--seed`, recorded in `parameters`) and caches its downloads under
 `.tcia_work/`, so a re-run with the same seed reproduces the same sample without
 re-fetching.
+
+`tools/reevaluate_fallback.py` recomputes part (b) **without** re-sampling the archive,
+replaying the estimator over the series the reported run already downloaded. Use it when
+the estimator changes: re-running the survey would also change the sample, and then no
+difference could be attributed to either cause alone. Part (a) is unaffected by estimator
+changes — it depends only on which attributes a header carries.
 
 ## What is *not* here
 
@@ -75,6 +87,15 @@ archive's metadata quality rather than the dose model:
   diagnostic series compares two different irradiations — one such case produced a
   five-figure relative error. **This is the stratum to quote.** The cases are kept in
   `overall` and in the per-case rows so nothing is hidden.
+- `by_tube_voltage` splits the cases by whether the series was acquired at the voltage
+  its coefficient row is tabulated at. Where it was, the `(kV/kV_ref)^2` correction is
+  inert and the errors test the reconstruction itself; where it was not, the same cases
+  are reported **both** corrected and uncorrected, per voltage, so the correction's
+  effect is measured rather than asserted. It does not help uniformly — see the 135 kV
+  stratum — which is why both columns are kept on every per-case row.
+- `n_bowtie_inferred` counts the cases where the bowtie was inferred from the recorded
+  scan field of view to pick one coefficient row. Those rows carry `bowtie_inferred` and
+  a note; the inference is an assumption, not a recorded value.
 - `mean` is outlier-sensitive even within a stratum; prefer the **median** and the
   `within_20_percent` / `within_50_percent` fractions, and read `survey_fallback.csv`
   for the individual recorded values.

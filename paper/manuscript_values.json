@@ -217,9 +217,9 @@
   "survey_b": {
     "n_cases": 38,
     "n_distinct_pairs": 35,
-    "overall_median": "53.2",
-    "overall_min": "-57.8",
-    "overall_max": "64332.7",
+    "overall_median": "33.5",
+    "overall_min": "-56.3",
+    "overall_max": "44644.9",
     "collimation_measured_n": 24,
     "collimation_reconstructed_n": 14,
     "collimation_measured_median": "20.5",
@@ -240,18 +240,18 @@
     },
     "headline_n": 23,
     "headline_median": "18.9",
-    "headline_mean_absolute": "45.4",
-    "headline_p25": "-2.9",
-    "headline_p75": "54.5",
-    "headline_min": "-57.8",
-    "headline_max": "198.3",
-    "headline_within_20_pct": "39.1",
-    "headline_within_50_pct": "60.9",
+    "headline_mean_absolute": "34.9",
+    "headline_p25": "3.5",
+    "headline_p75": "39.5",
+    "headline_min": "-56.3",
+    "headline_max": "107.2",
+    "headline_within_20_pct": "43.5",
+    "headline_within_50_pct": "73.9",
     "headline_by_vendor": {
       "Canon/Toshiba": {
         "n": 12,
-        "median": "17.0",
-        "mean_absolute": "32.3"
+        "median": "22.5",
+        "mean_absolute": "36.3"
       },
       "Philips": {
         "n": 0,
@@ -260,8 +260,8 @@
       },
       "Siemens": {
         "n": 11,
-        "median": "53.5",
-        "mean_absolute": "59.7"
+        "median": "9.2",
+        "mean_absolute": "33.5"
       }
     },
     "exclusions": {
@@ -270,7 +270,106 @@
       "series_too_large": 45,
       "insufficient_parameters": 4
     },
-    "diagnostic_threshold_mgy": 0.5
+    "diagnostic_threshold_mgy": 0.5,
+    "n_bowtie_inferred": 4,
+    "at_reference_kv_n": 29,
+    "at_reference_kv_median": "52.9",
+    "off_reference_kv_n": 9,
+    "off_reference_kv_median_corrected": "22.9",
+    "off_reference_kv_median_uncorrected": "54.5",
+    "off_reference_kv_by_voltage": {
+      "100": {
+        "n": 5,
+        "median_corrected": "25.1",
+        "median_uncorrected": "80.1"
+      },
+      "135": {
+        "n": 2,
+        "median_corrected": "31.2",
+        "median_uncorrected": "3.7"
+      },
+      "140": {
+        "n": 2,
+        "median_corrected": "-20.3",
+        "median_uncorrected": "-41.4"
+      }
+    }
+  },
+  "demonstration_case": {
+    "public_case": true,
+    "collection": "LDCT-and-Projection-data",
+    "subject_id": "L273",
+    "modality": "CT",
+    "series_description": "Full Dose Images",
+    "series_instance_uid": "1.2.840.113713.4.100.1.2.310086300212904160703482251540856",
+    "scanner": "Siemens Healthcare SOMATOM Definition AS+",
+    "acquisition": "abdomen, 120 kVp, 5 mm reconstructed slices, tube-current modulated",
+    "n_slices": 165,
+    "kvp": "120",
+    "tube_current_min_ma": "271",
+    "tube_current_max_ma": "653",
+    "tube_current_mean_ma": "437.6",
+    "modulation_depth_pct": "87.3",
+    "scan_range_mm": "492",
+    "n_organs": 17,
+    "w_min": "0.645",
+    "w_max": "1.480"
+  },
+  "validation": {
+    "n_cases": 2,
+    "reference_source": "Abdomen_v9 Mar 2023.xlsx",
+    "by_subject": {
+      "L273": {
+        "kvp": "120",
+        "kv_correction_factor": "1.0000",
+        "reference_ctdivol_mgy": "24.63",
+        "ctdivol_uncorrected_mgy": "16.29",
+        "ctdivol_corrected_mgy": "16.29",
+        "ctdivol_error_uncorrected_pct": "-33.9",
+        "ctdivol_error_corrected_pct": "-33.9",
+        "reference_ssde_mgy": "23.56",
+        "ssde_uncorrected_mgy": "20.55",
+        "ssde_corrected_mgy": "20.55",
+        "ssde_error_uncorrected_pct": "-12.7",
+        "ssde_error_corrected_pct": "-12.7",
+        "water_equivalent_diameter_cm": "29.4",
+        "collimation_source": "physics_fallback",
+        "pitch_source": "physics_fallback",
+        "pitch_reconciling_reference": "0.633",
+        "implied_collimation_mm": "36.3",
+        "assumed_collimation_mm": "23.0"
+      },
+      "L277": {
+        "kvp": "100",
+        "kv_correction_factor": "0.6944",
+        "reference_ctdivol_mgy": "10.12",
+        "ctdivol_uncorrected_mgy": "14.78",
+        "ctdivol_corrected_mgy": "10.26",
+        "ctdivol_error_uncorrected_pct": "46.0",
+        "ctdivol_error_corrected_pct": "1.4",
+        "reference_ssde_mgy": "13.42",
+        "ssde_uncorrected_mgy": "18.91",
+        "ssde_corrected_mgy": "13.13",
+        "ssde_error_uncorrected_pct": "40.9",
+        "ssde_error_corrected_pct": "-2.1",
+        "water_equivalent_diameter_cm": "29.0",
+        "collimation_source": "physics_fallback",
+        "pitch_source": "physics_fallback",
+        "pitch_reconciling_reference": "1.015",
+        "implied_collimation_mm": "30.2",
+        "assumed_collimation_mm": "30.7"
+      }
+    }
+  },
+  "inferential": {
+    "headline_median": "18.9",
+    "headline_ci95_low": "7.3",
+    "headline_ci95_high": "39.5",
+    "bootstrap_resamples": 20000,
+    "vendor_chi2": "137.2",
+    "vendor_dof": 3,
+    "vendor_cramers_v": "0.59",
+    "n_duplicate_pairs": 3
   },
   "size_and_dose": {
     "n_cases_in_survey": 38,
@@ -296,8 +395,8 @@
     "ssde_p25": "9.2",
     "ssde_p75": "22.6",
     "effective_dose_n": 29,
-    "effective_dose_median": "12.7",
-    "effective_dose_p25": "4.5",
+    "effective_dose_median": "13.1",
+    "effective_dose_p25": "4.8",
     "effective_dose_p75": "21.5",
     "effective_dose_min": "0.6",
     "effective_dose_max": "30.9"
