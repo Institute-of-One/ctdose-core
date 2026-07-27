@@ -44,3 +44,14 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Internal submission and audit working documents. These stay on the author's disk:
+# the submission kit carries the cover letter, reviewer-suggestion reasoning and a
+# ranked list of fallback journals, and the audit reports catalogue defects found and
+# fixed during preparation. None of it is needed to reproduce anything in the paper --
+# docs/REPRODUCING_FIGURES.md and results/ cover that -- and all of it is awkward to
+# have public while the manuscript is under review.
+paper/jacmp_submission_kit.md
+paper/Scientific_Audit_Report*.md
+docs/HANDOFF_*.md
+docs/NEXT_STEPS_*.md
