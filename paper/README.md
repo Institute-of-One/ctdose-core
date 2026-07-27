@@ -38,9 +38,13 @@ written.
 ## Disclosures the manuscript must carry
 
 - Affiliation: Institute of One, LISIT Co., Ltd.
-- Data: bundled fixture is a dummy-patient phantom acquisition; public archive data
-  remains under the TCIA Data Usage Policy and each collection's own licence. State
-  collection names, licences and access dates.
+- Data: **every image shown in the manuscript comes from a public TCIA collection** —
+  `LDCT-and-Projection-data` subjects L273 (figures) and L277 (validation), CC BY 4.0,
+  identified by Series Instance UID in `demonstration_cases.json` and retrievable via
+  `docs/REPRODUCING_FIGURES.md`. Nothing shown derives from the bundled dummy-patient
+  fixture, and no DICOM or clinical report is redistributed. Archive data remains under
+  the TCIA Data Usage Policy and each collection's own licence; state collection names,
+  licences and access dates.
 - Ethics: publicly available de-identified data; no new IRB approval.
 - AI: TotalSegmentator (Apache-2.0) for inference only; generative AI used as a
   development aid.
