@@ -1,0 +1,255 @@
+{
+  "_provenance": {
+    "generated_by": "tools/extract_manuscript_values.py",
+    "inputs": [
+      "results/rdsr_layer1.json",
+      "results/survey.json"
+    ],
+    "rule": "Every number in the manuscript must appear here, and every number here must come from results/. Enforced by tests/test_manuscript_consistency.py."
+  },
+  "layer1": {
+    "files_seen": 15,
+    "files_parsed": 14,
+    "files_rejected": 1,
+    "n_vendors": 4,
+    "vendors": [
+      "Canon/Toshiba",
+      "GE",
+      "Philips",
+      "Siemens"
+    ],
+    "n_models": 9,
+    "models": [
+      "Aquilion",
+      "Aquilion ONE",
+      "Aquilion Precision",
+      "Brilliance Big Bore",
+      "LightSpeed RT16",
+      "LightSpeed VCT",
+      "Optima CT660",
+      "SOMATOM Confidence",
+      "SOMATOM Definition Flash"
+    ],
+    "total_events": 67,
+    "events_with_ctdivol": 44,
+    "events_with_dlp": 44,
+    "phantoms_observed": [
+      16,
+      32
+    ],
+    "ctdivol_min": 0.14,
+    "ctdivol_max": 222.59,
+    "dlp_min": 1.2,
+    "dlp_max": 890.26,
+    "dlp_sum_check_comparable": 14,
+    "dlp_sum_check_within": 14,
+    "dlp_sum_tolerance_pct": "1",
+    "event_count_declared": 14,
+    "event_count_matching": 14,
+    "by_vendor": {
+      "GE": {
+        "files": 3,
+        "events": 35,
+        "events_with_ctdivol": 15,
+        "models": [
+          "LightSpeed RT16",
+          "LightSpeed VCT",
+          "Optima CT660"
+        ],
+        "phantom_cm": [
+          16,
+          32
+        ]
+      },
+      "Philips": {
+        "files": 1,
+        "events": 1,
+        "events_with_ctdivol": 1,
+        "models": [
+          "Brilliance Big Bore"
+        ],
+        "phantom_cm": [
+          32
+        ]
+      },
+      "Siemens": {
+        "files": 7,
+        "events": 23,
+        "events_with_ctdivol": 23,
+        "models": [
+          "SOMATOM Confidence",
+          "SOMATOM Definition Flash"
+        ],
+        "phantom_cm": [
+          32
+        ]
+      },
+      "Canon/Toshiba": {
+        "files": 3,
+        "events": 8,
+        "events_with_ctdivol": 5,
+        "models": [
+          "Aquilion",
+          "Aquilion ONE",
+          "Aquilion Precision"
+        ],
+        "phantom_cm": [
+          32
+        ]
+      }
+    }
+  },
+  "survey_a": {
+    "n_screened": 400,
+    "n_readable": 400,
+    "per_vendor_n": {
+      "Canon/Toshiba": 100,
+      "GE": 100,
+      "Philips": 100,
+      "Siemens": 100
+    },
+    "ctdivol_absence_pct": {
+      "Canon/Toshiba": "24.0",
+      "GE": "100.0",
+      "Philips": "34.0",
+      "Siemens": "48.0"
+    },
+    "ctdivol_absence_pct_overall": "51.5",
+    "with_ctdivol": {
+      "Canon/Toshiba": 76,
+      "GE": 0,
+      "Philips": 66,
+      "Siemens": 52
+    },
+    "with_ctdivol_overall": 194,
+    "dlp_absence_pct_overall": "100.0",
+    "fallback_feasible_pct": {
+      "Canon/Toshiba": "73.0",
+      "GE": "73.0",
+      "Philips": "17.0",
+      "Siemens": "47.0"
+    },
+    "fallback_feasible_pct_overall": "52.5",
+    "surveyable_pct": {
+      "Canon/Toshiba": "85.0",
+      "GE": "73.0",
+      "Philips": "68.0",
+      "Siemens": "52.0"
+    },
+    "surveyable_pct_overall": "69.5",
+    "n_collections": 92,
+    "model_resolution_overall": {
+      "resolved": 107,
+      "ambiguous": 49,
+      "unknown": 244
+    },
+    "unmatched_models_top": [
+      [
+        "Aquilion",
+        64
+      ],
+      [
+        "LightSpeed16",
+        15
+      ],
+      [
+        "Discovery CT750 HD",
+        14
+      ],
+      [
+        "iCT 256",
+        13
+      ],
+      [
+        "Discovery STE",
+        9
+      ],
+      [
+        "SOMATOM Definition Flash",
+        9
+      ],
+      [
+        "Mx8000 IDT 16",
+        8
+      ],
+      [
+        "BrightSpeed",
+        6
+      ]
+    ],
+    "n_series_without_licence": 16,
+    "licences": [
+      "Creative Commons Attribution 3.0 Unported License",
+      "Creative Commons Attribution 4.0 International License",
+      "Creative Commons Attribution-NonCommercial 3.0 Unported License",
+      "Creative Commons Attribution-NonCommercial 4.0 International License"
+    ]
+  },
+  "survey_b": {
+    "n_cases": 38,
+    "n_distinct_pairs": 35,
+    "overall_median": "53.2",
+    "overall_min": "-57.8",
+    "overall_max": "64332.7",
+    "collimation_measured_n": 24,
+    "collimation_reconstructed_n": 14,
+    "collimation_measured_median": "20.5",
+    "collimation_reconstructed_median": "156.4",
+    "vendor_by_collimation": {
+      "Canon/Toshiba": {
+        "collimation_measured": 12,
+        "collimation_reconstructed": 2
+      },
+      "Philips": {
+        "collimation_measured": 0,
+        "collimation_reconstructed": 12
+      },
+      "Siemens": {
+        "collimation_measured": 12,
+        "collimation_reconstructed": 0
+      }
+    },
+    "headline_n": 23,
+    "headline_median": "18.9",
+    "headline_mean_absolute": "45.4",
+    "headline_p25": "-2.9",
+    "headline_p75": "54.5",
+    "headline_min": "-57.8",
+    "headline_max": "198.3",
+    "headline_within_20_pct": "39.1",
+    "headline_within_50_pct": "60.9",
+    "headline_by_vendor": {
+      "Canon/Toshiba": {
+        "n": 12,
+        "median": "17.0",
+        "mean_absolute": "32.3"
+      },
+      "Philips": {
+        "n": 0,
+        "median": null,
+        "mean_absolute": null
+      },
+      "Siemens": {
+        "n": 11,
+        "median": "53.5",
+        "mean_absolute": "59.7"
+      }
+    },
+    "exclusions": {
+      "no_recorded_ctdivol": 206,
+      "model_not_in_table": 108,
+      "series_too_large": 45,
+      "insufficient_parameters": 4
+    },
+    "diagnostic_threshold_mgy": 0.5
+  },
+  "survey_parameters": {
+    "seed": 20260726,
+    "screen_per_vendor": 100,
+    "fallback_per_vendor": 14,
+    "max_images": 250,
+    "api": "https://services.cancerimagingarchive.net/nbia-api/services/v1",
+    "access_started_utc": "2026-07-26T04:52:21+00:00",
+    "access_finished_utc": "2026-07-26T05:00:45+00:00"
+  }
+}

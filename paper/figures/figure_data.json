@@ -1,0 +1,88 @@
+{
+  "_provenance": {
+    "generated_by": "paper/figures/make_figures.py",
+    "inputs": [
+      "results/rdsr_layer1.json",
+      "results/survey.json"
+    ],
+    "dpi": 300
+  },
+  "fig1_layer1_rdsr_agreement": {
+    "n_events_plotted": 44,
+    "ctdivol_min": 0.14,
+    "ctdivol_max": 222.59,
+    "dlp_pairs": 14,
+    "dlp_within_tolerance": 14,
+    "dlp_comparable": 14
+  },
+  "fig2_recorded_dose_availability": {
+    "absent_pct": {
+      "GE": 100.0,
+      "Siemens": 48.0,
+      "Philips": 34.0,
+      "Canon/Toshiba": 24.0
+    },
+    "feasible_pct": {
+      "GE": 73.0,
+      "Siemens": 47.0,
+      "Philips": 17.0,
+      "Canon/Toshiba": 73.0
+    },
+    "surveyable_pct": {
+      "GE": 73.0,
+      "Siemens": 52.0,
+      "Philips": 68.0,
+      "Canon/Toshiba": 85.0
+    },
+    "n_per_vendor": {
+      "GE": 100,
+      "Siemens": 100,
+      "Philips": 100,
+      "Canon/Toshiba": 100
+    }
+  },
+  "fig3_fallback_error": {
+    "n_cases": 38,
+    "n_headline": 23,
+    "headline_median": 18.9,
+    "reported_headline_median": 18.86436723684078,
+    "reported_headline_n": 23
+  },
+  "fig4_modulation_and_wed": {
+    "series": "GE MEDICAL SYSTEMS LightSpeed VCT",
+    "protocol": "6.8 Chest-Pelvis 5mm (FF)",
+    "n_slices": 147,
+    "kvp": 120.0,
+    "mean_tube_current_ma": 127.4,
+    "min_tube_current_ma": 119.0,
+    "max_tube_current_ma": 143.0,
+    "scan_range_mm": 730.0
+  },
+  "fig5_organ_overlay": {
+    "n_organs": 17,
+    "relative_weights": {
+      "urinary_bladder": 1.121,
+      "small_bowel": 1.023,
+      "colon": 1.002,
+      "spinal_cord": 0.966,
+      "aorta": 0.938,
+      "lung_lower_lobe_right": 0.934,
+      "lung_lower_lobe_left": 0.934,
+      "kidney_right": 0.934,
+      "adrenal_gland_left": 0.934,
+      "adrenal_gland_right": 0.934,
+      "gallbladder": 0.934,
+      "inferior_vena_cava": 0.934,
+      "kidney_left": 0.934,
+      "liver": 0.934,
+      "pancreas": 0.934,
+      "spleen": 0.934,
+      "stomach": 0.934
+    },
+    "w_min": 0.934,
+    "w_max": 1.121,
+    "tube_current_min_ma": 119.0,
+    "tube_current_max_ma": 143.0,
+    "tube_current_range_pct_of_mean": 18.8
+  }
+}

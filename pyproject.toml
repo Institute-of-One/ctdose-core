@@ -35,6 +35,8 @@ ai = ["TotalSegmentator>=2.0", "nibabel>=5.0"]
 # transitive idc-index dependency pins pandas<3 and does not build on every supported
 # Python.
 tcia = ["tcia_utils>=2.0"]
+# Optional inspection GUI (developer/verification front-end; not the product GUI).
+gui = ["streamlit>=1.30", "matplotlib>=3.7"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4"]
 
 [project.scripts]

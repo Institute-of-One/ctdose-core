@@ -38,6 +38,16 @@ from .io import ScanSeries
 from .provenance import Quantity, Source
 from .ssde import water_equivalent_diameter
 
+#: A compact, dose-relevant organ subset. Segmenting only these (instead of the
+#: full 100+ structures) makes TotalSegmentator dramatically faster and is all the
+#: longitudinal dose-weighting / overlay needs.
+DOSE_ROI_SUBSET = [
+    "liver", "spleen", "kidney_left", "kidney_right", "pancreas", "stomach",
+    "gallbladder", "adrenal_gland_left", "adrenal_gland_right", "aorta",
+    "inferior_vena_cava", "urinary_bladder", "small_bowel", "colon",
+    "spinal_cord", "lung_lower_lobe_left", "lung_lower_lobe_right",
+]
+
 
 class TotalSegmentatorUnavailable(ImportError):
     """Raised when the optional ``[ai]`` extra is required but not installed."""
@@ -179,13 +189,46 @@ def organ_weights_from_masks(
     )
 
 
+def load_masks_from_dir(mask_dir: Path | str, *, flip_lr: bool = False,
+                        flip_ap: bool = False, flip_z: bool = False) -> dict[str, np.ndarray]:
+    """Load per-organ boolean masks from a directory of TotalSegmentator ``.nii.gz`` files.
+
+    This lets segmentation be run once in its own process (see ``examples/segment_fast.py``
+    or the ``TotalSegmentator`` CLI) and the masks reused -- which is the reliable way on
+    Windows, where running nnU-Net's multiprocessing *inside* Streamlit spawns runaway
+    processes. Reading masks has no such problem.
+    """
+    files = sorted(Path(mask_dir).glob("*.nii.gz"))
+    if not files:
+        return {}
+    import nibabel as nib
+
+    masks: dict[str, np.ndarray] = {}
+    for path in files:
+        data = nib.load(str(path)).get_fdata()
+        # TotalSegmentator writes (x, y, z); the dose model indexes by slice first.
+        m = np.transpose(data > 0, (2, 1, 0))  # -> (z, y=AP, x=LR)
+        if flip_z:
+            m = m[::-1]
+        if flip_ap:
+            m = m[:, ::-1]
+        if flip_lr:
+            m = m[:, :, ::-1]
+        masks[path.name.removesuffix(".nii.gz")] = m
+    return masks
+
+
 def segment_organs(
     series: ScanSeries,
     *,
     output_dir: Path | str | None = None,
     fast: bool = True,
+    fastest: bool | None = None,
     task: str = "total",
     roi_subset: Sequence[str] | None = None,
+    device: str | None = None,
+    nr_thr_resamp: int | None = None,
+    nr_thr_saving: int | None = None,
 ) -> dict[str, np.ndarray]:  # pragma: no cover - requires the optional extra + model weights
     """Run TotalSegmentator on a series and return per-organ boolean masks.
 
@@ -203,20 +246,26 @@ def segment_organs(
     input_dir = series.files[0].parent
     out = Path(output_dir) if output_dir else input_dir / "_ctdose_segmentation"
     out.mkdir(parents=True, exist_ok=True)
-    run(
-        str(input_dir),
-        str(out),
-        fast=fast,
-        task=task,
-        roi_subset=list(roi_subset) if roi_subset else None,
-        quiet=True,
-    )
-    masks: dict[str, np.ndarray] = {}
-    for path in sorted(out.glob("*.nii.gz")):
-        data = nib.load(str(path)).get_fdata()
-        # TotalSegmentator writes (x, y, z); the dose model indexes by slice first.
-        masks[path.name.removesuffix(".nii.gz")] = np.transpose(data > 0, (2, 1, 0))
-    return masks
+    call_kwargs = {
+        "fast": fast,
+        "task": task,
+        "roi_subset": list(roi_subset) if roi_subset else None,
+        "quiet": True,
+    }
+    # Version-robust extras: newer TotalSegmentator accepts these; drop them on older ones.
+    extras = {
+        "device": device,
+        "fastest": fastest,
+        "nr_thr_resamp": nr_thr_resamp,
+        "nr_thr_saving": nr_thr_saving,
+    }
+    call_kwargs.update({k: v for k, v in extras.items() if v is not None})
+    try:
+        run(str(input_dir), str(out), **call_kwargs)
+    except TypeError:
+        run(str(input_dir), str(out), fast=fast, task=task,
+            roi_subset=list(roi_subset) if roi_subset else None, quiet=True)
+    return load_masks_from_dir(out)
 
 
 def organ_dose_profile(
