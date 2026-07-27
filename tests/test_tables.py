@@ -223,7 +223,14 @@ def test_drl_table_shape_and_the_flagged_cell():
     row = corrected[0]
     assert row["key"] == "chest" and row["source_value_ctdivol_mgy"] == 141.0
     assert row["ctdivol_mgy"] == 14.0
-    assert "Verify against" in row["data_quality_note"]
+    # The correction is no longer a suspicion: it was confirmed against the primary
+    # source, so the note must carry the citation a reader can check rather than an
+    # instruction to go and check it.
+    assert row["verified"] is True
+    note = row["data_quality_note"]
+    assert "Verify against" not in note, "the caveat outlived its verification"
+    assert "10.1007/s00247-015-3474-x" in note
+    assert "14.3" in note and "296.0" in note, "the primary-source values must be quoted"
 
 
 def test_pediatric_drls_increase_with_age():

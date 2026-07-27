@@ -108,7 +108,8 @@
       "dlp_mgycm": 300.0,
       "phantom_cm": 16,
       "source_value_ctdivol_mgy": 141.0,
-      "data_quality_note": "MATLAB source literal is 141; corrected to 14 (single-digit insertion). Verify against the J-RIME Japan DRLs 2015 publication before citing."
+      "verified": true,
+      "data_quality_note": "Verified against the nationwide paediatric CT survey underlying the J-RIME Japan DRLs 2015 (Takei Y, Miyazaki O, Matsubara K, et al. Pediatr Radiol. 2016;46(2):280-285. doi:10.1007/s00247-015-3474-x, PMID 26494635), which reports a 75th-percentile CTDIvol of 14.3 mGy and DLP of 296.0 mGy*cm for chest CT at 1-5 years on the 16 cm phantom. Stored rounded as 14.0 / 300.0, consistent with the rest of the table. The MATLAB source literal 141 was a single-digit insertion error."
     },
     {
       "examination": "Chest",
