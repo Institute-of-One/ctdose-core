@@ -469,12 +469,21 @@ def summarise_screens(screens: Sequence[SeriesScreen]) -> dict[str, Any]:
         n = len(ok)
         with_ctdi = sum(1 for r in ok if r.has_ctdivol_tag)
         feasible = sum(1 for r in ok if r.fallback_feasible)
+        # The marginal feasibility rate is over all series, including those that already
+        # carry a recorded dose. The question the reconstruction exists to answer is the
+        # conditional one -- of the series with no recorded dose, how many can be
+        # reconstructed -- so both are reported.
+        without_ctdi = [r for r in ok if not r.has_ctdivol_tag]
+        recoverable = [r for r in without_ctdi if r.fallback_feasible]
         return {
             "n_series_screened": len(rows),
             "n_series_readable": n,
             "n_errors": len(rows) - n,
             "with_ctdivol_tag": with_ctdi,
+            "without_ctdivol_tag": n - with_ctdi,
             "ctdivol_absence_rate": _rate(n - with_ctdi, n),
+            "n_without_ctdivol_reconstructable": len(recoverable),
+            "conditional_reconstructability_rate": _rate(len(recoverable), len(without_ctdi)),
             "with_dlp_record": sum(1 for r in ok if r.has_dlp_record),
             "dlp_absence_rate": _rate(n - sum(1 for r in ok if r.has_dlp_record), n),
             "fallback_feasible": feasible,
@@ -513,6 +522,13 @@ def summarise_screens(screens: Sequence[SeriesScreen]) -> dict[str, Any]:
         "overall": block(screens),
         "by_vendor": {v: block([r for r in screens if r.vendor == v]) for v in vendors},
         "unmatched_models": dict(sorted(unmatched.items(), key=lambda kv: -kv[1])),
+        "reconstructability_note": (
+            "'fallback_feasibility_rate' is marginal (over all screened series, including "
+            "those that already carry a recorded CTDIvol). "
+            "'conditional_reconstructability_rate' is over the series that lack one, which "
+            "is the population the reconstruction exists to serve. Report both: the "
+            "marginal rate describes the archive, the conditional rate describes the method."
+        ),
     }
 
 

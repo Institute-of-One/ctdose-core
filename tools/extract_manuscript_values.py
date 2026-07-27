@@ -38,6 +38,7 @@ def _sig(x: float | None, digits: int = 1) -> str:
 def collect() -> dict[str, Any]:
     layer1 = _load("rdsr_layer1.json")
     survey = _load("survey.json")
+    size = _load("size_and_dose.json") if (RESULTS / "size_and_dose.json").exists() else None
 
     s1 = layer1["summary"]
     files = [f for f in layer1["files"] if f.get("is_ct_rdsr")]
@@ -112,6 +113,28 @@ def collect() -> dict[str, Any]:
             "fallback_feasible_pct_overall": _pct(
                 absence["overall"]["fallback_feasibility_rate"]
             ),
+            "without_ctdivol": {
+                v: b["without_ctdivol_tag"] for v, b in absence["by_vendor"].items()
+            },
+            "without_ctdivol_overall": absence["overall"]["without_ctdivol_tag"],
+            "reconstructable_of_without": {
+                v: b["n_without_ctdivol_reconstructable"] for v, b in absence["by_vendor"].items()
+            },
+            "reconstructable_of_without_overall": absence["overall"][
+                "n_without_ctdivol_reconstructable"
+            ],
+            "conditional_reconstructability_pct": {
+                v: _pct(b["conditional_reconstructability_rate"])
+                for v, b in absence["by_vendor"].items()
+            },
+            "conditional_reconstructability_pct_overall": _pct(
+                absence["overall"]["conditional_reconstructability_rate"]
+            ),
+            "surveyable_count": {v: b["surveyable"] for v, b in absence["by_vendor"].items()},
+            "surveyable_count_overall": absence["overall"]["surveyable"],
+            "unsurveyable_count_overall": (
+                absence["overall"]["n_series_readable"] - absence["overall"]["surveyable"]
+            ),
             "surveyable_pct": {
                 v: _pct(b["surveyable_rate"]) for v, b in absence["by_vendor"].items()
             },
@@ -158,6 +181,38 @@ def collect() -> dict[str, Any]:
             },
             "exclusions": survey["fallback_exclusions"],
             "diagnostic_threshold_mgy": headline_threshold(fallback),
+        },
+        "size_and_dose": None
+        if size is None
+        else {
+            "n_cases_in_survey": size["summary"]["n_cases_in_survey"],
+            "n_contour_failed": size["summary"]["n_contour_failed"],
+            "n_evaluated": size["summary"]["n_evaluated"],
+            "n_phantom_collection": size["summary"]["n_phantom_collection"],
+            "n_too_few_slices": size["summary"]["n_too_few_slices"],
+            "n_below_diagnostic_ctdivol": size["summary"]["n_below_diagnostic_ctdivol"],
+            "n_patient_like": size["summary"]["n_patient_like"],
+            "n_scan_range_unrecoverable": size["summary"]["n_scan_range_unrecoverable"],
+            "n_patient_like_with_scan_range": size["summary"]["n_patient_like_with_scan_range"],
+            "wed_median": _sig(size["summary"]["patient_like"]["water_equivalent_diameter_cm"]["median"]),
+            "wed_p25": _sig(size["summary"]["patient_like"]["water_equivalent_diameter_cm"]["p25"]),
+            "wed_p75": _sig(size["summary"]["patient_like"]["water_equivalent_diameter_cm"]["p75"]),
+            "wed_min": _sig(size["summary"]["patient_like"]["water_equivalent_diameter_cm"]["min"]),
+            "wed_max": _sig(size["summary"]["patient_like"]["water_equivalent_diameter_cm"]["max"]),
+            "factor_median": _sig(size["summary"]["patient_like"]["ssde_conversion_factor"]["median"], 2),
+            "factor_p25": _sig(size["summary"]["patient_like"]["ssde_conversion_factor"]["p25"], 2),
+            "factor_p75": _sig(size["summary"]["patient_like"]["ssde_conversion_factor"]["p75"], 2),
+            "factor_min": _sig(size["summary"]["patient_like"]["ssde_conversion_factor"]["min"], 2),
+            "factor_max": _sig(size["summary"]["patient_like"]["ssde_conversion_factor"]["max"], 2),
+            "ssde_median": _sig(size["summary"]["patient_like"]["ssde_from_recorded_mgy"]["median"]),
+            "ssde_p25": _sig(size["summary"]["patient_like"]["ssde_from_recorded_mgy"]["p25"]),
+            "ssde_p75": _sig(size["summary"]["patient_like"]["ssde_from_recorded_mgy"]["p75"]),
+            "effective_dose_n": size["summary"]["patient_like"]["effective_dose_msv"]["n"],
+            "effective_dose_median": _sig(size["summary"]["patient_like"]["effective_dose_msv"]["median"]),
+            "effective_dose_p25": _sig(size["summary"]["patient_like"]["effective_dose_msv"]["p25"]),
+            "effective_dose_p75": _sig(size["summary"]["patient_like"]["effective_dose_msv"]["p75"]),
+            "effective_dose_min": _sig(size["summary"]["patient_like"]["effective_dose_msv"]["min"]),
+            "effective_dose_max": _sig(size["summary"]["patient_like"]["effective_dose_msv"]["max"]),
         },
         "survey_parameters": {
             "seed": survey["parameters"]["seed"],

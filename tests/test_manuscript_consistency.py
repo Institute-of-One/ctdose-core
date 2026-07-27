@@ -97,6 +97,31 @@ def test_layer1_consistency_checks_are_quoted_correctly(text, layer1):
 # --- Layer 2a ------------------------------------------------------------------------------
 
 
+def test_absent_count_is_paired_with_the_absence_rate(text, survey):
+    """The defect this suite failed to catch on the first pass.
+
+    Asserting only that a count appears somewhere is not enough: the count has to be the
+    one the sentence names. Here the absent count and the absence rate must appear
+    together, and the *present* count must never be described as absent.
+    """
+    overall = survey["tag_absence"]["overall"]
+    absent = overall["without_ctdivol_tag"]
+    present = overall["with_ctdivol_tag"]
+    total = overall["n_series_readable"]
+    rate = f"{100 * overall['ctdivol_absence_rate']:.1f}%"
+
+    assert absent != present, "this test cannot discriminate when the split is even"
+    assert_quoted(text, f"{absent} of {total} series ({rate})", "absent count with its rate")
+
+    # The present count must not appear within a sentence that says "absent".
+    for sentence in re.split(r"(?<=[.!?])\s+", text):
+        if "absent" in sentence.lower() and str(present) in sentence:
+            raise AssertionError(
+                f"the count {present} (series that HAVE CTDIvol) appears in a sentence "
+                f"about absence: {sentence[:160]!r}"
+            )
+
+
 def test_screening_totals_are_quoted_correctly(text, survey):
     overall = survey["tag_absence"]["overall"]
     by_vendor = survey["tag_absence"]["by_vendor"]
@@ -107,9 +132,10 @@ def test_screening_totals_are_quoted_correctly(text, survey):
     assert_quoted(text, f"{overall['n_series_screened']} public CT series", "n screened")
     assert_quoted(text, f"{per_vendor.pop()} per manufacturer", "n per manufacturer")
     assert_quoted(text, f"{n_collections} collections", "n collections")
+    # The count of series that HAVE a recorded CTDIvol is used to open the accuracy arm.
     assert_quoted(
         text,
-        f"{overall['with_ctdivol_tag']} of {overall['n_series_readable']} series",
+        f"Of the {overall['with_ctdivol_tag']} screened series carrying a recorded CTDIvol",
         "series with CTDIvol",
     )
 
@@ -125,9 +151,16 @@ def test_overall_rates_are_quoted_correctly(text, survey):
     overall = survey["tag_absence"]["overall"]
     assert_quoted(text, f"{100 * overall['ctdivol_absence_rate']:.1f}%", "overall absence")
     assert_quoted(
-        text, f"{100 * overall['fallback_feasibility_rate']:.1f}% of series", "feasibility"
+        text,
+        f"complete enough in {100 * overall['fallback_feasibility_rate']:.1f}%",
+        "marginal feasibility",
     )
-    assert_quoted(text, f"{100 * overall['surveyable_rate']:.1f}% of series", "surveyable")
+    assert_quoted(
+        text,
+        f"{overall['surveyable']} of {overall['n_series_readable']} series "
+        f"({100 * overall['surveyable_rate']:.1f}%)",
+        "surveyable",
+    )
 
 
 def test_no_series_carried_a_dlp_record(text, survey):
@@ -167,18 +200,74 @@ def test_unsurveyable_fraction_claim_is_supported(text, survey):
 # --- Layer 2b ------------------------------------------------------------------------------
 
 
-def test_fallback_case_counts_and_exclusions_are_quoted_correctly(text, survey):
+def test_conditional_reconstructability_is_quoted_correctly(text, survey):
+    """The conditional rate is the one the reconstruction's usefulness rests on."""
+    overall = survey["tag_absence"]["overall"]
+    assert_quoted(
+        text,
+        f"{overall['without_ctdivol_tag']} series that lacked a recorded CTDIvol, "
+        f"{overall['n_without_ctdivol_reconstructable']} "
+        f"({100 * overall['conditional_reconstructability_rate']:.1f}%)",
+        "overall conditional rate",
+    )
+    for vendor, block in survey["tag_absence"]["by_vendor"].items():
+        rate = 100 * (block["conditional_reconstructability_rate"] or 0.0)
+        assert_quoted(text, f"| **{rate:.1f}%** |", f"{vendor} conditional rate in Table 1")
+    assert_quoted(
+        text,
+        f"{overall['surveyable']} of {overall['n_series_readable']} series "
+        f"({100 * overall['surveyable_rate']:.1f}%)",
+        "surveyable total",
+    )
+    assert_quoted(
+        text,
+        f"{overall['n_series_readable'] - overall['surveyable']} "
+        f"({100 * (1 - overall['surveyable_rate']):.1f}%)",
+        "unsurveyable total",
+    )
+
+
+def test_fallback_case_counts_and_exclusions_reconcile(text, survey):
+    """The exclusion arithmetic in the text must actually add up.
+
+    The categories overlap, so they cannot be subtracted sequentially; the manuscript has
+    to state the once-only excluded total and the sampling cap that follows it.
+    """
     fb = survey["fallback_error"]
     exclusions = survey["fallback_exclusions"]
-    assert_quoted(text, f"{fb['overall']['n']} could be evaluated", "n evaluable")
+    rows = survey["series"]
+    has = [r for r in rows if r["has_ctdivol_tag"] and not r["error"]]
+    eligible = [
+        r for r in has
+        if r["model_resolution"] != "unknown" and (r["n_images"] or 0) <= 250
+    ]
+    both = [
+        r for r in has
+        if r["model_resolution"] == "unknown" and (r["n_images"] or 0) > 250
+    ]
+    excluded_once = len(has) - len(eligible)
+    cap = survey["parameters"]["fallback_per_vendor"]
+
+    assert excluded_once == (
+        exclusions["model_not_in_table"] + exclusions["series_too_large"] - len(both)
+    ), "the overlap accounting is wrong"
+
+    assert_quoted(text, f"Of the {len(has)} screened series", "n with recorded CTDIvol")
+    assert_quoted(text, f"{excluded_once} were excluded", "excluded once")
+    assert_quoted(text, f"table ({exclusions['model_not_in_table']})", "excl model")
+    assert_quoted(text, f"limit ({exclusions['series_too_large']})", "excl size")
+    assert_quoted(text, f"{len(both)} series fell into both categories", "overlap")
+    assert_quoted(text, f"{len(eligible)} remaining eligible series", "eligible")
+    assert_quoted(text, f"capped at {cap} per manufacturer", "sampling cap")
+    assert_quoted(
+        text, f"{exclusions['insufficient_parameters']} lacked complete", "excl params"
+    )
+    assert_quoted(text, f"leaving {fb['overall']['n']} evaluable cases", "n evaluable")
     assert_quoted(
         text,
         f"{fb['independence']['n_distinct_recorded_estimated_pairs']} distinct",
         "distinct pairs",
     )
-    assert_quoted(text, f"coefficient table ({exclusions['model_not_in_table']})", "excl model")
-    assert_quoted(text, f"size limit ({exclusions['series_too_large']})", "excl size")
-    assert_quoted(text, f"incomplete ({exclusions['insufficient_parameters']})", "excl params")
 
 
 def test_headline_stratum_is_quoted_correctly(text, survey):
@@ -260,6 +349,49 @@ def test_diagnostic_threshold_is_quoted_correctly(text, survey):
     assert_quoted(text, f"leaves {remaining} cases", "n diagnostic")
 
 
+# --- size correction and effective dose -------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def size_and_dose() -> dict:
+    return _load(RESULTS / "size_and_dose.json")
+
+
+def test_size_layer_inclusion_accounting_is_quoted_correctly(text, size_and_dose):
+    s = size_and_dose["summary"]
+    assert s["n_contour_failed"] == 1, "the manuscript spells this count as 'one'"
+    assert_quoted(text, f"Of the {s['n_cases_in_survey']}, one could not be contoured", "contour failure")
+    assert_quoted(text, f"leaving {s['n_evaluated']}", "n evaluated")
+    assert_quoted(text, f"{s['n_phantom_collection']} scans of physical test objects", "phantoms")
+    assert_quoted(text, f"{s['n_too_few_slices']} series of fewer than 10 slices", "short series")
+    assert_quoted(text, f"**{s['n_patient_like']} patient-like series**", "patient-like n")
+
+
+def test_size_layer_statistics_are_quoted_correctly(text, size_and_dose):
+    p = size_and_dose["summary"]["patient_like"]
+    wed, factor, ssde_ = (
+        p["water_equivalent_diameter_cm"], p["ssde_conversion_factor"], p["ssde_from_recorded_mgy"]
+    )
+    assert_quoted(text, f"median of {wed['median']:.1f} cm", "WED median")
+    assert_quoted(text, f"{wed['p25']:.1f}–{wed['p75']:.1f} cm", "WED IQR")
+    assert_quoted(text, f"range {wed['min']:.1f}–{wed['max']:.1f} cm", "WED range")
+    assert_quoted(text, f"median of {factor['median']:.2f}", "factor median")
+    assert_quoted(text, f"range {factor['min']:.2f}–{factor['max']:.2f}", "factor range")
+    assert_quoted(text, f"median of {ssde_['median']:.1f} mGy", "SSDE median")
+
+
+def test_effective_dose_is_quoted_with_its_reduced_denominator(text, size_and_dose):
+    """Three series have no recoverable scan range; the paper must say so, not average them."""
+    s = size_and_dose["summary"]
+    e = s["patient_like"]["effective_dose_msv"]
+    assert e["n"] == s["n_patient_like_with_scan_range"]
+    assert_quoted(text, f"**{e['n']} of the {s['n_patient_like']}**", "effective-dose denominator")
+    assert_quoted(text, f"median of {e['median']:.1f} mSv", "E median")
+    assert_quoted(text, f"{e['p25']:.1f}–{e['p75']:.1f} mSv", "E IQR")
+    assert_quoted(text, f"range {e['min']:.1f}–{e['max']:.1f} mSv", "E range")
+    assert "identical longitudinal position" in text
+
+
 # --- figure-derived numbers -----------------------------------------------------------------
 
 
@@ -321,6 +453,31 @@ def test_ai_and_conflict_declarations_are_present(text):
         "TotalSegmentator (Apache-2.0) was used for inference only",
     ):
         assert required in text, f"missing declaration: {required}"
+
+
+def test_figure_generation_is_deterministic():
+    """§2.8 claims the figures are generated from the data; that requires reproducibility.
+
+    The jitter in Figure 1 was originally seeded from ``hash()``, which Python randomises
+    per process, so the figure differed on every run. This checks the replacement is
+    stable, without re-rendering: identical inputs must give identical offsets.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "make_figures", REPO / "paper" / "figures" / "make_figures.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    keys = ["CT-ESR-GE_VCT.dcm#0", "CT-RDSR-Siemens-Multi-3.dcm#2", "all cases#7"]
+    first = [module.stable_jitter(k) for k in keys]
+    second = [module.stable_jitter(k) for k in keys]
+    assert first == second
+    assert len(set(first)) == len(keys), "distinct keys must give distinct offsets"
+    assert all(abs(v) <= 0.22 for v in first)
+    # A different spread scales the same key proportionally rather than re-randomising.
+    assert module.stable_jitter(keys[0], 0.11) == pytest.approx(first[0] / 2)
 
 
 def test_every_figure_referenced_exists(text):

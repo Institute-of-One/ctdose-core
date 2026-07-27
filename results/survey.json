@@ -22,7 +22,10 @@
       "n_series_readable": 400,
       "n_errors": 0,
       "with_ctdivol_tag": 194,
+      "without_ctdivol_tag": 206,
       "ctdivol_absence_rate": 0.515,
+      "n_without_ctdivol_reconstructable": 84,
+      "conditional_reconstructability_rate": 0.4077669902912621,
       "with_dlp_record": 0,
       "dlp_absence_rate": 1.0,
       "fallback_feasible": 210,
@@ -150,7 +153,10 @@
         "n_series_readable": 100,
         "n_errors": 0,
         "with_ctdivol_tag": 76,
+        "without_ctdivol_tag": 24,
         "ctdivol_absence_rate": 0.24,
+        "n_without_ctdivol_reconstructable": 9,
+        "conditional_reconstructability_rate": 0.375,
         "with_dlp_record": 0,
         "dlp_absence_rate": 1.0,
         "fallback_feasible": 73,
@@ -222,7 +228,10 @@
         "n_series_readable": 100,
         "n_errors": 0,
         "with_ctdivol_tag": 0,
+        "without_ctdivol_tag": 100,
         "ctdivol_absence_rate": 1.0,
+        "n_without_ctdivol_reconstructable": 73,
+        "conditional_reconstructability_rate": 0.73,
         "with_dlp_record": 0,
         "dlp_absence_rate": 1.0,
         "fallback_feasible": 73,
@@ -333,7 +342,10 @@
         "n_series_readable": 100,
         "n_errors": 0,
         "with_ctdivol_tag": 66,
+        "without_ctdivol_tag": 34,
         "ctdivol_absence_rate": 0.34,
+        "n_without_ctdivol_reconstructable": 2,
+        "conditional_reconstructability_rate": 0.058823529411764705,
         "with_dlp_record": 0,
         "dlp_absence_rate": 1.0,
         "fallback_feasible": 17,
@@ -422,7 +434,10 @@
         "n_series_readable": 100,
         "n_errors": 0,
         "with_ctdivol_tag": 52,
+        "without_ctdivol_tag": 48,
         "ctdivol_absence_rate": 0.48,
+        "n_without_ctdivol_reconstructable": 0,
+        "conditional_reconstructability_rate": 0.0,
         "with_dlp_record": 0,
         "dlp_absence_rate": 1.0,
         "fallback_feasible": 47,
@@ -583,7 +598,8 @@
       "GeminiGXL 16": 1,
       "GEMINI TF Big Bore": 1,
       "Gemini TF 64": 1
-    }
+    },
+    "reconstructability_note": "'fallback_feasibility_rate' is marginal (over all screened series, including those that already carry a recorded CTDIvol). 'conditional_reconstructability_rate' is over the series that lack one, which is the population the reconstruction exists to serve. Report both: the marginal rate describes the archive, the conditional rate describes the method."
   },
   "fallback_error": {
     "diagnostic_and_collimation_measured": {
@@ -11375,6 +11391,8 @@
     "ctdose_core_version": "0.1.0",
     "archive": "The Cancer Imaging Archive (TCIA), public NBIA REST API",
     "access_started_utc": "2026-07-26T04:52:21+00:00",
-    "access_finished_utc": "2026-07-26T05:00:45+00:00"
+    "access_finished_utc": "2026-07-26T05:00:45+00:00",
+    "summary_rebuilt_by": "tools/rebuild_survey_summary.py",
+    "summary_rebuilt_note": "The per-series and per-case rows are from the original archive run recorded in access_started_utc/access_finished_utc; only the aggregation was recomputed."
   }
 }

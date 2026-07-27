@@ -130,6 +130,35 @@
       "Siemens": "47.0"
     },
     "fallback_feasible_pct_overall": "52.5",
+    "without_ctdivol": {
+      "Canon/Toshiba": 24,
+      "GE": 100,
+      "Philips": 34,
+      "Siemens": 48
+    },
+    "without_ctdivol_overall": 206,
+    "reconstructable_of_without": {
+      "Canon/Toshiba": 9,
+      "GE": 73,
+      "Philips": 2,
+      "Siemens": 0
+    },
+    "reconstructable_of_without_overall": 84,
+    "conditional_reconstructability_pct": {
+      "Canon/Toshiba": "37.5",
+      "GE": "73.0",
+      "Philips": "5.9",
+      "Siemens": "0.0"
+    },
+    "conditional_reconstructability_pct_overall": "40.8",
+    "surveyable_count": {
+      "Canon/Toshiba": 85,
+      "GE": 73,
+      "Philips": 68,
+      "Siemens": 52
+    },
+    "surveyable_count_overall": 278,
+    "unsurveyable_count_overall": 122,
     "surveyable_pct": {
       "Canon/Toshiba": "85.0",
       "GE": "73.0",
@@ -242,6 +271,36 @@
       "insufficient_parameters": 4
     },
     "diagnostic_threshold_mgy": 0.5
+  },
+  "size_and_dose": {
+    "n_cases_in_survey": 38,
+    "n_contour_failed": 1,
+    "n_evaluated": 37,
+    "n_phantom_collection": 2,
+    "n_too_few_slices": 3,
+    "n_below_diagnostic_ctdivol": 1,
+    "n_patient_like": 32,
+    "n_scan_range_unrecoverable": 4,
+    "n_patient_like_with_scan_range": 29,
+    "wed_median": "31.5",
+    "wed_p25": "28.0",
+    "wed_p75": "38.2",
+    "wed_min": "16.6",
+    "wed_max": "52.8",
+    "factor_median": "1.16",
+    "factor_p25": "0.91",
+    "factor_p75": "1.32",
+    "factor_min": "0.71",
+    "factor_max": "2.01",
+    "ssde_median": "11.6",
+    "ssde_p25": "9.2",
+    "ssde_p75": "22.6",
+    "effective_dose_n": 29,
+    "effective_dose_median": "12.7",
+    "effective_dose_p25": "4.5",
+    "effective_dose_p75": "21.5",
+    "effective_dose_min": "0.6",
+    "effective_dose_max": "30.9"
   },
   "survey_parameters": {
     "seed": 20260726,

@@ -314,8 +314,17 @@ class ScanSeries:
         )
 
     def load_volume(self, dtype: type = np.float32) -> np.ndarray:
-        """Read the pixel data as Hounsfield units, shaped ``(n_slices, rows, cols)``."""
+        """Read the pixel data as Hounsfield units, shaped ``(n_slices, rows, cols)``.
+
+        Raises:
+            ValueError: if the series has no readable images, or if the slices do not all
+                share one matrix size. Public archives do contain series whose images were
+                reconstructed at different matrices, and silently cropping or padding them
+                would corrupt every area-based measurement downstream; the caller is told
+                instead.
+        """
         vol = None
+        expected: tuple[int, ...] | None = None
         for i, path in enumerate(self.files):
             ds = pydicom.dcmread(str(path))
             arr = ds.pixel_array.astype(dtype)
@@ -328,7 +337,14 @@ class ScanSeries:
                 if pad is not None:
                     arr[arr <= pad * slope + intercept] = -1000.0
             if vol is None:
+                expected = arr.shape
                 vol = np.empty((len(self.files), *arr.shape), dtype=dtype)
+            elif arr.shape != expected:
+                raise ValueError(
+                    f"series has inconsistent image dimensions: {path.name} is "
+                    f"{arr.shape} but the series starts at {expected}. Split the series "
+                    "by matrix size, or select one Series Instance UID."
+                )
             vol[i] = arr
         if vol is None:
             raise ValueError("series contains no readable images")
@@ -469,6 +485,16 @@ def load_series(
         pass  # modulated acquisition: expected, no warning
     if not locations:
         warnings.append("no slice locations; scan range will be 0 and DLP cannot be estimated")
+    elif len(headers) > 1 and len(set(locations)) == 1:
+        # Seen in public archives: de-identification flattens or removes the z coordinate,
+        # leaving every slice reporting the same position. CTDIvol is unaffected, but the
+        # scan range collapses to zero and any DLP or effective dose derived from it is
+        # meaningless rather than merely imprecise.
+        warnings.append(
+            f"all {len(locations)} slices report the same longitudinal position "
+            f"({locations[0]:g} mm); the scan range is unrecoverable, so DLP and "
+            "effective dose must not be derived from this series"
+        )
 
     thickness = _as_float(_get(first, T_SLICE_THICKNESS))
     pitch = _pitch(first)

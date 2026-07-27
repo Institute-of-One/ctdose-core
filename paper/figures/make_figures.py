@@ -18,6 +18,7 @@ exact values plotted.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,18 @@ def _load(name: str) -> dict:
     return json.loads((RESULTS / name).read_text(encoding="utf-8"))
 
 
+def stable_jitter(key: str, spread: float = 0.22) -> float:
+    """Deterministic offset in ``[-spread, +spread]`` derived from a string.
+
+    Python randomises ``hash()`` for strings per process unless PYTHONHASHSEED is set, so
+    seeding a generator from it would make the figure differ on every run. A cryptographic
+    digest does not have that problem, and the figure is then byte-reproducible.
+    """
+    digest = hashlib.sha256(key.encode("utf-8")).digest()
+    unit = int.from_bytes(digest[:8], "big") / float(1 << 64)  # [0, 1)
+    return (2.0 * unit - 1.0) * spread
+
+
 def _save(fig, name: str) -> Path:
     out = FIGDIR / name
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor="white")
@@ -85,7 +98,7 @@ def figure_layer1(layer1: dict) -> dict[str, Any]:
     for e in events:
         if e["ctdivol_mgy"] is None:
             continue
-        xs.append(VENDORS.index(e["vendor"]) + (np.random.RandomState(abs(hash(e["file"])) % 2**31).uniform(-0.22, 0.22)))
+        xs.append(VENDORS.index(e["vendor"]) + stable_jitter(f"{e['file']}#{e['event_index']}"))
         ys.append(e["ctdivol_mgy"])
         colours.append(VENDOR_COLOUR[e["vendor"]])
         markers.append(e["phantom_cm"])
@@ -301,11 +314,12 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
         ("diagnostic +\ncollimation recorded", [c["percent_error"] for c in complete], "#1a3d5c"),
     ]
     positions = np.arange(len(strata))
-    for pos, (_, values, colour) in zip(positions, strata, strict=True):
+    for pos, (label, values, colour) in zip(positions, strata, strict=True):
         v = np.asarray(values, dtype=float)
         v = np.clip(v, -100, 400)  # keep the localiser outlier from flattening the axis
+        offsets = np.array([stable_jitter(f"{label}#{i}", 0.13) for i in range(v.size)])
         ax1.scatter(
-            v, np.full(v.size, pos) + np.random.RandomState(7).uniform(-0.13, 0.13, v.size),
+            v, np.full(v.size, pos) + offsets,
             s=22, color=colour, alpha=0.75, edgecolors="white", linewidths=0.4, zorder=3,
         )
         med = float(np.median(values))
