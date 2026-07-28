@@ -17,7 +17,8 @@
     "primary_sources": [
       "American Association of Physicists in Medicine. Size-Specific Dose Estimates (SSDE) in Pediatric and Adult Body CT Examinations. AAPM Report No. 204. College Park, MD: AAPM; 2011.",
       "American Association of Physicists in Medicine. Use of Water Equivalent Diameter for Calculating Patient Size and Size-Specific Dose Estimates (SSDE) in CT. AAPM Report No. 220. College Park, MD: AAPM; 2014."
-    ]
+    ],
+    "transcription": "Transcribed from the published TG-204/ICRP-103 tables and cross-checked in the test suite."
   },
   "tables": {
     "etab16": [

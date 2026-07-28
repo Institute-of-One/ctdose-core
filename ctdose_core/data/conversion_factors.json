@@ -4,7 +4,8 @@
     "primary_sources": [
       "International Commission on Radiological Protection. The 2007 Recommendations of the ICRP. ICRP Publication 103. Ann ICRP. 2007;37(2-4). (tissue weighting and DLP-to-effective-dose k factors)"
     ],
-    "note": "Region- and age-specific conversion factors as published in the sources above. Values are cross-checked against each other by tests/test_tables.py; no per-scanner CTDI data is involved."
+    "note": "Region- and age-specific conversion factors as published in the sources above. Values are cross-checked against each other by tests/test_tables.py; no per-scanner CTDI data is involved.",
+    "transcription": "Transcribed from the published TG-204/ICRP-103 tables and cross-checked in the test suite."
   },
   "records": [
     {
