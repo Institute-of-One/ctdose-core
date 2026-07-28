@@ -1,6 +1,6 @@
 {
   "title": "ctdose-core: open, auditable CT dose surveillance from DICOM, with a physics reconstruction when the dose attributes are missing",
-  "description": "<p>A Python package (MIT) that computes CTDIvol, dose-length product, size-specific dose estimate and effective dose from CT DICOM data. It reads a recorded dose where one exists &mdash; from a CT Radiation Dose Structured Report or the image header &mdash; and reconstructs one from acquisition physics where none does, which is the common case in public imaging archives. Every value carries its formula, its inputs and its provenance, so a recorded and a reconstructed figure never become interchangeable by accident.</p><p>This archive accompanies the manuscript <em>Recorded, reconstructed or unrecoverable: auditable CT dose surveillance across four manufacturers on public imaging archives</em>. It includes the measured results the manuscript quotes, under <code>results/</code>, together with the scripts that generate them.</p><p><strong>No imaging data is redistributed.</strong> The surveyed series are identified by Series Instance UID with their per-series licence; the demonstration and validation subjects are identified in <code>paper/demonstration_cases.json</code> and retrievable from The Cancer Imaging Archive following <code>docs/REPRODUCING_FIGURES.md</code>; the GPL-3.0 RDSR sample objects remain with their distributor.</p>",
+  "description": "<p>A Python package (MIT) that computes CTDIvol, dose-length product, size-specific dose estimate and effective dose from CT DICOM data. It reads a recorded dose where one exists &mdash; from a CT Radiation Dose Structured Report or the image header &mdash; and reconstructs one from acquisition physics where none does, which is the common case in public imaging archives. Every value carries its formula, its inputs and its provenance, so a recorded and a reconstructed figure never become interchangeable by accident.</p><p>This archive accompanies the manuscript <em>An open-source, provenance-aware framework for reconstructing missing CT dose indices from DICOM metadata</em>. It includes the measured results the manuscript quotes, under <code>results/</code>, together with the scripts that generate them.</p><p><strong>No imaging data is redistributed.</strong> The surveyed series are identified by Series Instance UID with their per-series licence; the demonstration subject is identified in <code>paper/demonstration_cases.json</code> and retrievable from The Cancer Imaging Archive following <code>docs/REPRODUCING_FIGURES.md</code>; the GPL-3.0 RDSR sample objects remain with their distributor.</p>",
   "upload_type": "software",
   "license": "MIT",
   "access_right": "open",
@@ -53,7 +53,13 @@
       "relation": "isDerivedFrom",
       "resource_type": "publication-article",
       "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.21636082",
+      "relation": "isVersionOf",
+      "resource_type": "software",
+      "scheme": "doi"
     }
   ],
-  "notes": "Add the article DOI as an isSupplementTo relation once the manuscript is accepted. The reference list here names only the works this software is built on, not everything the manuscript cites."
+  "notes": "Add the article DOI as an isSupplementTo relation once the manuscript is accepted. The reference list here names only the works this software is built on, not everything the manuscript cites. The concept DOI 10.5281/zenodo.21636082 is recorded as a relation rather than as a top-level 'doi', which would tell Zenodo the DOI was assigned elsewhere and stop it versioning releases."
 }

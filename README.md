@@ -1,5 +1,8 @@
 # ctdose-core
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21636082.svg)](https://doi.org/10.5281/zenodo.21636082)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Open, auditable CT dose surveillance from DICOM: CTDIvol, DLP, SSDE and effective
 dose — **including the case where the DICOM dose attributes are missing**, which is
 the norm in public archives and older clinical data.
@@ -392,6 +395,12 @@ Two smaller data-quality findings, both handled by counting rather than averagin
 
 ## Citation and disclosures
 
+- **Cite the software as** the archived release: DOI
+  [10.5281/zenodo.21636082](https://doi.org/10.5281/zenodo.21636082). That is the
+  *concept* DOI and always resolves to the latest version; each release also has its
+  own version DOI, and the accompanying manuscript cites the version DOI so it names
+  the exact snapshot its numbers were produced on. Machine-readable metadata is in
+  `CITATION.cff`.
 - **Affiliation:** Institute of One, LISIT Co., Ltd.
 - **Licence:** MIT.
 - **Data:** the bundled fixture is a dummy-patient phantom acquisition, not patient

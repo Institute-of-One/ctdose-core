@@ -34,19 +34,18 @@ license: MIT
 version: 0.1.0
 # Set to the tag date when the release is cut; Zenodo takes the date from the
 # GitHub release, so this is the human-readable copy rather than the authority.
-date-released: '2026-07-27'
-# After the Zenodo release, add the *concept* DOI here (all versions) and the
-# *version* DOI in the manuscript's data-availability statement, so the paper
-# cites the exact snapshot while this file cites the project.
-# doi: 10.5281/zenodo.XXXXXXXX
+date-released: '2026-07-28'
+# The *concept* DOI: it resolves to the latest version, which is what a citation of
+# the project should point at. The manuscript's data-availability statement cites the
+# *version* DOI instead, so the paper names the exact snapshot it was run on.
+doi: 10.5281/zenodo.21636082
 references:
   - type: data
     title: Low Dose CT Image and Projection Data
     doi: 10.7937/9npb-2637
     notes: >-
-      The public TCIA collection used for the demonstration figures and for the
-      external validation. No imaging from it is redistributed with this software;
-      see docs/REPRODUCING_FIGURES.md.
+      The public TCIA collection used for the demonstration figures. No imaging from
+      it is redistributed with this software; see docs/REPRODUCING_FIGURES.md.
     authors:
       - family-names: Moen
         given-names: Taylor R.
@@ -60,8 +59,8 @@ references:
 preferred-citation:
   type: article
   title: >-
-    Recorded, reconstructed or unrecoverable: auditable CT dose surveillance
-    across four manufacturers on public imaging archives
+    An open-source, provenance-aware framework for reconstructing missing CT dose
+    indices from DICOM metadata
   authors:
     - family-names: Yamamoto
       given-names: Shuji
