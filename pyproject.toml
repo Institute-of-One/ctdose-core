@@ -40,10 +40,13 @@ gui = ["streamlit>=1.30", "matplotlib>=3.7"]
 # reportlab builds the submission PDF and is imported by its tests; pypdf inspects the
 # result; PyYAML reads CITATION.cff. The tests skip cleanly without the last two, but CI
 # installs them so the checks actually run rather than silently passing as skips.
+# matplotlib is here for the same reason: the figure script imports it at module level,
+# and the test that asserts the figures are deterministic -- which is what section 2.8 of
+# the manuscript claims -- has to be able to import that script.
 dev = [
   "pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4",
   "tomli>=2.0; python_version < '3.11'",
-  "reportlab>=4.0", "pypdf>=4.0", "PyYAML>=6.0",
+  "reportlab>=4.0", "pypdf>=4.0", "PyYAML>=6.0", "matplotlib>=3.7",
 ]
 
 [project.scripts]

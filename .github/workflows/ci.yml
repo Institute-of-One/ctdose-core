@@ -29,9 +29,10 @@ jobs:
         run: pytest --cov=ctdose_core --cov-report=term-missing
 
   shipped-data-is-self-consistent:
-    # Three things a downstream user can verify without any input this repository does
-    # not carry: that the coefficient tables extracted from the MATLAB reference are
-    # internally consistent, that the committed results/ agree with the per-row data they
+    # Four things a downstream user can verify without any input this repository does
+    # not carry: that the shipped reference tables are internally consistent, that the
+    # coefficient table still matches its published CC BY 4.0 source and keeps its
+    # attribution, that the committed results/ agree with the per-row data they
     # summarise, and that every number in the manuscript is re-derivable from those
     # results. Together these catch a stale results file and a manuscript figure edited
     # by hand -- the two ways a reported number could drift away from the data.
@@ -47,6 +48,7 @@ jobs:
       - run: |
           pytest -q \
             tests/test_tables.py \
-            tests/test_matlab_parity.py \
+            tests/test_ctdi_table.py \
+            tests/test_coefficient_licensing.py \
             tests/test_results_integrity.py \
             tests/test_manuscript_consistency.py
