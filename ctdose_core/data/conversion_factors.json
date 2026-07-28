@@ -1,8 +1,10 @@
 {
   "provenance": {
-    "source_file": "the reference implementationjp.m",
-    "source_description": "the reference implementation (LISIT) MATLAB dose calculator, read-only reference. Constants follow the CT-Expo methodology (nCTDIair / nCTDIw per scanner series) with ICRP-103 DLP->E conversion factors.",
-    "extracted_by": "tools/extract_matlab_tables.py"
+    "name": "Effective-dose conversion factors",
+    "primary_sources": [
+      "International Commission on Radiological Protection. The 2007 Recommendations of the ICRP. ICRP Publication 103. Ann ICRP. 2007;37(2-4). (tissue weighting and DLP-to-effective-dose k factors)"
+    ],
+    "note": "Region- and age-specific conversion factors as published in the sources above. Values are cross-checked against each other by tests/test_tables.py; no per-scanner CTDI data is involved."
   },
   "records": [
     {

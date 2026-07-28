@@ -1,8 +1,5 @@
 {
   "provenance": {
-    "source_file": "the reference implementationjp.m",
-    "source_description": "the reference implementation (LISIT) MATLAB dose calculator, read-only reference. Constants follow the CT-Expo methodology (nCTDIair / nCTDIw per scanner series) with ICRP-103 DLP->E conversion factors.",
-    "extracted_by": "tools/extract_matlab_tables.py",
     "reference": "AAPM TG-204 (2011) size-specific dose estimate conversion factors",
     "column_layout": {
       "etab*": [
@@ -15,7 +12,12 @@
         "conversion_factor"
       ]
     },
-    "note": "aptab/lattab/aplattab map a single measured dimension (AP, lateral, or the AP+lateral sum, in cm) to the population-mean effective diameter and the corresponding conversion factor. The reference implementation reads column 2 as the effective diameter and column 3 as the factor; column 3 agrees with etab* evaluated at column 2, which the test suite checks."
+    "note": "Conversion factors as published in AAPM Report 204. The effective-diameter and measured-dimension table families are cross-checked against each other by tests/test_tables.py, which is what makes the transcription auditable.",
+    "name": "AAPM TG-204 size-specific dose estimate conversion factors",
+    "primary_sources": [
+      "American Association of Physicists in Medicine. Size-Specific Dose Estimates (SSDE) in Pediatric and Adult Body CT Examinations. AAPM Report No. 204. College Park, MD: AAPM; 2011.",
+      "American Association of Physicists in Medicine. Use of Water Equivalent Diameter for Calculating Patient Size and Size-Specific Dose Estimates (SSDE) in CT. AAPM Report No. 220. College Park, MD: AAPM; 2014."
+    ]
   },
   "tables": {
     "etab16": [

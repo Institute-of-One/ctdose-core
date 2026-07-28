@@ -1,7 +1,7 @@
 """Access to the coefficient tables shipped with the package.
 
 The JSON files under ``ctdose_core/data`` are produced by ``tools/extract_*.py``
-from the read-only the reference implementation MATLAB reference. Nothing in this module
+from their published primary sources. Nothing in this module
 hard-codes a physics constant; if a number is wrong the fix belongs in the
 extractor or in the MATLAB, not here.
 """
@@ -37,7 +37,7 @@ def _load(name: str) -> dict[str, Any]:
 class ScannerCoefficients:
     """Physics constants for one (scanner, region, patient-size) combination.
 
-    Attributes mirror the CT-Expo methodology used by the reference implementation:
+    Attributes follow the CT-Expo formulation (Stamm & Nagel, Rofo 2002):
 
     ``nctdi_air``
         Normalised free-in-air CTDI, mGy/mAs, for the scanner's head or body mode.

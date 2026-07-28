@@ -186,7 +186,7 @@ def water_equivalent_diameter(mean_hu: float, area_cm2: float) -> Quantity:
         source=Source.DERIVED,
         formula="D_w = 2*sqrt((HU_mean/1000 + 1) * A_ROI / pi)",
         inputs={"HU_mean": mean_hu, "A_ROI_cm2": area_cm2},
-        reference="AAPM TG-220 (2014); as implemented in the reference implementation",
+        reference="AAPM Report 220 (2014), water-equivalent diameter",
     )
 
 

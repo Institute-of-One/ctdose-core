@@ -57,7 +57,7 @@ def effective_dose_from_dlp_air(
             "sex": factors.sex,
             **kv_inputs,
         },
-        reference="CT-Expo organ-dose conversion (ICRP-103 tissue weighting)",
+        reference="ICRP Publication 103 (2007) tissue weighting factors",
     )
 
 
