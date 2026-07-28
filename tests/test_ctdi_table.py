@@ -145,6 +145,73 @@ def test_every_lookup_result_is_self_describing():
     assert r.phantom_cm == 32
 
 
+class TestModelMatching:
+    """Matching a DICOM model name to a tabulated one, without inventing equivalences.
+
+    This is where a licensing fix could quietly become a fabrication: the open database
+    covers 17 current scanners and an archive is full of older ones with similar names.
+    Attributing one scanner's measured output to another would be worse than reporting
+    the series as unrecoverable.
+    """
+
+    @pytest.mark.parametrize(
+        ("manufacturer", "model", "expected"),
+        [
+            # The annex misspells two models; the alias absorbs it so the stored data can
+            # stay verbatim.
+            ("TOSHIBA", "Aquilion ONE", ("Canon", "Aquiliion ONE")),
+            ("SIEMENS", "SOMATOM Definition Edge", ("Siemens", "Defintion Edge")),
+            # Vendor renames and DICOM spelling variation.
+            ("Canon Medical Systems", "Aquilion ONE Genesis", ("Canon", "Aquilion ONE Genesis")),
+            ("GE MEDICAL SYSTEMS", "LightSpeed VCT", ("GE", "LightSpeed VCT")),
+            ("GE MEDICAL SYSTEMS", "LightSpeed16", ("GE", "LightSpeed 16")),
+            ("Philips", "iCT 256", ("Philips", "iCT 256 Slice")),
+            ("SIEMENS", "SOMATOM Force", ("Siemens", "Somatom Force")),
+            ("TOSHIBA", "Aquilion PRIME", ("Canon", "Prime")),
+        ],
+    )
+    def test_known_scanners_resolve(self, manufacturer, model, expected):
+        from ctdose_core.ctdi_table import resolve_model
+
+        assert resolve_model(manufacturer, model) == expected
+
+    @pytest.mark.parametrize(
+        ("manufacturer", "model", "why"),
+        [
+            ("SIEMENS", "SOMATOM Definition AS+",
+             "128-slice; the table's AS20 is a 20-row detector"),
+            ("SIEMENS", "SOMATOM Definition AS", "same family, different configuration"),
+            ("SIEMENS", "Sensation 16", "an earlier platform entirely"),
+            ("Philips", "Brilliance 64", "not the iCT the table covers"),
+            ("TOSHIBA", "Aquilion", "a family name, not a model"),
+            ("GE MEDICAL SYSTEMS", "Discovery STE", "not tabulated"),
+            ("Hitachi", "SCENARIA", "vendor outside the database"),
+        ],
+    )
+    def test_near_misses_are_refused_rather_than_approximated(self, manufacturer, model, why):
+        from ctdose_core.ctdi_table import CoefficientNotAvailable, covers, resolve_model
+
+        assert not covers(manufacturer, model), f"{model} must not match: {why}"
+        with pytest.raises(CoefficientNotAvailable):
+            resolve_model(manufacturer, model)
+
+    def test_every_alias_points_at_a_model_that_exists(self):
+        """An alias naming a model the table lacks would fail only at lookup time."""
+        from ctdose_core.ctdi_table import _MODEL_ALIASES
+
+        available = set(model_names())
+        for (vendor, key), target in _MODEL_ALIASES.items():
+            assert (vendor, target) in available, (
+                f"alias {key!r} points at {vendor} {target!r}, which is not in the table"
+            )
+
+    def test_a_missing_model_name_is_refused(self):
+        from ctdose_core.ctdi_table import CoefficientNotAvailable, resolve_model
+
+        with pytest.raises(CoefficientNotAvailable, match="no scanner model name"):
+            resolve_model("SIEMENS", "")
+
+
 def test_the_model_grid_is_reported_for_coverage_analysis():
     """The survey needs to say which scanners are covered and which are not."""
     grids = {m.model: m for m in models()}

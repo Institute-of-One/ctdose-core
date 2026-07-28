@@ -17,6 +17,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from .ctdi_table import CoefficientNotAvailable
 from .geometry import overbeaming_factor, overranging_length
 from .io import ScanSeries
 from .provenance import Quantity, Source
@@ -147,7 +148,81 @@ def estimate_ctdivol(
         source=Source.PHYSICS_FALLBACK,
         formula=formula,
         inputs=inputs,
-        reference="CT-Expo scanner coefficients (via the reference implementation)",
+        reference="legacy scanner coefficient table",
+        notes=tuple(notes),
+    )
+
+
+def estimate_ctdivol_open(
+    acq: Acquisition,
+    *,
+    vendor: str,
+    model: str,
+    phantom_cm: int,
+    bowtie: str | None = None,
+) -> Quantity:
+    """Rebuild CTDIvol from the open MIRDct coefficient database.
+
+    ``CTDIvol = CTDIw(model, kVp, collimation, phantom, bowtie) * (mAs_rot / 100) / pitch``
+
+    The table (Dinwiddie et al. 2026, CC BY 4.0) gives **CTDIw in mGy per 100 mAs at pitch
+    1.0**. CTDIw is pitch-independent and ``CTDIvol = CTDIw / pitch``, so the pitch division
+    is applied here rather than being folded into the tabulated value.
+
+    Two corrections the previous route needed are absent by construction, because the
+    quantities they approximated are tabulated directly:
+
+    * no over-beaming factor -- collimation is a lookup key, so the penumbra contribution
+      is measured rather than modelled from a single reference beam width;
+    * no ``(kV/kV_ref)^2`` scaling -- tube potential is a lookup key.
+
+    Raises:
+        CoefficientNotAvailable: the scanner or technique is outside the open database.
+            The caller should report the series as *unrecoverable* rather than substitute
+            a similar scanner.
+    """
+    from .ctdi_table import lookup, provenance
+
+    if acq.kvp is None:
+        raise CoefficientNotAvailable(
+            "tube voltage (0018,0060) is required to use the open coefficient database, "
+            "which is tabulated by tube potential"
+        )
+
+    hit = lookup(
+        vendor,
+        model,
+        kvp=float(acq.kvp),
+        collimation_mm=float(acq.collimation_mm),
+        phantom_cm=phantom_cm,
+        bowtie=bowtie,
+    )
+    value = hit.nctdi_w_mgy_per_100mas * (acq.mas_per_rotation / 100.0) / acq.pitch
+
+    notes = ["reconstructed because CTDIvol (0018,9345) was not available"]
+    notes.extend(hit.assumptions)
+    if hit.exact:
+        notes.append(
+            "every lookup key matched a measured row exactly; no interpolation or "
+            "substitution was required"
+        )
+
+    return Quantity(
+        value=value,
+        unit="mGy",
+        source=Source.PHYSICS_FALLBACK,
+        formula="CTDIvol = CTDIw_table * (mAs_rot / 100) / pitch",
+        inputs={
+            "CTDIw_mGy_per_100mAs": hit.nctdi_w_mgy_per_100mas,
+            "mAs_rot": acq.mas_per_rotation,
+            "pitch": acq.pitch,
+            "table_model": f"{hit.vendor} {hit.model}",
+            "table_kvp": hit.kvp,
+            "table_collimation_mm": hit.collimation_mm,
+            "table_phantom_cm": hit.phantom_cm,
+            "table_bowtie": hit.bowtie,
+        },
+        reference=provenance()["citation"],
         notes=tuple(notes),
     )
 

@@ -248,3 +248,104 @@ def _nearest_bowtie(requested: str, available: list[str]) -> str:
         return available[0]
     want = BOWTIES.index(requested)
     return min(available, key=lambda b: abs(BOWTIES.index(b) - want))
+
+
+# --- matching a DICOM model name to a tabulated one ------------------------------------
+#
+# This is where a licensing fix could quietly become a fabrication. The open database
+# covers 17 current models; an archive is full of older ones with similar names. Matching
+# "SOMATOM Definition AS+" to "AS20" or "Aquilion ONE" to "Aquilion ONE Prism" would
+# silently attribute one scanner's measured output to another, so matching is exact after
+# normalisation, plus an explicit alias list for spellings that denote the same machine.
+
+#: DICOM `Manufacturer` prefixes -> the vendor names the table uses.
+_VENDOR_ALIASES = {
+    "canon": "Canon",
+    "toshiba": "Canon",
+    "ge": "GE",
+    "gehealthcare": "GE",
+    "gemedicalsystems": "GE",
+    "philips": "Philips",
+    "siemens": "Siemens",
+}
+
+#: Normalised DICOM model name -> the table's model name. Only entries that denote the
+#: *same scanner* belong here. The first two absorb typos in the published annex.
+_MODEL_ALIASES = {
+    ("Canon", "aquilionone"): "Aquiliion ONE",
+    ("Siemens", "definitionedge"): "Defintion Edge",
+    ("Siemens", "somatomdefinitionedge"): "Defintion Edge",
+    ("Siemens", "somatomdefinitionflash"): "Definition Flash",
+    ("Siemens", "somatomforce"): "Somatom Force",
+    ("Canon", "aquilionprime"): "Prime",
+    ("Canon", "aquilionprimesp"): "Prime",
+    ("Canon", "aquilionvision"): "VISION",
+    ("Canon", "aquiliononegenesis"): "Aquilion ONE Genesis",
+    ("Canon", "aquiliononeprism"): "Aquilion ONE Prism",
+    ("GE", "lightspeedvct"): "LightSpeed VCT",
+    ("GE", "lightspeed16"): "LightSpeed 16",
+    ("GE", "discoveryct750hd"): "Discovery CT750 HD",
+    ("GE", "optimact660"): "Optima 660",
+    ("GE", "optima660"): "Optima 660",
+    ("GE", "revolutionctes"): "Revolution CT ES",
+    ("Philips", "ict256"): "iCT 256 Slice",
+    ("Philips", "ict256slice"): "iCT 256 Slice",
+    ("Philips", "brillianceict"): "Brilliance iCT",
+}
+
+
+def _normalise(text: str) -> str:
+    return "".join(c for c in str(text).lower() if c.isalnum())
+
+
+def resolve_vendor(manufacturer: str) -> str | None:
+    """DICOM ``Manufacturer`` -> the table's vendor name, or ``None`` if unrecognised."""
+    key = _normalise(manufacturer)
+    for alias, vendor in _VENDOR_ALIASES.items():
+        if key.startswith(alias):
+            return vendor
+    return None
+
+
+def resolve_model(manufacturer: str, model_name: str) -> tuple[str, str]:
+    """Map a DICOM manufacturer/model to a model in the open database.
+
+    Matching is exact after case- and punctuation-normalisation, or via an explicit alias.
+    Near misses are *not* accepted: "SOMATOM Definition AS+" does not resolve to "AS20",
+    because they are different detector configurations with different measured output.
+
+    Raises:
+        CoefficientNotAvailable: no tabulated model denotes this scanner.
+    """
+    vendor = resolve_vendor(manufacturer)
+    if vendor is None:
+        raise CoefficientNotAvailable(
+            f"manufacturer {manufacturer!r} is not one of the four vendors the open "
+            "database covers"
+        )
+
+    key = _normalise(model_name)
+    if not key:
+        raise CoefficientNotAvailable("the series carries no scanner model name")
+
+    alias = _MODEL_ALIASES.get((vendor, key))
+    if alias is not None:
+        return vendor, alias
+
+    for v, m in model_names():
+        if v == vendor and _normalise(m) == key:
+            return vendor, m
+
+    raise CoefficientNotAvailable(
+        f"{manufacturer} {model_name!r} is not in the open coefficient database; "
+        "this series is unrecoverable by reconstruction"
+    )
+
+
+def covers(manufacturer: str, model_name: str) -> bool:
+    """Whether the open database covers this scanner at all."""
+    try:
+        resolve_model(manufacturer, model_name)
+    except CoefficientNotAvailable:
+        return False
+    return True
