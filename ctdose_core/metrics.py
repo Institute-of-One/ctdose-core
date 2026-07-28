@@ -227,6 +227,83 @@ def estimate_ctdivol_open(
     )
 
 
+def estimate_dlp_open(
+    ctdivol_mgy: Quantity | float, scan_length_mm: float
+) -> Quantity:
+    """``DLP = CTDIvol * L / 10``, with ``L`` the imaged scan length in mm.
+
+    The imaged length is what the reconstructed slice positions span. It **omits helical
+    over-ranging**, the extra rotations at each end that irradiate beyond the reconstructed
+    volume, because the per-scanner over-ranging coefficients that quantify it are not
+    available from an openly licensed source.
+
+    The result is therefore a **conservative underestimate**: the true DLP is larger by the
+    over-ranging contribution, typically a few centimetres of additional irradiated length.
+    That is stated in the value's notes so it can never be read as an exact figure, and it
+    is a substitution point -- published generic over-ranging coefficients would slot in
+    here without changing anything else.
+    """
+    c = float(ctdivol_mgy)
+    length_cm = scan_length_mm / 10.0
+    value = c * length_cm
+    ctdivol_source = (
+        ctdivol_mgy.source if isinstance(ctdivol_mgy, Quantity) else Source.USER
+    )
+    return Quantity(
+        value=value,
+        unit="mGy*cm",
+        source=Source.DERIVED,
+        formula="DLP = CTDIvol * L_imaged / 10",
+        inputs={
+            "CTDIvol_mGy": c,
+            "CTDIvol_source": ctdivol_source.value,
+            "L_imaged_mm": scan_length_mm,
+        },
+        notes=(
+            "the imaged scan length omits helical over-ranging, so this DLP is a "
+            "conservative underestimate of the delivered dose-length product",
+        ),
+        reference="DLP definition, IEC 60601-2-44",
+    )
+
+
+def effective_dose_open(
+    dlp_mgycm: Quantity | float, kfactor: float, *, region: str, size: str, sex: str
+) -> Quantity:
+    """``E = DLP * k``, with ``k`` a published region- and age-specific conversion factor.
+
+    The factor depends on the examined region and patient size only, not on the scanner,
+    so this route needs no per-scanner data. Effective dose so obtained is a population
+    quantity for a reference phantom, not an individual patient's dose, and it inherits
+    the DLP's over-ranging underestimate.
+    """
+    if kfactor is None:
+        raise ValueError(f"no k-factor for region={region!r} size={size!r}")
+    d = float(dlp_mgycm)
+    dlp_source = dlp_mgycm.source if isinstance(dlp_mgycm, Quantity) else Source.USER
+    notes = [
+        "a population estimate for a reference phantom, not an individual patient's dose"
+    ]
+    if isinstance(dlp_mgycm, Quantity):
+        notes.extend(n for n in dlp_mgycm.notes if "over-ranging" in n)
+    return Quantity(
+        value=d * kfactor,
+        unit="mSv",
+        source=Source.DERIVED,
+        formula="E = DLP * k(region, size)",
+        inputs={
+            "DLP_mGycm": d,
+            "DLP_source": dlp_source.value,
+            "k": kfactor,
+            "region": region,
+            "size": size,
+            "sex": sex,
+        },
+        notes=tuple(notes),
+        reference="ICRP Publication 103 (2007) DLP-to-effective-dose conversion",
+    )
+
+
 #: Where a recorded dose value may come from, most authoritative first. The RDSR is the
 #: scanner's own dose record for the irradiation event and outranks the image header;
 #: the image header outranks free-text dose comments; a physics reconstruction is used
