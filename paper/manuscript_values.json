@@ -151,6 +151,9 @@
       "Siemens": "0.0"
     },
     "conditional_reconstructability_pct_overall": "20.4",
+    "parameters_complete_pct_overall": "52.5",
+    "scanner_covered_pct_overall": "28.7",
+    "n_parameters_complete_but_scanner_uncovered": 122,
     "surveyable_count": {
       "Canon/Toshiba": 81,
       "GE": 37,
@@ -254,6 +257,10 @@
       }
     },
     "exclusions": {},
+    "n_collimation_measured": 40,
+    "n_collimation_reconstructed": 6,
+    "reconstructed_collimation_median": "-15.8",
+    "overall_mean_absolute": "21.7",
     "diagnostic_threshold_mgy": 0.5,
     "coefficient_citation": "Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. J Appl Clin Med Phys. 2026;27(2):e70473. doi:10.1002/acm2.70473",
     "coefficient_license": "CC BY 4.0",
@@ -279,61 +286,15 @@
     "w_min": "0.645",
     "w_max": "1.480"
   },
-  "validation": {
-    "n_cases": 2,
-    "reference_source": "Abdomen_v9 Mar 2023.xlsx",
-    "by_subject": {
-      "L273": {
-        "kvp": "120",
-        "kv_correction_factor": "1.0000",
-        "reference_ctdivol_mgy": "24.63",
-        "ctdivol_uncorrected_mgy": "16.29",
-        "ctdivol_corrected_mgy": "16.29",
-        "ctdivol_error_uncorrected_pct": "-33.9",
-        "ctdivol_error_corrected_pct": "-33.9",
-        "reference_ssde_mgy": "23.56",
-        "ssde_uncorrected_mgy": "20.55",
-        "ssde_corrected_mgy": "20.55",
-        "ssde_error_uncorrected_pct": "-12.7",
-        "ssde_error_corrected_pct": "-12.7",
-        "water_equivalent_diameter_cm": "29.4",
-        "collimation_source": "physics_fallback",
-        "pitch_source": "physics_fallback",
-        "pitch_reconciling_reference": "0.633",
-        "implied_collimation_mm": "36.3",
-        "assumed_collimation_mm": "23.0"
-      },
-      "L277": {
-        "kvp": "100",
-        "kv_correction_factor": "0.6944",
-        "reference_ctdivol_mgy": "10.12",
-        "ctdivol_uncorrected_mgy": "14.78",
-        "ctdivol_corrected_mgy": "10.26",
-        "ctdivol_error_uncorrected_pct": "46.0",
-        "ctdivol_error_corrected_pct": "1.4",
-        "reference_ssde_mgy": "13.42",
-        "ssde_uncorrected_mgy": "18.91",
-        "ssde_corrected_mgy": "13.13",
-        "ssde_error_uncorrected_pct": "40.9",
-        "ssde_error_corrected_pct": "-2.1",
-        "water_equivalent_diameter_cm": "29.0",
-        "collimation_source": "physics_fallback",
-        "pitch_source": "physics_fallback",
-        "pitch_reconciling_reference": "1.015",
-        "implied_collimation_mm": "30.2",
-        "assumed_collimation_mm": "30.7"
-      }
-    }
-  },
   "inferential": {
-    "headline_median": "18.9",
-    "headline_ci95_low": "7.3",
-    "headline_ci95_high": "39.5",
+    "headline_median": "-5.7",
+    "headline_ci95_low": "-12.4",
+    "headline_ci95_high": "7.8",
     "bootstrap_resamples": 20000,
     "vendor_chi2": "137.2",
     "vendor_dof": 3,
     "vendor_cramers_v": "0.59",
-    "n_duplicate_pairs": 3
+    "n_duplicate_pairs": 1
   },
   "size_and_dose": {
     "n_cases_in_survey": 46,
@@ -368,8 +329,6 @@
   "survey_parameters": {
     "seed": 20260726,
     "screen_per_vendor": 100,
-    "fallback_per_vendor": 14,
-    "max_images": 250,
     "api": "https://services.cancerimagingarchive.net/nbia-api/services/v1",
     "access_started_utc": "2026-07-26T04:52:21+00:00",
     "access_finished_utc": "2026-07-26T05:00:45+00:00"

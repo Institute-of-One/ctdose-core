@@ -67,6 +67,7 @@
       "mean_absolute": 22.015981382527787,
       "within_20_percent": 0.6,
       "within_50_percent": 0.925,
+      "n_excluded": 6,
       "by_vendor": {
         "Canon/Toshiba": {
           "n": 21,
@@ -107,6 +108,50 @@
           "within_20_percent": 0.5833333333333334,
           "within_50_percent": 0.9166666666666666
         }
+      }
+    },
+    "by_collimation_provenance": {
+      "measured": {
+        "n": 40,
+        "median": -5.685689653149401,
+        "mean": 2.513081506729027,
+        "stdev": 29.37213392724808,
+        "min": -59.40692015615808,
+        "max": 87.36514780878146,
+        "p25": -15.842037440547307,
+        "p75": 11.161435996737811,
+        "mean_absolute": 22.015981382527787,
+        "within_20_percent": 0.6,
+        "within_50_percent": 0.925
+      },
+      "reconstructed": {
+        "n": 6,
+        "median": -15.843668414619746,
+        "mean": -19.452722879263767,
+        "stdev": 14.408150927350594,
+        "min": -43.47667239048627,
+        "max": -5.854314966582349,
+        "p25": -28.84020714578443,
+        "p75": -6.857805943490058,
+        "mean_absolute": 19.452722879263767,
+        "within_20_percent": 0.6666666666666666,
+        "within_50_percent": 1.0
+      }
+    },
+    "n_collimation_measured": 40,
+    "n_collimation_reconstructed": 6,
+    "vendor_by_collimation_provenance": {
+      "Canon/Toshiba": {
+        "collimation_measured": 21,
+        "collimation_reconstructed": 6
+      },
+      "Philips": {
+        "collimation_measured": 7,
+        "collimation_reconstructed": 0
+      },
+      "Siemens": {
+        "collimation_measured": 12,
+        "collimation_reconstructed": 0
       }
     },
     "exclusions": {}

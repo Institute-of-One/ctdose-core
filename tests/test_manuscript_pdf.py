@@ -72,7 +72,18 @@ def test_the_table_content_is_present_as_text(pdf_text):
         "Recoverable by either route",
     ):
         assert heading in flat, f"Table 1 is missing the {heading!r} column"
-    for cell in ("206 / 400 (51.5%)", "278 (69.5%)"):
+    # Derived from the shipped results rather than hard-coded: a literal here would
+    # silently stop tracking the table it is supposed to be checking.
+    import json
+
+    overall = json.loads(
+        (REPO / "results" / "survey.json").read_text(encoding="utf-8")
+    )["tag_absence"]["overall"]
+    n = overall["n_series_readable"]
+    for cell in (
+        f"{overall['without_ctdivol_tag']} / {n} ({100 * overall['ctdivol_absence_rate']:.1f}%)",
+        f"{overall['surveyable']} ({100 * overall['surveyable_rate']:.1f}%)",
+    ):
         assert cell in flat, f"Table 1 is missing the {cell!r} total"
 
 

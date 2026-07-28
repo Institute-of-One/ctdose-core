@@ -63,9 +63,6 @@ def collect() -> dict[str, Any]:
     headline = fallback["diagnostic_and_collimation_measured"]
     coefficients = _load("open_fallback.json")["provenance"]["coefficients"]
     figures = _load_figures()
-    validation = (
-        _load("tcia_validation.json") if (RESULTS / "tcia_validation.json").exists() else None
-    )
     inferential = (
         _load("inferential_stats.json")
         if (RESULTS / "inferential_stats.json").exists()
@@ -151,6 +148,11 @@ def collect() -> dict[str, Any]:
             "conditional_reconstructability_pct_overall": _pct(
                 absence["overall"]["conditional_reconstructability_rate"]
             ),
+            "parameters_complete_pct_overall": _pct(absence["overall"]["parameters_complete_rate"]),
+            "scanner_covered_pct_overall": _pct(absence["overall"]["scanner_covered_rate"]),
+            "n_parameters_complete_but_scanner_uncovered": absence["overall"][
+                "n_parameters_complete_but_scanner_uncovered"
+            ],
             "surveyable_count": {v: b["surveyable"] for v, b in absence["by_vendor"].items()},
             "surveyable_count_overall": absence["overall"]["surveyable"],
             "unsurveyable_count_overall": (
@@ -197,13 +199,18 @@ def collect() -> dict[str, Any]:
                 for v, d in headline["by_vendor"].items()
             },
             "exclusions": survey["fallback_exclusions"],
+            "n_collimation_measured": fallback["n_collimation_measured"],
+            "n_collimation_reconstructed": fallback["n_collimation_reconstructed"],
+            "reconstructed_collimation_median": _sig(
+                fallback["by_collimation_provenance"]["reconstructed"]["median"]
+            ),
+            "overall_mean_absolute": _sig(fallback["overall"]["mean_absolute"]),
             "diagnostic_threshold_mgy": DIAGNOSTIC_THRESHOLD,
             "coefficient_citation": coefficients["citation"],
             "coefficient_license": coefficients["license"],
             "coefficient_n_models": 17,
         },
         "demonstration_case": _demonstration_case(figures),
-        "validation": None if validation is None else _validation(validation),
         "inferential": None
         if inferential is None
         else {
@@ -255,8 +262,6 @@ def collect() -> dict[str, Any]:
         "survey_parameters": {
             "seed": survey["parameters"]["seed"],
             "screen_per_vendor": survey["parameters"]["screen_per_vendor"],
-            "fallback_per_vendor": survey["parameters"]["fallback_per_vendor"],
-            "max_images": survey["parameters"]["max_images_for_download"],
             "api": survey["parameters"]["api"],
             "access_started_utc": survey["provenance"]["access_started_utc"],
             "access_finished_utc": survey["provenance"]["access_finished_utc"],
@@ -296,46 +301,7 @@ def _demonstration_case(figures: dict) -> dict[str, Any] | None:
     }
 
 
-def _validation(validation: dict) -> dict[str, Any]:
-    """The two-case check of the reconstruction against published per-series doses."""
-    cases = [c for c in validation["cases"] if "skipped" not in c]
-    return {
-        "n_cases": len(cases),
-        "reference_source": validation["provenance"]["reference_read_from"]["file"],
-        "by_subject": {
-            c["subject_id"]: {
-                "kvp": _sig(c["kvp"], 0),
-                "kv_correction_factor": _sig(c["kv_correction_factor"], 4),
-                "reference_ctdivol_mgy": _sig(c["reference_ctdivol_mgy"], 2),
-                "ctdivol_uncorrected_mgy": _sig(c["reconstructed_ctdivol_uncorrected_mgy"], 2),
-                "ctdivol_corrected_mgy": _sig(c["reconstructed_ctdivol_corrected_mgy"], 2),
-                "ctdivol_error_uncorrected_pct": _sig(c["ctdivol_error_uncorrected_pct"]),
-                "ctdivol_error_corrected_pct": _sig(c["ctdivol_error_corrected_pct"]),
-                "reference_ssde_mgy": _sig(c["reference_ssde_mgy"], 2),
-                "ssde_uncorrected_mgy": _sig(c.get("ssde_uncorrected_mgy"), 2),
-                "ssde_corrected_mgy": _sig(c.get("ssde_corrected_mgy"), 2),
-                "ssde_error_uncorrected_pct": _sig(c.get("ssde_error_uncorrected_pct")),
-                "ssde_error_corrected_pct": _sig(c.get("ssde_error_corrected_pct")),
-                "water_equivalent_diameter_cm": _sig(c.get("water_equivalent_diameter_cm")),
-                "collimation_source": c["collimation_source"],
-                "pitch_source": c["pitch_source"],
-                "pitch_reconciling_reference": _sig(
-                    (c.get("pitch_sensitivity") or {}).get("pitch_reconciling_reference"), 3
-                ),
-                "implied_collimation_mm": _sig(
-                    (c.get("pitch_sensitivity") or {}).get("implied_collimation_mm")
-                ),
-                "assumed_collimation_mm": _sig(
-                    (c.get("pitch_sensitivity") or {}).get(
-                        "implied_collimation_at_assumed_pitch_mm"
-                    )
-                ),
-            }
-            for c in cases
-        },
-    }
-
-
+#: The floor separating a diagnostic acquisition from a localiser, as in survey.py.
 DIAGNOSTIC_THRESHOLD = 0.5
 
 

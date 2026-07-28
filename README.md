@@ -45,11 +45,11 @@ keeps the reconstruction auditable end to end.
 | --- | --- |
 | `io` | DICOM ingest with vendor-aware fallback chains (GE / Canon-Toshiba / Siemens / Philips private attributes) |
 | `rdsr` | CT Radiation Dose SR (DICOM PS3.16 TID 10011–10013): recorded per-event CTDIvol, DLP and reference phantom |
-| `geometry` | Over-beaming `k_OB`, over-ranging `L_rot`, tube-voltage scaling |
-| `metrics` | CTDIvol, DLP, DLP-in-air — recorded value or physics fallback, with an explicit source ranking |
+| `ctdi_table` | Measured normalised CTDI lookup (Dinwiddie et al. 2026, CC BY 4.0), keyed by kVp, collimation, phantom and bowtie; refuses rather than extrapolates |
+| `metrics` | CTDIvol, DLP, effective dose — recorded value or physics reconstruction, with an explicit source ranking |
 | `segmentation` | Body contour with no AI dependency (threshold + largest component + hole fill) |
 | `ssde` | Water-equivalent / effective diameter, AAPM TG-204 conversion, SSDE |
-| `effdose` | Effective dose by the DLP-in-air route or the ICRP-103 k-factor route |
+| `effdose` | Effective dose as DLP times a published ICRP-103 k-factor |
 | `drl` | Diagnostic reference levels and comparison |
 | `alert` | Auditable alerts: metric, reference, excess, size band, provenance |
 | `organ` | *(optional `[ai]`)* TotalSegmentator-driven organ-level dose weighting |
@@ -208,12 +208,16 @@ manufacturer and sampled round-robin across each vendor's collections so no sing
 collection dominates. It writes `results/survey.{json,csv}` with:
 
 - **(a) recorded-dose absence** — how often CTDIvol and a DLP record are missing from the
-  image header, per vendor; plus *fallback feasibility*, i.e. whether the acquisition
-  parameters the reconstruction needs are present at all. A series with neither cannot be
-  surveyed by any method, and that is worth counting separately.
-- **(b) fallback error** — for series that *do* carry CTDIvol, the recorded value is
-  hidden, the physics reconstruction run, and the signed relative error reported as a
-  **distribution**, per vendor. It is never reduced to a correction factor.
+  image header, per vendor; plus *fallback feasibility*, which needs two independent
+  things — the acquisition parameters the reconstruction uses, and a scanner the
+  coefficient table covers — counted separately because they have different remedies. A
+  series with neither a recorded value nor a feasible reconstruction cannot be surveyed by
+  any method, and that is worth counting on its own.
+- **(b) fallback error** — for every series that *does* carry CTDIvol and that the table
+  covers, the recorded value is hidden, the physics reconstruction run, and the signed
+  relative error reported as a **distribution**, per vendor. It is never reduced to a
+  correction factor. Run by `tools/evaluate_open_fallback.py` into
+  `results/open_fallback.json`.
 
 Every exclusion is counted (`fallback_exclusions`) rather than dropped silently, and each
 series' licence is carried into the results so a data-availability statement can be
@@ -224,7 +228,8 @@ pytest                                                    # offline; survey uses
 pytest -m "not rdsr_samples"                              # skip the third-party-data tests
 CTDOSE_RDSR_SAMPLES=/path/to/rdsr pytest                  # + real vendor RDSR objects
 python tools/make_rdsr_layer1.py /path/to/rdsr            # Layer 1 table
-python tools/run_tcia_survey.py --screen-per-vendor 100   # Layer 2 survey (network)
+python tools/run_tcia_survey.py --screen-per-vendor 100   # Layer 2a survey (network)
+python tools/evaluate_open_fallback.py                    # Layer 2b accuracy (network)
 ```
 
 ### Unit and reference-parity tests
@@ -279,17 +284,12 @@ print(report.ctdivol.formula)  # CTDIvol = CTDIw_table * (mAs_rot / 100) / pitch
 print(report.ssde)             # Quantity(20.5537 mGy, source=derived)
 ```
 
-The collection publishes a per-series CTDIvol of 24.63 mGy for this subject in its
-clinical data report, which its image headers do not carry. The reconstruction lands
-33.9% low, and the library says why: this header records neither pitch nor total
-collimation, so both are rebuilt from the table feed under an assumed pitch of 1. The
-companion subject **L277**, whose acquisition *is* adequately described, reconstructs to
-within 1.4% of its published value. Both cases, and the tube-voltage correction that
-separates them, are in `results/tcia_validation.json`:
-
-```bash
-python tools/validate_against_tcia_sot.py
-```
+This header carries no CTDIvol, no pitch and no total collimation, and the library says
+so rather than hiding it: pitch and collimation are rebuilt from the table feed, and both
+substitutions are named on the value. Its scanner is not in the open coefficient table
+either, so `ctdose-core` declines to reconstruct a CTDIvol for it at all instead of
+matching it onto a neighbouring model — which is the behaviour the accuracy figures in
+`results/open_fallback.json` are measured against.
 
 ## Test fixture
 

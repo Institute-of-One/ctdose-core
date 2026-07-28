@@ -1,8 +1,8 @@
 """Provenance records: every number this library produces says where it came from.
 
 The point of the package is auditability. A CTDIvol that was read from
-(0018,9345) and a CTDIvol that was reconstructed from tube current and a CT-Expo
-style nCTDIw coefficient are *not* interchangeable, and a dose survey that mixes
+(0018,9345) and a CTDIvol that was reconstructed from tube current and a measured
+nCTDIw coefficient are *not* interchangeable, and a dose survey that mixes
 them silently is not defensible. Every computed quantity is therefore returned as
 a :class:`Quantity` carrying its source, the formula used, and the inputs that
 went into it.

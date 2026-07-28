@@ -1,9 +1,8 @@
 """Access to the coefficient tables shipped with the package.
 
-The JSON files under ``ctdose_core/data`` are produced by ``tools/extract_*.py``
-from their published primary sources. Nothing in this module
-hard-codes a physics constant; if a number is wrong the fix belongs in the
-extractor or in the MATLAB, not here.
+The JSON files under ``ctdose_core/data`` are produced by ``tools/extract_*.py`` from
+their published primary sources. Nothing in this module hard-codes a physics constant; if
+a number is wrong the fix belongs in the extractor or in the published source, not here.
 """
 
 from __future__ import annotations
@@ -14,10 +13,10 @@ from functools import cache, lru_cache
 from importlib import resources
 from typing import Any
 
-#: Body regions the reference implementation treats with head-mode geometry.
+#: Body regions dosimetry conventionally treats with head-mode geometry.
 HEAD_REGIONS = ("Head", "Neck", "Head and Neck")
 
-#: Patient-size labels used by the reference implementation.
+#: Patient-size labels used by the published conversion-factor tables.
 SIZE_ADULT = "Adults"
 SIZE_CHILD_7Y = "Children7year old"
 SIZE_CHILD_8W = "Children8week old"

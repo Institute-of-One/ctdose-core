@@ -3,7 +3,7 @@
 The per-scanner CTDI coefficients this package uses come from the supplementary data of
 Dinwiddie et al., *J Appl Clin Med Phys* 2026;27(2):e70473 (doi:10.1002/acm2.70473),
 published under CC BY 4.0. That licence is the point: the previous coefficients were
-machine-extracted from an in-house MATLAB implementation following the CT-Expo
+derived from a modelled formulation following the CT-Expo
 methodology, and while the *formulae* are free to reimplement, per-scanner *values*
 transcribed from a commercial database are a licensing exposure that a permanent archived
 release must not carry.

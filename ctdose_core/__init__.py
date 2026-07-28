@@ -27,7 +27,6 @@ from .drl import DRLComparison, DRLEntry
 from .drl import compare as compare_drl
 from .drl import lookup as lookup_drl
 from .effdose import effective_dose
-from .geometry import kv_corrections, overbeaming_factor, overranging_length
 from .io import ScanSeries, load_series
 from .metrics import (
     Acquisition,
@@ -63,10 +62,6 @@ __all__ = [
     # ingest
     "ScanSeries",
     "load_series",
-    # geometry
-    "overbeaming_factor",
-    "overranging_length",
-    "kv_corrections",
     # metrics
     "Acquisition",
     "acquisition_from_series",

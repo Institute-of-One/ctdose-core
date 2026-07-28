@@ -162,10 +162,24 @@ def test_per_vendor_absence_rates_are_quoted_correctly(text, survey, vendor):
 def test_overall_rates_are_quoted_correctly(text, survey):
     overall = survey["tag_absence"]["overall"]
     assert_quoted(text, f"{100 * overall['ctdivol_absence_rate']:.1f}%", "overall absence")
+    # Two independent conditions gate the reconstruction, and conflating them was the
+    # defect this assertion now guards: "complete enough" is the metadata alone, while
+    # the feasibility rate also requires the scanner to be in the coefficient table.
     assert_quoted(
         text,
-        f"complete enough in {100 * overall['fallback_feasibility_rate']:.1f}%",
+        f"complete enough in {100 * overall['parameters_complete_rate']:.1f}%",
+        "metadata completeness",
+    )
+    assert_quoted(
+        text,
+        f"both conditions held in {100 * overall['fallback_feasibility_rate']:.1f}%",
         "marginal feasibility",
+    )
+    assert_quoted(
+        text,
+        f"{overall['n_parameters_complete_but_scanner_uncovered']} series were described "
+        f"completely enough to reconstruct but sat on a scanner",
+        "coverage-limited series",
     )
     assert_quoted(
         text,
@@ -202,11 +216,12 @@ def test_vendor_spread_claim_is_supported(text, survey):
 
 
 def test_unsurveyable_fraction_claim_is_supported(text, survey):
-    """'roughly three in ten' must be consistent with the measured complement."""
+    """'roughly four in ten' must be consistent with the measured complement."""
     unsurveyable = 100 * (1 - survey["tag_absence"]["overall"]["surveyable_rate"])
-    assert 25.0 <= unsurveyable <= 35.0, (
-        f"the manuscript says 'three in ten'; the data says {unsurveyable:.1f}%"
+    assert 35.0 <= unsurveyable <= 45.0, (
+        f"the manuscript says 'four in ten'; the data says {unsurveyable:.1f}%"
     )
+    assert "four in ten" in text and "three in ten" not in text
 
 
 # --- Layer 2b ------------------------------------------------------------------------------
@@ -240,53 +255,82 @@ def test_conditional_reconstructability_is_quoted_correctly(text, survey):
 
 
 def test_fallback_case_counts_and_exclusions_reconcile(text, survey):
-    """The exclusion arithmetic in the text must actually add up.
+    """The funnel in the text must be the funnel the data went through.
 
-    The categories overlap, so they cannot be subtracted sequentially; the manuscript has
-    to state the once-only excluded total and the sampling cap that follows it.
+    The eligible set is now *defined* rather than sampled -- every screened series whose
+    scanner the open coefficient table covers, that carries a recorded CTDIvol, and whose
+    acquisition parameters are complete -- so the arithmetic to check is the funnel, not a
+    sampling cap. If a download cap ever returns, ``exclusions`` becomes non-empty and the
+    final assertion here fails rather than the count silently shrinking.
     """
-    fb = survey["fallback_error"]
-    exclusions = survey["fallback_exclusions"]
-    rows = survey["series"]
-    has = [r for r in rows if r["has_ctdivol_tag"] and not r["error"]]
-    eligible = [
-        r for r in has
-        if r["model_resolution"] != "unknown" and (r["n_images"] or 0) <= 250
-    ]
-    both = [
-        r for r in has
-        if r["model_resolution"] == "unknown" and (r["n_images"] or 0) > 250
-    ]
-    excluded_once = len(has) - len(eligible)
-    cap = survey["parameters"]["fallback_per_vendor"]
+    from ctdose_core.ctdi_table import covers
 
-    assert excluded_once == (
-        exclusions["model_not_in_table"] + exclusions["series_too_large"] - len(both)
-    ), "the overlap accounting is wrong"
+    fb = survey["fallback_error"]
+    rows = [r for r in survey["series"] if not r["error"]]
+    has = [r for r in rows if r["has_ctdivol_tag"]]
+    covered = [r for r in has if covers(r.get("manufacturer_raw", ""), r["model_name"] or "")]
+    eligible = [r for r in covered if r["fallback_feasible"]]
+
+    assert len(eligible) == fb["n_eligible"]
+    assert fb["n_evaluated"] == fb["n_eligible"], (
+        "the manuscript states every eligible series was evaluated"
+    )
+    assert not survey["fallback_exclusions"], (
+        f"cases were dropped after selection {survey['fallback_exclusions']}; the "
+        "manuscript claims the whole eligible set was evaluated"
+    )
 
     assert_quoted(text, f"Of the {len(has)} screened series", "n with recorded CTDIvol")
-    assert_quoted(text, f"{excluded_once} were excluded", "excluded once")
-    assert_quoted(text, f"table ({exclusions['model_not_in_table']})", "excl model")
-    assert_quoted(text, f"limit ({exclusions['series_too_large']})", "excl size")
-    assert_quoted(text, f"{len(both)} series fell into both categories", "overlap")
-    assert_quoted(text, f"{len(eligible)} remaining eligible series", "eligible")
-    assert_quoted(text, f"capped at {cap} per manufacturer", "sampling cap")
-    assert_quoted(
-        text, f"{exclusions['insufficient_parameters']} lacked complete", "excl params"
-    )
-    assert_quoted(text, f"leaving {fb['overall']['n']} evaluable cases", "n evaluable")
+    assert_quoted(text, f"{len(covered)} sat on a scanner in the coefficient table", "covered")
     assert_quoted(
         text,
-        f"{fb['independence']['n_distinct_recorded_estimated_pairs']} distinct",
-        "distinct pairs",
+        f"{len(eligible)} of those also had complete acquisition parameters",
+        "eligible",
     )
+    assert_quoted(text, f"All {fb['n_evaluated']} were evaluated", "all evaluated")
+
+    n_distinct = len({
+        (round(c["recorded_ctdivol_mgy"], 6), round(c["estimated_ctdivol_mgy"], 6))
+        for c in survey["fallback_cases"]
+    })
+    assert_quoted(text, f"comprise {n_distinct} distinct", "distinct pairs")
+
+
+def test_the_vendor_breakdown_of_the_accuracy_arm_is_quoted_with_ge_explained(text, survey):
+    """GE contributes nothing, and the manuscript must say why rather than omit it.
+
+    A reader who sees three manufacturers where the survey has four will assume GE was
+    dropped. It was not: GE has the highest coefficient coverage and the highest
+    reconstructability, and contributes no case only because no GE series in the sample
+    carries a recorded CTDIvol to compare against.
+    """
+    by_vendor = survey["fallback_error"]["by_vendor"]
+    ge = survey["tag_absence"]["by_vendor"]["GE"]
+    assert "GE" not in by_vendor, "this test exists because GE contributes no case"
+    assert ge["with_ctdivol_tag"] == 0
+
+    quoted = ", ".join(f"{v} {by_vendor[v]}" for v in ("Canon/Toshiba", "Siemens", "Philips"))
+    assert_quoted(text, f"**{quoted}, GE 0**", "accuracy-arm vendor breakdown")
+    assert_quoted(
+        text,
+        f"no GE series in the sample carries a recorded CTDIvol at all "
+        f"({100 * ge['ctdivol_absence_rate']:.1f}% absence)",
+        "the reason GE contributes nothing",
+    )
+    # The transferability caveat must appear in the Results *and* in the Limitations, so a
+    # reader who skips one still meets it.
+    results, limitations = text.split("**Limitations.**")
+    assert "transfers to GE" in results or "transfer" in results.split("## 4.")[0]
+    assert "unvalidated on GE" in limitations
 
 
 def test_headline_stratum_is_quoted_correctly(text, survey):
     """The number the paper's accuracy claim rests on."""
     h = survey["fallback_error"]["diagnostic_and_collimation_measured"]
     assert_quoted(text, f"n = {h['n']}", "headline n")
-    assert_quoted(text, f"median relative error of +{h['median']:.1f}%", "headline median")
+    assert_quoted(
+        text, f"median relative error of {_signed(h['median'])}", "headline median"
+    )
     assert_quoted(
         text,
         f"interquartile range {_signed(h['p25'])} to {_signed(h['p75'])}",
@@ -307,16 +351,26 @@ def test_collimation_strata_medians_are_quoted_correctly(text, survey):
     measured, reconstructed = strata["measured"], strata["reconstructed"]
     assert_quoted(
         text,
-        f"+{measured['median']:.1f}% for the {measured['n']} cases with a recorded collimation",
-        "measured stratum",
+        f"{reconstructed['n']} cases had to rebuild the collimation",
+        "reconstructed stratum n",
     )
     assert_quoted(
         text,
-        f"+{reconstructed['median']:.1f}% for the {reconstructed['n']} without",
-        "reconstructed stratum",
+        f"median error of {_signed(reconstructed['median'])} against "
+        f"{_signed(measured['median'])} for the {measured['n']}",
+        "collimation strata medians",
     )
-    assert_quoted(text, f"median relative error was +{survey['fallback_error']['overall']['median']:.1f}%",
-                  "pooled median")
+    fb = survey["fallback_error"]
+    assert_quoted(
+        text,
+        f"median relative error was {_signed(fb['overall']['median'])}",
+        "pooled median",
+    )
+    assert_quoted(
+        text,
+        f"mean absolute error of {fb['overall']['mean_absolute']:.1f}%",
+        "pooled MAE",
+    )
 
 
 def test_vendor_collimation_confound_is_quoted_correctly(text, survey):
@@ -336,31 +390,38 @@ def test_vendor_collimation_confound_is_quoted_correctly(text, survey):
     )
     assert_quoted(
         text,
-        f"Philips none with and {philips['collimation_reconstructed']} without",
+        f"Philips {philips['collimation_measured']} with and none without",
         "Philips split",
     )
     assert siemens["collimation_reconstructed"] == 0
-    assert philips["collimation_measured"] == 0
+    assert philips["collimation_reconstructed"] == 0
 
 
 def test_headline_per_vendor_is_quoted_correctly(text, survey):
     by_vendor = survey["fallback_error"]["diagnostic_and_collimation_measured"]["by_vendor"]
-    for vendor in ("Canon/Toshiba", "Siemens"):
-        d = by_vendor[vendor]
-        assert d["n"] > 0
-        assert_quoted(text, f"{vendor} (n = {d['n']})", f"{vendor} headline n")
-        assert_quoted(text, f"+{d['median']:.1f}%", f"{vendor} headline median")
-    assert by_vendor["Philips"]["n"] == 0, "the manuscript states Philips is unvalidated"
-    assert "unvalidated for Philips" in text
+    for vendor, d in by_vendor.items():
+        assert d["n"] > 0, f"{vendor} appears in the breakdown with no cases"
+        assert_quoted(
+            text, f"{vendor} (n = {d['n']}) {_signed(d['median'])}", f"{vendor} headline"
+        )
 
 
 def test_diagnostic_threshold_is_quoted_correctly(text, survey):
-    threshold = survey["fallback_error"]["diagnostic_acquisitions_only"]["threshold_mgy"]
-    remaining = survey["fallback_error"]["diagnostic_acquisitions_only"]["n"]
-    # Spelled out rather than "≥": U+2265 is outside WinAnsi and renders as a black
-    # square in the submission PDF. See tools/build_manuscript_pdf.py::assert_encodable.
-    assert_quoted(text, f"recorded CTDIvol of at least {threshold} mGy", "threshold")
-    assert_quoted(text, f"leaves {remaining} cases", "n diagnostic")
+    from ctdose_core.survey import DIAGNOSTIC_CTDIVOL_MGY
+
+    fb = survey["fallback_error"]
+    assert fb["diagnostic_only"]["n"] == fb["overall"]["n"], (
+        "the manuscript states no case fell below the diagnostic floor"
+    )
+    # Spelled out rather than the mathematical symbol: U+2265 is outside WinAnsi and
+    # renders as a black square in the submission PDF. See
+    # tools/build_manuscript_pdf.py::assert_encodable.
+    assert_quoted(
+        text, f"recorded CTDIvol of at least {DIAGNOSTIC_CTDIVOL_MGY} mGy", "threshold"
+    )
+    assert_quoted(
+        text, f"leaves {fb['diagnostic_only']['n']} cases unchanged", "n diagnostic"
+    )
 
 
 # --- size correction and effective dose -------------------------------------------------------
@@ -465,31 +526,6 @@ def test_organ_index_numbers_are_quoted_correctly(text):
     )
 
 
-def test_the_external_validation_is_quoted_correctly(text):
-    """Section 3.6 quotes the reference doses read from the collection's own report."""
-    path = RESULTS / "tcia_validation.json"
-    if not path.exists():
-        pytest.skip("validation not run")
-    payload = _load(path)
-    cases = {c["subject_id"]: c for c in payload["cases"] if "skipped" not in c}
-    assert cases, "no validation case was evaluated"
-    for subject, c in cases.items():
-        assert_quoted(text, subject, f"{subject} subject id")
-        assert_quoted(
-            text,
-            f"published {c['reference_ctdivol_mgy']:.2f} mGy",
-            f"{subject} reference CTDIvol",
-        )
-        assert_quoted(
-            text,
-            f"{c['reconstructed_ctdivol_corrected_mgy']:.2f} mGy",
-            f"{subject} reconstructed CTDIvol",
-        )
-    # The reference must not be transcribed into the repository: it is read at run time
-    # from the published report, and that is what makes it an external reference.
-    assert payload["provenance"]["reference_read_from"]["file"].endswith(".xlsx")
-
-
 def test_the_uncertainty_on_the_headline_claims_is_quoted_correctly(text):
     """A point estimate quoted bare is not a result; the interval must be in the text."""
     path = RESULTS / "inferential_stats.json"
@@ -520,28 +556,19 @@ def test_the_uncertainty_on_the_headline_claims_is_quoted_correctly(text):
     assert "p-value is a bound" not in text
     assert "may underestimate uncertainty" in text
 
-    # The caveat must describe the stratum the interval is actually computed on. The
-    # duplicate re-releases are a property of the 38 pooled cases; asserting they widen
-    # the headline interval was wrong, because none of them is in the headline stratum.
+    # The caveat must describe the stratum the interval is actually computed on, and
+    # count its duplicates rather than assuming there are none: an earlier version
+    # hard-coded zero and would have kept passing once one appeared.
     cav = stats["independence_caveat"]
-    assert cav["headline_n_duplicate_pairs"] == 0
-    assert_quoted(text, f"All {cav['headline_n']} are distinct", "headline distinctness")
+    distinct = cav["headline_n"] - cav["headline_n_duplicate_pairs"]
     assert_quoted(
-        text, f"from only {cav['headline_n_collections']} collections", "collection count"
+        text,
+        f"Of the {cav['headline_n']}, {distinct} are distinct",
+        "headline distinctness",
     )
-
-
-def test_the_tube_voltage_correction_is_reported_both_ways(text, survey):
-    """A correction reported only in its corrected form is an assertion, not a result."""
-    block = survey["fallback_error"]["by_tube_voltage"]
-    off = block["off_reference_voltage"]
-    assert_quoted(text, f"median error was {_signed(off['uncorrected']['median'])} uncorrected", "uncorrected")
-    assert_quoted(text, f"{_signed(off['corrected']['median'])} corrected", "corrected")
-    for kv, b in off["by_voltage"].items():
-        assert_quoted(text, f"at {kv} kV (n = {b['n']})", f"{kv} kV stratum")
-
-
-# --- integrity of the manuscript itself -------------------------------------------------------
+    assert_quoted(
+        text, f"they come from {cav['headline_n_collections']} collections", "collection count"
+    )
 
 
 def test_the_corrected_pediatric_drl_carries_its_primary_source(text):

@@ -8,18 +8,17 @@ carries a `provenance` block naming the script, the input and the access date.
 | --- | --- | --- |
 | `rdsr_layer1.json` / `.csv` | `tools/make_rdsr_layer1.py` | Layer 1: per-file and per-irradiation-event recorded dose read from real CT Radiation Dose SR objects across four vendors, plus two internal consistency checks |
 | `survey.json` / `survey.csv` | `tools/run_tcia_survey.py` | Layer 2 (a): per-series screening of public CT from TCIA — is CTDIvol present, is the physics reconstruction feasible at all — stratified by manufacturer |
-| `survey_fallback.csv` | `tools/run_tcia_survey.py`, `tools/reevaluate_fallback.py` | Layer 2 (b): per-series comparison of the physics reconstruction against a recorded CTDIvol, with and without the tube-voltage correction |
+| `open_fallback.json` | `tools/evaluate_open_fallback.py` | Layer 2 (b): per-series comparison of the physics reconstruction against the scanner's own recorded CTDIvol, on every screened series the open coefficient table covers |
 | `size_and_dose.json` / `.csv` | `tools/make_size_and_dose_layer.py` | Water-equivalent diameter, TG-204 conversion factor, SSDE and effective dose on the same archive series, with the inclusion criteria and every exclusion flag |
-| `tcia_validation.json` | `tools/validate_against_tcia_sot.py` | Layer 3: the reconstruction against **per-series CTDIvol and SSDE published with a public collection**, read from that collection's own clinical data report at run time rather than transcribed |
 | `inferential_stats.json` | `tools/make_inferential_stats.py` | A bootstrap interval on the headline error median and a χ² test with effect size for the manufacturer difference, each with the caveat that the sample is not independent |
 
 ## Regenerating
 
 ```bash
 CTDOSE_RDSR_SAMPLES=/path/to/CT-RDSR-samples python tools/make_rdsr_layer1.py
-python tools/run_tcia_survey.py --screen-per-vendor 100 --fallback-per-vendor 10
+python tools/run_tcia_survey.py --screen-per-vendor 100
+python tools/evaluate_open_fallback.py
 python tools/make_size_and_dose_layer.py --series-root .tcia_work/series
-python tools/validate_against_tcia_sot.py      # needs the public case, see docs/REPRODUCING_FIGURES.md
 python tools/make_inferential_stats.py
 ```
 

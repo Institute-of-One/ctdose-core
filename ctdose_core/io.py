@@ -552,5 +552,7 @@ def load_series(
         warnings=warnings,
     )
     if series.kvp is None:
-        series.warnings.append(f"no KVP {_tag_str(T_KVP)}; tube-voltage correction cannot be applied")
+        series.warnings.append(
+            f"no KVP {_tag_str(T_KVP)}; the CTDI coefficient row cannot be selected"
+        )
     return series

@@ -7,10 +7,10 @@
     "from TCIA: collection, subject ID, modality, series description and Series Instance",
     "UID. See docs/REPRODUCING_FIGURES.md for step-by-step retrieval instructions.",
     "",
-    "Reference CTDIvol and SSDE are NOT stored here. They are read at run time from the",
-    "collection's clinical data report by tools/validate_against_tcia_sot.py, matched on",
-    "Series Instance UID, so the published value is the single source of truth and cannot",
-    "drift from a transcription in this file.",
+    "No reference dose values are stored here. The published clinical data report is not",
+    "redistributed and is no longer read: the scanner behind these subjects is not in the",
+    "open coefficient table, so no reconstruction is made for them and there is nothing to",
+    "compare. These cases supply the figures only.",
     "",
     "The 'local_path', 'mask_path' and 'clinical_report' entries are machine-local",
     "conveniences. Point them wherever you extracted the data; nothing else in the",
@@ -21,18 +21,8 @@
     "archive": "The Cancer Imaging Archive (TCIA)",
     "doi": "10.7937/9npb-2637",
     "licence": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
-    "data_citation": "Moen TR, Chen B, Holmes DR III, Duan X, Yu Z, Yu L, Leng S, Fletcher JG, McCollough CH. Low-dose CT image and projection dataset. Med Phys. 2021;48(2):902-911. doi:10.1002/mp.14594",
-    "reference_dose_source": {
-      "file": "Abdomen_v9 Mar 2023.xlsx",
-      "distributed_as": "clinical data report accompanying the collection",
-      "sheet": "Abdomen",
-      "key_column": "SeriesUID",
-      "ctdivol_column": "CTDIvol_(mGy)",
-      "ssde_column": "SSDE_(mGy)",
-      "note": "The image headers of this collection carry no CTDIvol; the per-subject values live only in this report, so it is independent of the acquisition description the reconstruction uses."
-    }
+    "data_citation": "Moen TR, Chen B, Holmes DR III, Duan X, Yu Z, Yu L, Leng S, Fletcher JG, McCollough CH. Low-dose CT image and projection dataset. Med Phys. 2021;48(2):902-911. doi:10.1002/mp.14594"
   },
-  "clinical_report": "D:/DevGit/CT-ExposureDose/TCIA-Clinical-data-Mar-2023/Abdomen_v9 Mar 2023.xlsx",
   "cases": [
     {
       "subject_id": "L273",

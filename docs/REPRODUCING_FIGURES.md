@@ -1,9 +1,9 @@
-# Reproducing the image figures and the validation
+# Reproducing the image figures
 
-Figures 4–6 of the manuscript, the screenshots in the README, and the reconstruction
-validation in `results/tcia_validation.json` are all generated from **publicly available CT
-images**. No DICOM is redistributed with this repository — the images stay where they are
-published, and this page tells you how to fetch exactly the same ones.
+Figures 4–6 of the manuscript and the screenshots in the README are generated from
+**publicly available CT images**. No DICOM is redistributed with this repository — the
+images stay where they are published, and this page tells you how to fetch exactly the
+same ones.
 
 Everything else (Figures 1–3, `results/survey.json`, `results/rdsr_layer1.json`) is
 generated from data described in the manuscript's Data section and needs nothing from here.
@@ -97,9 +97,6 @@ python examples/segment_fast.py <L273 dir> --hires --out <mask dir>
 
 # all six figures + paper/figures/figure_data.json
 python paper/figures/make_figures.py
-
-# the two-case reconstruction validation -> results/tcia_validation.json
-python tools/validate_against_tcia_sot.py
 
 # the numbers the manuscript quotes, and the check that it quotes them correctly
 python tools/extract_manuscript_values.py

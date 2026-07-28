@@ -129,7 +129,11 @@ def test_survey_strata_partition_the_cases():
     assert strata["measured"]["n"] + strata["reconstructed"]["n"] == len(cases)
     assert fb["n_collimation_measured"] == sum(1 for c in cases if c["collimation_measured"])
     assert fb["overall"]["n"] == len(cases)
-    assert sum(d["n"] for d in fb["by_vendor"].values()) == len(cases)
+    # ``by_vendor`` is the per-manufacturer case count -- the breakdown the manuscript
+    # quotes -- so it must account for every evaluated case exactly once.
+    assert sum(fb["by_vendor"].values()) == len(cases)
+    for vendor, n in fb["by_vendor"].items():
+        assert n == sum(1 for c in cases if c["vendor"] == vendor)
 
     for vendor, counts in fb["vendor_by_collimation_provenance"].items():
         mine = [c for c in cases if c["vendor"] == vendor]

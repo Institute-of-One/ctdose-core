@@ -2,16 +2,13 @@
   "provenance": {
     "name": "Japan DRLs 2015",
     "long_name": "National Diagnostic Reference Levels Established in 2015 (J-RIME)",
-    "source_files": [
-      "the published J-RIME 2015 adult table",
-      "the published J-RIME 2015 paediatric table"
-    ],
-    "extracted_by": "tools/extract_drl_tables.py",
     "units": {
       "ctdivol_mgy": "mGy",
       "dlp_mgycm": "mGy*cm"
     },
-    "note": "Adult brain DRLs refer to the 16 cm head CTDI phantom; body examinations refer to the 32 cm body phantom. Paediatric DRLs refer to the 16 cm phantom."
+    "note": "Adult brain DRLs refer to the 16 cm head CTDI phantom; body examinations refer to the 32 cm body phantom. Paediatric DRLs refer to the 16 cm phantom.",
+    "citation": "Japan Network for Research and Information on Medical Exposure (J-RIME). Diagnostic Reference Levels Based on Latest Surveys in Japan -- Japan DRLs 2015. Tokyo: J-RIME; 2015.",
+    "transcription": "Transcribed from the published J-RIME 2015 tables and cross-checked in the test suite. Values flagged with a data_quality_note were traced to the primary survey they derive from; see that note for the citation."
   },
   "adult": [
     {
@@ -109,7 +106,7 @@
       "phantom_cm": 16,
       "source_value_ctdivol_mgy": 141.0,
       "verified": true,
-      "data_quality_note": "Verified against the nationwide paediatric CT survey underlying the J-RIME Japan DRLs 2015 (Takei Y, Miyazaki O, Matsubara K, et al. Pediatr Radiol. 2016;46(2):280-285. doi:10.1007/s00247-015-3474-x, PMID 26494635), which reports a 75th-percentile CTDIvol of 14.3 mGy and DLP of 296.0 mGy*cm for chest CT at 1-5 years on the 16 cm phantom. Stored rounded as 14.0 / 300.0, consistent with the rest of the table. The MATLAB source literal 141 was a single-digit insertion error."
+      "data_quality_note": "Verified against the nationwide paediatric CT survey underlying the J-RIME Japan DRLs 2015 (Takei Y, Miyazaki O, Matsubara K, et al. Pediatr Radiol. 2016;46(2):280-285. doi:10.1007/s00247-015-3474-x, PMID 26494635), which reports a 75th-percentile CTDIvol of 14.3 mGy and DLP of 296.0 mGy*cm for chest CT at 1-5 years on the 16 cm phantom. Stored rounded as 14.0 / 300.0, consistent with the rest of the table. The source literal 141 was a single-digit insertion error."
     },
     {
       "examination": "Chest",

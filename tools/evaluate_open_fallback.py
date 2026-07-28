@@ -212,10 +212,36 @@ def main() -> int:
             "diagnostic_only": describe([c["percent_error"] for c in diagnostic]),
             "diagnostic_and_collimation_measured": {
                 **describe([c["percent_error"] for c in headline]),
+                "n_excluded": len(cases) - len(headline),
                 "by_vendor": {
                     v: describe([c["percent_error"] for c in headline if c["vendor"] == v])
                     for v in vendors
                 },
+            },
+            # The collimation split is what separates the dose model from the archive's
+            # metadata gaps, so it stays reportable even though the open table narrows it.
+            "by_collimation_provenance": {
+                "measured": describe(
+                    [c["percent_error"] for c in cases if c["collimation_measured"]]
+                ),
+                "reconstructed": describe(
+                    [c["percent_error"] for c in cases if not c["collimation_measured"]]
+                ),
+            },
+            "n_collimation_measured": sum(1 for c in cases if c["collimation_measured"]),
+            "n_collimation_reconstructed": sum(
+                1 for c in cases if not c["collimation_measured"]
+            ),
+            "vendor_by_collimation_provenance": {
+                v: {
+                    "collimation_measured": sum(
+                        1 for c in cases if c["vendor"] == v and c["collimation_measured"]
+                    ),
+                    "collimation_reconstructed": sum(
+                        1 for c in cases if c["vendor"] == v and not c["collimation_measured"]
+                    ),
+                }
+                for v in vendors
             },
             "exclusions": excluded,
         },

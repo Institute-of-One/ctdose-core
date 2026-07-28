@@ -23,7 +23,7 @@ SUPERSEDED_TABLE = REPO / "ctdose_core" / "data" / "scanner_coefficients.json"
 #: Naming CT-Expo is not itself a problem, and a blanket string ban would be wrong:
 #:
 #: * the CT-Expo *methodology* is a published formulation, free to reimplement and proper
-#:   to cite, so `geometry.py` and the manuscript may and should name it;
+#:   to cite as prior art, so the manuscript may and should name it;
 #: * the other shipped tables are published standards data, cited to TG-204 and ICRP-103.
 #:
 #: What must not recur is per-scanner CTDI *values* of that lineage being shipped. These

@@ -360,6 +360,7 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
 def figure_modulation(series_dir: Path, case: dict[str, Any] | None = None) -> dict[str, Any]:
     from ctdose_core.figures import save_modulation_figure
     from ctdose_core.io import load_series
+    from ctdose_core.provenance import Source
 
     series = load_series(series_dir)
     # Title the figure by the public subject, not by the local folder: a reader has to be
@@ -385,6 +386,16 @@ def figure_modulation(series_dir: Path, case: dict[str, Any] | None = None) -> d
         "min_tube_current_ma": float(np.min(series.tube_current_ma)),
         "max_tube_current_ma": float(np.max(series.tube_current_ma)),
         "scan_range_mm": series.scan_range_mm,
+        # What this header does *not* carry. The demonstration collection publishes a
+        # per-series CTDIvol that its own images omit, and omits pitch and total
+        # collimation as well, which is the metadata-practice point of the Discussion.
+        # Recorded here so that claim is re-derived from the images rather than asserted.
+        "has_ctdivol_tag": series.ctdivol_tag is not None
+        and series.ctdivol_tag.value is not None,
+        "pitch_recorded": series.pitch is not None
+        and series.pitch.source is not Source.PHYSICS_FALLBACK,
+        "collimation_recorded": series.collimation_mm is not None
+        and series.collimation_mm.source is not Source.PHYSICS_FALLBACK,
     }
 
 

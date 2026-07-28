@@ -64,7 +64,10 @@
     "mean_tube_current_ma": 437.6,
     "min_tube_current_ma": 271.0,
     "max_tube_current_ma": 653.0,
-    "scan_range_mm": 492.0
+    "scan_range_mm": 492.0,
+    "has_ctdivol_tag": false,
+    "pitch_recorded": false,
+    "collimation_recorded": false
   },
   "fig5_organ_overlay": {
     "public_case": true,
