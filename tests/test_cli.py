@@ -12,8 +12,8 @@ from ctdose_core.cli import main
 def test_models_lists_the_table(capsys):
     assert main(["models"]) == 0
     out = capsys.readouterr().out
-    assert "GE LightSpeed VCT (small BS)" in out
-    assert len(out.strip().splitlines()) == 30
+    assert "LightSpeed VCT" in out
+    assert len(out.strip().splitlines()) == 17
 
 
 def test_models_regions(capsys):

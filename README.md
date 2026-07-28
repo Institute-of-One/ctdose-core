@@ -14,7 +14,7 @@ from ctdose_core import analyze_series
 report = analyze_series("path/to/series", region="Chest", drl_key="routine_chest")
 
 print(report.ctdivol)                  # Quantity(7.562 mGy, source=physics_fallback)
-print(report.ctdivol.formula)          # CTDIvol = nCTDIw * mAs_rot * k_OB / pitch
+print(report.ctdivol.formula)          # CTDIvol = CTDIw_table * (mAs_rot / 100) / pitch
 print(report.ssde)                     # Quantity(11.9 mGy, source=derived)
 
 for a in report.alerts:
@@ -107,20 +107,26 @@ ctdose drl                               # the shipped reference levels
 
 ## The physics
 
-When `CTDIvol (0018,9345)` is absent, it is rebuilt from the acquisition using the
-CT-Expo formulation:
+When `CTDIvol (0018,9345)` is absent, it is rebuilt from an openly licensed measured
+coefficient table:
 
 ```
-k_OB     = (N·(h_col + dz)) / (h_col·(N + dz))          over-beaming
-L_rot    = h_rec/2 + h_col·(m_OR·p + b_OR)              over-ranging
-CTDIvol  = nCTDIw · (mA · t_rot) · k_OB / p
-DLP      = CTDIvol · (scan_range + L_rot)/10
-DLP_air  = nCTDIair · (mA · t_rot) · k_OB · (scan_range + L_rot)/10
-E        = DLP_air · f_mean · k_CT · (kV/kV_ref)² · (kV/kV_ref)^0.5
-E        = DLP · k_CT · (kV/kV_ref)² · (kV/kV_ref)^0.5 · k     (ICRP-103 route)
+CTDIvol = CTDIw(model, kVp, collimation, phantom, bowtie) · (mAs_rot/100) / pitch
+DLP     = CTDIvol · L_imaged / 10
+E       = DLP · k(region, size)
 ```
 
-Size correction follows AAPM TG-204/TG-220:
+Tube potential, collimation, phantom and bowtie are **lookup keys**, not things to
+correct for, so there is no over-beaming factor and no `(kV/kV_ref)²` scaling. Where a
+technique is not tabulated the value is interpolated between measured points and the
+substitution is recorded on the value; outside the measured range the lookup refuses.
+
+`L_imaged` is the reconstructed scan length. It omits helical over-ranging, whose
+per-scanner coefficients are not available openly, so the DLP is a **conservative
+underestimate** — a caveat carried on the value itself and inherited by the effective
+dose derived from it.
+
+Size correction follows AAPM Report 204/220:
 
 ```
 D_w   = 2·√((HU_mean/1000 + 1)·A_ROI/π)
@@ -128,24 +134,25 @@ SSDE  = CTDIvol · f(D_w)
 f_head(D) = 1.9852·exp(−0.0486·D)
 ```
 
-`nCTDIw`, `nCTDIair`, `k_CT`, `N`, `dz`, `m_OR`, `b_OR` and `kV_ref` are per scanner
-series, body region and patient size — 149 usable combinations across 30 scanner
-models from four vendors.
-
 ## Provenance of the coefficient tables
 
-The constants are **not** typed in by hand. They are machine-extracted from a
-validated MATLAB reference implementation (`the reference implementation`, LISIT), which is treated
-as read-only and is never modified:
+Each table is attributed to the primary published source of its values:
+
+| quantity | source | licence |
+| --- | --- | --- |
+| per-scanner CTDI | Dinwiddie et al., *J Appl Clin Med Phys* 2026;27(2):e70473 | CC BY 4.0 |
+| SSDE conversion | AAPM Report 204 (2011), Report 220 (2014) | published standard |
+| effective-dose *k* | ICRP Publication 103 (2007) | published standard |
+
+The CTDI table covers **17 scanner models across four vendors**, keyed by tube potential
+(70–150 kVp), collimation (5–80 mm), CTDI phantom (16/32 cm) and bowtie. A scanner outside
+it is reported as **unrecoverable** rather than costed against a similar model — see
+`data/reference/mirdct_dinwiddie2026/SOURCE.md`, which records the DOI, licence, retrieval
+route and file checksum. That directory is CC BY 4.0, not MIT.
 
 ```bash
-python tools/extract_matlab_tables.py --matlab-root /path/to/CT-ExposureDose
-python tools/extract_drl_tables.py    --matlab-root /path/to/CT-ExposureDose
+python tools/extract_mirdct_coefficients.py   # regenerates the CTDI table from the annex
 ```
-
-This regenerates `ctdose_core/data/*.json`. `tests/test_matlab_parity.py` then checks
-the library against an *independent literal transcription* of the MATLAB expressions,
-so a drift in the port fails the build rather than the review.
 
 ### Data-quality findings, reported not hidden
 
@@ -268,7 +275,7 @@ from ctdose_core import analyze_series
 
 report = analyze_series("<L273 dir>", region="Whole abdomen")
 print(report.ctdivol)          # Quantity(16.287 mGy, source=physics_fallback)
-print(report.ctdivol.formula)  # CTDIvol = nCTDIw * mAs_rot * k_OB / pitch
+print(report.ctdivol.formula)  # CTDIvol = CTDIw_table * (mAs_rot / 100) / pitch
 print(report.ssde)             # Quantity(20.5537 mGy, source=derived)
 ```
 

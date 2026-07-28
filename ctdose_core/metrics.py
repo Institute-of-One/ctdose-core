@@ -1,14 +1,16 @@
-"""CTDIvol, DLP and DLP-in-air, with a physics fallback when the tags are absent.
+"""CTDIvol, DLP and effective dose, reconstructed when the dose attributes are absent.
 
-Public CT collections frequently lack CTDIvol (0018,9345) and any usable DLP
-record while retaining full acquisition parameters including per-slice tube
-current. This module reproduces both routes:
+Public CT collections frequently lack CTDIvol (0018,9345) and any usable DLP record while
+retaining the full acquisition description, including the per-slice tube current. Two
+routes reach a value:
 
-* **recorded** -- read the value from the DICOM attribute;
-* **fallback** -- rebuild it from mAs, collimation and pitch using the scanner's
-  CT-Expo style normalised CTDI coefficients.
+* **recorded** -- read it from the RDSR or the DICOM attribute;
+* **reconstructed** -- rebuild CTDIvol from the acquisition and an openly licensed
+  coefficient table, then DLP from the imaged length and effective dose from a published
+  conversion factor.
 
-Which route was taken is always visible in the returned :class:`Quantity`.
+Which route was taken, and every assumption the reconstruction rested on, is visible in
+the returned :class:`Quantity`.
 """
 
 from __future__ import annotations
@@ -18,10 +20,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .ctdi_table import CoefficientNotAvailable
-from .geometry import overbeaming_factor, overranging_length
 from .io import ScanSeries
 from .provenance import Quantity, Source
-from .tables import ScannerCoefficients
 
 
 @dataclass(frozen=True)
@@ -67,89 +67,6 @@ def acquisition_from_series(series: ScanSeries) -> Acquisition:
         slice_thickness_mm=float(series.slice_thickness_mm),
         scan_range_mm=series.scan_range_mm,
         kvp=series.kvp,
-    )
-
-
-def _geometry(acq: Acquisition, coef: ScannerCoefficients) -> tuple[Quantity, Quantity]:
-    k_ob = overbeaming_factor(
-        acq.collimation_mm, coef.beam_width_ref_mm, coef.overbeam_dz_mm
-    )
-    l_rot = overranging_length(
-        acq.slice_thickness_mm, acq.collimation_mm, acq.pitch, coef.overrange_m, coef.overrange_b
-    )
-    return k_ob, l_rot
-
-
-def estimate_ctdivol(
-    acq: Acquisition, coef: ScannerCoefficients, *, kv_correction: bool = True
-) -> Quantity:
-    """Rebuild CTDIvol from acquisition parameters (the tag-absent route).
-
-    ``CTDIvol = nCTDIw * (mA * t_rot) * k_OB / pitch * (kVp / kV_ref)^2``
-
-    ``nCTDIw`` is the scanner's normalised weighted CTDI in the relevant reference
-    phantom (16 cm head / 32 cm body), in mGy per mAs, tabulated at the scanner's
-    reference tube voltage ``kV_ref`` (typically 120 kVp).
-
-    Args:
-        kv_correction: when ``True`` (default), scale the tabulated nCTDIw from its
-            reference voltage to the acquisition's tube voltage by ``(kVp/kV_ref)^2``.
-            This is required for a scanner-model-neutral reconstruction to match the
-            as-delivered CTDIvol on non-reference-kVp scans (validated against a
-            vendor Source-of-Truth: a 100 kVp abdomen scan is otherwise overestimated
-            by ~46 %). Set ``False`` to reproduce the reference implementation's
-            uncorrected behaviour exactly (e.g. for MATLAB-parity checks); at the
-            reference voltage the two are identical.
-
-    Note:
-        The exponent 2 follows the reference implementation's ``kvfu1`` free-in-air
-        CTDI scaling and is the same factor used on the effective-dose route
-        (:func:`~ctdose_core.geometry.kv_corrections`). It is applied only when the
-        acquisition's ``kvp`` is known and differs from ``kV_ref``.
-    """
-    k_ob, _ = _geometry(acq, coef)
-    value = coef.nctdi_w * acq.mas_per_rotation * float(k_ob) / acq.pitch
-
-    inputs = {
-        "nCTDIw_mGy_per_mAs": coef.nctdi_w,
-        "mAs_rot": acq.mas_per_rotation,
-        "k_OB": float(k_ob),
-        "pitch": acq.pitch,
-    }
-    formula = "CTDIvol = nCTDIw * mAs_rot * k_OB / pitch"
-    notes = ["reconstructed because CTDIvol (0018,9345) was not available"]
-
-    apply_kv = (
-        kv_correction
-        and acq.kvp is not None
-        and coef.kv_reference
-        and float(acq.kvp) != float(coef.kv_reference)
-    )
-    if apply_kv:
-        k_kv = (float(acq.kvp) / float(coef.kv_reference)) ** 2
-        value *= k_kv
-        inputs["kVp"] = float(acq.kvp)
-        inputs["kV_ref"] = float(coef.kv_reference)
-        inputs["k_kV"] = k_kv
-        formula = "CTDIvol = nCTDIw * mAs_rot * k_OB / pitch * (kVp/kV_ref)^2"
-        notes.append(
-            f"tube-voltage corrected from {float(coef.kv_reference):g} kVp "
-            f"to {float(acq.kvp):g} kVp by (kVp/kV_ref)^2 = {k_kv:.4f}"
-        )
-    elif kv_correction and acq.kvp is not None and coef.kv_reference:
-        notes.append(
-            f"tube voltage {float(acq.kvp):g} kVp equals reference "
-            f"{float(coef.kv_reference):g} kVp; no correction needed"
-        )
-
-    return Quantity(
-        value=value,
-        unit="mGy",
-        source=Source.PHYSICS_FALLBACK,
-        formula=formula,
-        inputs=inputs,
-        reference="legacy scanner coefficient table",
-        notes=tuple(notes),
     )
 
 
@@ -330,155 +247,6 @@ def most_authoritative(candidates: Iterable[Quantity]) -> Quantity | None:
         else len(SOURCE_PRIORITY),
     )
     return ranked[0] if ranked else None
-
-
-def ctdivol(
-    acq: Acquisition,
-    coef: ScannerCoefficients,
-    *,
-    recorded_mgy: float | Quantity | None = None,
-    recorded_source: Source = Source.DICOM_TAG,
-    prefer_recorded: bool = True,
-    kv_correction: bool = True,
-) -> Quantity:
-    """CTDIvol, preferring the recorded value and falling back to physics.
-
-    Args:
-        recorded_mgy: a recorded CTDIvol, either as a bare number or as a
-            :class:`~ctdose_core.provenance.Quantity` that already carries its origin.
-        recorded_source: origin to record when ``recorded_mgy`` is a bare number.
-        kv_correction: forwarded to :func:`estimate_ctdivol` for the physics
-            fallback (tube-voltage scaling of the tabulated nCTDIw).
-    """
-    if prefer_recorded and recorded_mgy:
-        if isinstance(recorded_mgy, Quantity):
-            return recorded_mgy
-        source_labels = {
-            Source.RDSR: ("CT Radiation Dose SR, Mean CTDIvol", "DCM 113830"),
-            Source.DICOM_TAG: ("CTDI Volume (0018,9345)", "(0018,9345)"),
-        }
-        formula, tag = source_labels.get(recorded_source, ("recorded CTDIvol", ""))
-        return Quantity(
-            value=float(recorded_mgy),
-            unit="mGy",
-            source=recorded_source,
-            formula=formula,
-            inputs={"tag": tag} if tag else {},
-        )
-    if coef.nctdi_w is None:
-        raise ValueError("no nCTDIw coefficient for this scanner/region/size combination")
-    return estimate_ctdivol(acq, coef, kv_correction=kv_correction)
-
-
-def irradiated_length_cm(acq: Acquisition, coef: ScannerCoefficients) -> Quantity:
-    """Irradiated length ``(scan range + over-ranging)`` in cm."""
-    _, l_rot = _geometry(acq, coef)
-    value = (acq.scan_range_mm + float(l_rot)) / 10.0
-    return Quantity(
-        value=value,
-        unit="cm",
-        source=Source.DERIVED,
-        formula="L = (scan_range + L_rot) / 10",
-        inputs={"scan_range_mm": acq.scan_range_mm, "L_rot_mm": float(l_rot)},
-    )
-
-
-def estimate_dlp(acq: Acquisition, coef: ScannerCoefficients, ctdivol_mgy: Quantity | float) -> Quantity:
-    """DLP from CTDIvol and the irradiated length, ``DLP = CTDIvol * L``."""
-    length = irradiated_length_cm(acq, coef)
-    c = float(ctdivol_mgy)
-    value = c * float(length)
-    inherits = (
-        ctdivol_mgy.source if isinstance(ctdivol_mgy, Quantity) else Source.USER
-    )
-    return Quantity(
-        value=value,
-        unit="mGy*cm",
-        source=Source.DERIVED,
-        formula="DLP = CTDIvol * (scan_range + L_rot)/10",
-        inputs={
-            "CTDIvol_mGy": c,
-            "CTDIvol_source": inherits.value,
-            "L_cm": float(length),
-            **length.inputs,
-        },
-        notes=("includes helical over-ranging",),
-    )
-
-
-def dlp(
-    acq: Acquisition,
-    coef: ScannerCoefficients,
-    ctdivol_mgy: Quantity | float,
-    *,
-    recorded_mgycm: float | Quantity | None = None,
-    recorded_source: Source = Source.DICOM_TEXT,
-    prefer_recorded: bool = True,
-) -> Quantity:
-    """DLP, preferring a recorded value and falling back to ``CTDIvol x length``."""
-    if prefer_recorded and recorded_mgycm:
-        if isinstance(recorded_mgycm, Quantity):
-            return recorded_mgycm
-        source_labels = {
-            Source.RDSR: ("CT Radiation Dose SR, DLP", "DCM 113838"),
-            Source.DICOM_TEXT: ("recorded dose-length product", "(0040,0310)"),
-        }
-        formula, tag = source_labels.get(recorded_source, ("recorded DLP", ""))
-        return Quantity(
-            value=float(recorded_mgycm),
-            unit="mGy*cm",
-            source=recorded_source,
-            formula=formula,
-            inputs={"tag": tag} if tag else {},
-        )
-    return estimate_dlp(acq, coef, ctdivol_mgy)
-
-
-def dlp_in_air(acq: Acquisition, coef: ScannerCoefficients) -> Quantity:
-    """Free-in-air dose-length product, the input to the organ-conversion dose route.
-
-    ``DLP_air = nCTDIair * mAs_rot * k_OB * (scan_range + L_rot)/10``
-    """
-    k_ob, _ = _geometry(acq, coef)
-    length = irradiated_length_cm(acq, coef)
-    value = coef.nctdi_air * acq.mas_per_rotation * float(k_ob) * float(length)
-    return Quantity(
-        value=value,
-        unit="mGy*cm",
-        source=Source.PHYSICS_FALLBACK,
-        formula="DLP_air = nCTDIair * mAs_rot * k_OB * L",
-        inputs={
-            "nCTDIair_mGy_per_mAs": coef.nctdi_air,
-            "mAs_rot": acq.mas_per_rotation,
-            "k_OB": float(k_ob),
-            "L_cm": float(length),
-        },
-        reference="CT-Expo free-in-air CTDI normalisation",
-    )
-
-
-def dose_metrics(
-    acq: Acquisition,
-    coef: ScannerCoefficients,
-    *,
-    recorded_ctdivol_mgy: float | Quantity | None = None,
-    recorded_dlp_mgycm: float | Quantity | None = None,
-    prefer_recorded: bool = True,
-    kv_correction: bool = True,
-) -> dict[str, Quantity]:
-    """CTDIvol, DLP and DLP-in-air in one call."""
-    c = ctdivol(
-        acq,
-        coef,
-        recorded_mgy=recorded_ctdivol_mgy,
-        prefer_recorded=prefer_recorded,
-        kv_correction=kv_correction,
-    )
-    d = dlp(acq, coef, c, recorded_mgycm=recorded_dlp_mgycm, prefer_recorded=prefer_recorded)
-    out: dict[str, Quantity] = {"ctdivol": c, "dlp": d}
-    if coef.nctdi_air is not None:
-        out["dlp_air"] = dlp_in_air(acq, coef)
-    return out
 
 
 def agreement(a: Quantity, b: Quantity) -> dict[str, Any]:

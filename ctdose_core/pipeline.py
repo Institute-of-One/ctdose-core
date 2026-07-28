@@ -18,10 +18,12 @@ from . import metrics as metrics_mod
 from . import rdsr as rdsr_mod
 from . import segmentation as seg
 from . import ssde as ssde_mod
+from .ctdi_table import CoefficientNotAvailable
+from .ctdi_table import provenance as ctdi_provenance
+from .ctdi_table import resolve_model as resolve_open_model
 from .effdose import effective_dose
 from .io import ScanSeries, load_series
 from .provenance import Quantity, Source
-from .scanners import bowtie_from_scan_fov, has_bowtie_variants, resolve_model
 from .tables import (
     HEAD_REGIONS,
     PEDIATRIC_KFACTOR_SIZES,
@@ -29,9 +31,7 @@ from .tables import (
     SIZE_CHILD_7Y,
     SIZE_CHILD_8W,
     ConversionFactors,
-    ScannerCoefficients,
     lookup_conversion,
-    lookup_scanner,
 )
 
 
@@ -61,7 +61,7 @@ class DoseReport:
     region: str
     scanner_model: str
     patient_size: str
-    coefficients: ScannerCoefficients
+    coefficients: dict[str, Any]
     factors: ConversionFactors
     acquisition: metrics_mod.Acquisition
     quantities: dict[str, Quantity] = field(default_factory=dict)
@@ -99,17 +99,7 @@ class DoseReport:
             "region": self.region,
             "scanner_model": self.scanner_model,
             "patient_size": self.patient_size,
-            "coefficients": {
-                "nCTDIair_mGy_per_mAs": self.coefficients.nctdi_air,
-                "nCTDIw_mGy_per_mAs": self.coefficients.nctdi_w,
-                "k_CT": self.coefficients.ct_factor,
-                "beam_width_ref_mm": self.coefficients.beam_width_ref_mm,
-                "overbeam_dz_mm": self.coefficients.overbeam_dz_mm,
-                "overrange_m": self.coefficients.overrange_m,
-                "overrange_b": self.coefficients.overrange_b,
-                "kV_reference": self.coefficients.kv_reference,
-                "effective_dose_route": self.coefficients.effective_dose_route,
-            },
+            "coefficients": self.coefficients,
             "conversion_factors": {
                 "region": self.factors.region,
                 "size": self.factors.size,
@@ -366,7 +356,6 @@ def analyze_series(
     series_uid: str | None = None,
     use_rdsr: bool = True,
     rdsr_path: Path | str | None = None,
-    kv_correction: bool = True,
 ) -> DoseReport:
     """Run the full dose analysis on a CT series.
 
@@ -393,56 +382,61 @@ def analyze_series(
     series = path if isinstance(path, ScanSeries) else load_series(path, series_uid=series_uid)
     warnings = list(series.warnings)
 
-    if scanner_model is None:
-        # Auto-infer the bowtie / scan-field only when the table actually offers a
-        # choice for this model and the caller did not specify one. An explicit
-        # bowtie= always wins; the inference is recorded as an assumption.
-        if bowtie is None and has_bowtie_variants(series.model_name, series.manufacturer):
-            fov_mm = series.data_collection_diameter_mm or series.reconstruction_diameter_mm
-            inferred = bowtie_from_scan_fov(fov_mm)
-            if inferred is not None:
-                bowtie = inferred
-                which = (
-                    "Data Collection Diameter (0018,0090)"
-                    if series.data_collection_diameter_mm
-                    else "Reconstruction Diameter (0018,1100)"
-                )
-                warnings.append(
-                    f"bowtie/scan-field not recorded in DICOM; inferred {inferred!r} "
-                    f"from {which} = {fov_mm:.0f} mm (assumption -- pass bowtie= to override)"
-                )
-            else:
-                warnings.append(
-                    "bowtie/scan-field not recorded and no scan field of view "
-                    "(0018,0090 / 0018,1100) to infer it from; pass bowtie= to choose"
-                )
-        scanner_model, model_warnings = resolve_model(
-            series.model_name, series.manufacturer, bowtie=bowtie
-        )
-        warnings.extend(model_warnings)
+    # The open coefficient database names 17 scanners; anything else is unrecoverable by
+    # reconstruction, and saying so is the honest outcome. Bowtie is no longer inferred
+    # from the scan field of view -- it is a lookup key, so an unrecorded bowtie is
+    # resolved against what the table measured and declared on the value.
+    open_model: tuple[str, str] | None = None
+    try:
+        open_model = resolve_open_model(series.manufacturer, series.model_name)
+    except CoefficientNotAvailable as exc:
+        warnings.append(str(exc))
 
     size_label = patient_size or patient_size_label(series.patient_age_years)
-    coef = lookup_scanner(scanner_model, region, size_label)
-    for flag in coef.quality_flags:
-        warnings.append(f"coefficient table ({scanner_model}, {region}, {size_label}): {flag}")
-    if coef.ct_factor_inherited_from:
-        warnings.append(
-            f"k_CT for this row is not set by the reference implementation; "
-            f"inherited from the {coef.ct_factor_inherited_from}"
-        )
     factors = lookup_conversion(region, size_label, series.patient_sex)
     acq = metrics_mod.acquisition_from_series(series)
 
     recorded = collect_recorded_dose(series, use_rdsr=use_rdsr, rdsr_path=rdsr_path)
     warnings.extend(recorded.warnings)
-    quantities = metrics_mod.dose_metrics(
-        acq,
-        coef,
-        recorded_ctdivol_mgy=recorded.ctdivol,
-        recorded_dlp_mgycm=recorded.dlp,
-        prefer_recorded=prefer_recorded,
-        kv_correction=kv_correction,
-    )
+    # CTDIvol: a recorded value when one exists, otherwise the open-table reconstruction.
+    quantities: dict[str, Quantity] = {}
+    coefficients: dict[str, Any] = {"source": "none"}
+    reconstructed: Quantity | None = None
+    if open_model is not None:
+        phantom_guess = ssde_mod.phantom_for(region, None)
+        try:
+            reconstructed = metrics_mod.estimate_ctdivol_open(
+                acq,
+                vendor=open_model[0],
+                model=open_model[1],
+                phantom_cm=int(phantom_guess),
+            )
+            coefficients = {
+                "source": ctdi_provenance()["name"],
+                "citation": ctdi_provenance()["citation"],
+                "license": ctdi_provenance()["license"],
+                "table_model": f"{open_model[0]} {open_model[1]}",
+            }
+        except CoefficientNotAvailable as exc:
+            warnings.append(f"CTDIvol not reconstructable: {exc}")
+
+    # prefer_recorded=False deliberately forces the reconstruction, which is how the
+    # fallback is exercised on series that do carry a recorded value -- the comparison the
+    # accuracy arm rests on. Taking the first candidate would silently return the recorded
+    # value instead and make that comparison vacuous.
+    candidates = [q for q in (recorded.ctdivol, reconstructed) if q is not None]
+    if not prefer_recorded and reconstructed is not None:
+        quantities["ctdivol"] = reconstructed
+    elif candidates:
+        quantities["ctdivol"] = metrics_mod.most_authoritative(candidates) or candidates[0]
+
+    # DLP: recorded when present, otherwise CTDIvol times the imaged length.
+    if recorded.dlp is not None:
+        quantities["dlp"] = recorded.dlp
+    elif "ctdivol" in quantities and series.scan_range_mm:
+        quantities["dlp"] = metrics_mod.estimate_dlp_open(
+            quantities["ctdivol"], series.scan_range_mm
+        )
 
     source_agreement = recorded.agreement()
     for name, cmp in source_agreement.items():
@@ -478,16 +472,11 @@ def analyze_series(
         quantities["water_equivalent_diameter"] = diameter
         quantities["ssde"] = ssde_result.ssde
 
-    try:
-        quantities["effective_dose"] = effective_dose(
-            coef,
-            factors,
-            dlp_air=quantities.get("dlp_air"),
-            dlp_mgycm=quantities["dlp"],
-            kvp=series.kvp,
-        )
-    except ValueError as exc:
-        warnings.append(f"effective dose not computed: {exc}")
+    if "dlp" in quantities:
+        try:
+            quantities["effective_dose"] = effective_dose(quantities["dlp"], factors)
+        except ValueError as exc:
+            warnings.append(f"effective dose not computed: {exc}")
 
     comparisons: list[drl_mod.DRLComparison] = []
     if drl_key:
@@ -508,9 +497,9 @@ def analyze_series(
     report = DoseReport(
         series=series,
         region=region,
-        scanner_model=scanner_model,
+        scanner_model=(f"{open_model[0]} {open_model[1]}" if open_model else ""),
         patient_size=size_label,
-        coefficients=coef,
+        coefficients=coefficients,
         factors=factors,
         acquisition=acq,
         quantities=quantities,

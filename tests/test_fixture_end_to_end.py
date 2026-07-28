@@ -56,12 +56,15 @@ def test_the_fixture_is_exactly_the_tag_absent_case_the_library_exists_for(dose_
 
 
 def test_model_matching_resolves_to_the_vct_family(dose_taro_images):
+    """The open table names one LightSpeed VCT row, not a bowtie-split family.
+
+    Bowtie is a lookup key in the open database rather than part of the model name, so
+    there is a single row per scanner and nothing for the matcher to disambiguate.
+    """
     series = load_series(dose_taro_images)
     candidates = match_models(series.model_name, series.manufacturer)
-    assert all("LightSpeed VCT" in c.table_model for c in candidates[:3])
-    model, warnings = resolve_model(series.model_name, series.manufacturer, bowtie="medium")
-    assert model == "GE LightSpeed VCT (medium BS)"
-    assert warnings  # low-confidence match is reported, not hidden
+    assert all("LightSpeed VCT" in c.table_model for c in candidates[:1])
+    assert resolve_model(series.model_name, series.manufacturer)[0] == "LightSpeed VCT"
 
 
 def test_model_matching_never_crosses_vendors(dose_taro_images):
@@ -84,29 +87,38 @@ def test_model_matching_never_crosses_vendors(dose_taro_images):
 @pytest.mark.parametrize(
     "name,manufacturer,expected",
     [
-        ("Sensation 64", "SIEMENS", "Sensation 40/64"),
-        ("Sensation 16", "SIEMENS", "Sensation 10/16"),
-        ("SOMATOM Definition Edge", "SIEMENS", "Definition Edge"),
-        ("Brilliance 64", "Philips", "Brilliance 40/64"),
-        ("LightSpeed QX/i", "GE MEDICAL SYSTEMS", "GE LightSpeed QX/i"),
-        ("HiSpeed NX/i", "GE MEDICAL SYSTEMS", "GE HiSpeed NX/i"),
+        ("SOMATOM Definition Edge", "SIEMENS", "Defintion Edge"),
+        ("SOMATOM Definition Flash", "SIEMENS", "Definition Flash"),
+        ("iCT 256", "Philips", "iCT 256 Slice"),
+        ("Discovery CT750 HD", "GE MEDICAL SYSTEMS", "Discovery CT750 HD"),
+        ("LightSpeed VCT", "GE MEDICAL SYSTEMS", "LightSpeed VCT"),
+        ("Aquilion PRIME", "TOSHIBA", "Prime"),
     ],
 )
 def test_real_archive_model_names_resolve_correctly(name, manufacturer, expected):
-    """Model names taken verbatim from the public-archive survey."""
+    """Model names taken verbatim from the public-archive survey.
+
+    Several of these were *unresolvable* against the previous table and are covered by
+    the open one -- Definition Flash, iCT 256 and Discovery CT750 HD among them. The
+    expected string is the table's own spelling, typos included.
+    """
     assert resolve_model(name, manufacturer)[0] == expected
 
 
 @pytest.mark.parametrize(
     "name,manufacturer",
     [
-        # A whole family name that does not identify a coefficient row.
+        # A whole family name that does not identify a row.
         ("Aquilion", "TOSHIBA"),
-        # Models the table does not contain at all.
-        ("SOMATOM Definition Flash", "SIEMENS"),
-        ("iCT 256", "Philips"),
+        # Older scanners the open database does not cover. Reporting these as
+        # unrecoverable is the point: the alternative is costing them against a
+        # different scanner's measured output.
+        ("Sensation 64", "SIEMENS"),
+        ("Sensation 16", "SIEMENS"),
+        ("SOMATOM Definition AS+", "SIEMENS"),
+        ("Brilliance 64", "Philips"),
         ("Brilliance Big Bore", "Philips"),
-        ("Discovery CT750 HD", "GE MEDICAL SYSTEMS"),
+        ("LightSpeed QX/i", "GE MEDICAL SYSTEMS"),
         ("Mx8000 IDT 16", "Philips Medical Systems"),
     ],
 )
@@ -156,7 +168,8 @@ def test_full_analysis_produces_an_auditable_report(dose_taro_images):
     assert len(report.drl_comparisons) == 2
     payload = json.loads(json.dumps(report.to_dict(), default=str))
     assert payload["quantities"]["ctdivol"]["formula"]
-    assert payload["coefficients"]["nCTDIw_mGy_per_mAs"] > 0
+    assert "Dinwiddie" in payload["coefficients"]["citation"]
+    assert payload["coefficients"]["license"] == "CC BY 4.0"
     assert payload["alert_summary"]["n"] == len(report.alerts)
 
 
@@ -170,16 +183,6 @@ def test_forcing_the_fallback_is_a_no_op_when_nothing_was_recorded(dose_taro_ima
         measure_size=False, prefer_recorded=False,
     )
     assert a.ctdivol.value == pytest.approx(b.ctdivol.value)
-
-
-def test_flagged_coefficient_row_surfaces_as_a_warning(dose_taro_images):
-    report = analyze_series(
-        dose_taro_images,
-        region="Head",
-        scanner_model="GE LightSpeed VCT (medium BS)",
-        measure_size=False,
-    )
-    assert any("implausible" in w for w in report.warnings)
 
 
 def test_organ_weighting_uses_the_per_slice_tube_current(dose_taro_images):

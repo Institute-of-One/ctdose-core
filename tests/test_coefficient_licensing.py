@@ -1,9 +1,8 @@
 """The shipped coefficients must stay open-licensed, and stay attributed.
 
-The per-scanner coefficients were replaced because the previous ones derived from an
-in-house implementation following CT-Expo: the formulae are free to reimplement, but
-transcribed per-scanner *values* are a copyright and database-right exposure, and a Zenodo
-DOI is permanent. These tests guard the replacement in both directions -- that the open
+The per-scanner coefficients were replaced because the previous ones followed CT-Expo:
+the formulae are free to reimplement, but transcribed per-scanner *values* are a copyright
+and database-right exposure, and a Zenodo DOI is permanent. These tests guard the replacement in both directions -- that the open
 data keeps its attribution, and that the superseded material cannot creep back in.
 """
 
@@ -11,8 +10,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-
-import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 OPEN_TABLE = REPO / "ctdose_core" / "data" / "scanner_ctdi_mirdct.json"
@@ -27,8 +24,7 @@ SUPERSEDED_TABLE = REPO / "ctdose_core" / "data" / "scanner_coefficients.json"
 #:
 #: * the CT-Expo *methodology* is a published formulation, free to reimplement and proper
 #:   to cite, so `geometry.py` and the manuscript may and should name it;
-#: * `the reference implementationjp.m` is LISIT's own MATLAB, so provenance strings recording that a
-#:   value was machine-extracted from it are accurate and raise no third-party question.
+#: * the other shipped tables are published standards data, cited to TG-204 and ICRP-103.
 #:
 #: What must not recur is per-scanner CTDI *values* of that lineage being shipped. These
 #: keys are the shape of that data, and finding them outside the open table is the defect.
@@ -54,18 +50,13 @@ def test_the_source_record_documents_the_licence_position():
     assert "sha-256" in text.lower() or "sha256" in text.lower()
 
 
-@pytest.mark.xfail(
-    SUPERSEDED_TABLE.exists(),
-    reason="Phase 7 tree purge not yet done: the engine still reads the legacy table",
-    strict=True,
-)
 def test_no_shipped_data_file_carries_per_scanner_values_of_the_superseded_lineage():
     """The exposure was transcribed per-scanner CTDI values, not the word "CT-Expo".
 
     The other shipped tables -- TG-204 conversion factors, ICRP-103 k-factors, the J-RIME
-    DRLs -- are published reference data machine-extracted from LISIT's own MATLAB, which
-    raises no third-party question. This test therefore looks for the *shape* of the
-    superseded data rather than banning a string.
+    DRLs -- are published reference data attributed to those standards, which raises no
+    third-party question. This test therefore looks for the *shape* of the superseded
+    data rather than banning a string.
     """
     offenders = []
     for path in (REPO / "ctdose_core" / "data").glob("*.json"):
@@ -80,18 +71,8 @@ def test_no_shipped_data_file_carries_per_scanner_values_of_the_superseded_linea
     )
 
 
-@pytest.mark.xfail(
-    SUPERSEDED_TABLE.exists(),
-    reason="Phase 7 tree purge not yet done: the engine still reads the legacy table",
-    strict=True,
-)
 def test_the_superseded_coefficient_table_is_not_shipped():
-    """Gate for the tree purge, once the engine no longer reads the legacy table.
-
-    Marked strict-xfail rather than skipped so that it flips to a *failure* the moment the
-    purge happens and this expectation becomes stale -- a skip would quietly stay green
-    either way.
-    """
+    """The per-scanner coefficient table is gone from the package."""
     assert not SUPERSEDED_TABLE.exists()
 
 

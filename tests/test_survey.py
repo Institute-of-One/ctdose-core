@@ -142,11 +142,15 @@ def test_model_resolution_states():
         {},
         {
             "resolved": make_header(model="LightSpeed VCT"),
-            "unknown": make_header(model="Discovery CT750 HD"),
+            "unknown": make_header(model="Sensation 64"),
         },
     )
-    assert screen_series(entry("resolved"), "GE", client=client).model_resolution == "ambiguous"
-    unknown = screen_series(entry("unknown"), "GE", client=client)
+    # Matching against the open table is exact, so a covered model is resolved outright
+    # and there is no ambiguous state left to represent.
+    assert screen_series(entry("resolved"), "GE", client=client).model_resolution == "resolved"
+    # Sensation 64 is not in the open database; reporting it as unknown is what
+    # makes the series unrecoverable rather than costed against another scanner.
+    unknown = screen_series(entry("unknown"), "Siemens", client=client)
     assert unknown.model_resolution == "unknown"
     assert unknown.model_resolved is None
 
@@ -433,82 +437,6 @@ def _ambiguous_series(images, dest, *, scan_fov_mm: float | None):
     return dest
 
 
-@pytest.mark.fixture_data
-def test_evaluate_fallback_reports_every_model_candidate(dose_taro_images, tmp_path):
-    """When the model name cannot pick one coefficient row, all candidates are reported."""
-    from ctdose_core import load_series
-
-    # No scan field of view, so the bowtie cannot be inferred and the ambiguity stands.
-    work = _ambiguous_series(dose_taro_images, tmp_path / "series", scan_fov_mm=None)
-
-    series = load_series(work)
-    screen = SeriesScreen(
-        vendor="GE",
-        manufacturer_raw="GE MEDICAL SYSTEMS",
-        collection="C",
-        series_uid="S",
-        model_name="LightSpeed VCT",
-        n_images=12,
-        body_part="CHEST",
-        has_ctdivol_tag=True,
-        model_resolution="ambiguous",
-        model_resolved=(
-            "GE LightSpeed VCT (small BS)|GE LightSpeed VCT (medium BS)|"
-            "GE LightSpeed VCT (large BS)"
-        ),
-    )
-    case = evaluate_fallback(screen, series)
-    assert case is not None
-    assert case.model_ambiguous
-    assert len(case.alternatives) == 3
-    assert case.recorded_ctdivol_mgy == pytest.approx(8.0)
-    assert case.percent_error == pytest.approx(
-        100 * (case.estimated_ctdivol_mgy - 8.0) / 8.0
-    )
-    assert any("scanner variant" in n for n in case.notes)
-    # The reported estimate is the median across candidates, not an arbitrary pick.
-    assert case.estimated_ctdivol_mgy == sorted(case.alternatives.values())[1]
-    assert abs(case.best_case_percent_error) <= abs(case.percent_error)
-    assert case.bowtie_inferred is None
-
-
-@pytest.mark.fixture_data
-def test_a_recorded_scan_field_resolves_the_bowtie_ambiguity(dose_taro_images, tmp_path):
-    """A scan field of view picks one coefficient row where the model name cannot.
-
-    DICOM never records the bowtie, but it is chosen with the scan field. Where the field
-    size is in the header the ambiguity is resolvable, and the result must be flagged as
-    an inference rather than presented as a recorded fact.
-    """
-    from ctdose_core import load_series
-
-    work = _ambiguous_series(dose_taro_images, tmp_path / "series", scan_fov_mm=500.0)
-    series = load_series(work)
-    screen = SeriesScreen(
-        vendor="GE",
-        manufacturer_raw="GE MEDICAL SYSTEMS",
-        collection="C",
-        series_uid="S",
-        model_name="LightSpeed VCT",
-        n_images=12,
-        body_part="CHEST",
-        has_ctdivol_tag=True,
-        model_resolution="ambiguous",
-        model_resolved=(
-            "GE LightSpeed VCT (small BS)|GE LightSpeed VCT (medium BS)|"
-            "GE LightSpeed VCT (large BS)"
-        ),
-    )
-    case = evaluate_fallback(screen, series)
-    assert case is not None
-    assert not case.model_ambiguous
-    assert len(case.alternatives) == 1
-    # 500 mm is above the medium threshold, so the large-body row applies.
-    assert case.bowtie_inferred == "large"
-    assert "large BS" in case.table_model
-    assert any("inferred" in n and "assumption" in n for n in case.notes)
-
-
 def test_region_defaults_to_the_body_branch():
     assert region_for("HEAD") == "Head"
     assert region_for("brain") == "Head"
@@ -562,7 +490,7 @@ def test_run_survey_counts_its_exclusions():
         vendors=["Siemens"], screen_per_vendor=3, fallback_per_vendor=0, client=client, progress=False
     )
     assert result.excluded["no_recorded_ctdivol"] == 1
-    assert result.excluded["model_not_in_table"] == 1
+    assert result.excluded["model_not_in_table"] == 2
 
     payload = result.to_dict()
     assert payload["tag_absence"]["by_vendor"]["Siemens"]["n_series_readable"] == 3

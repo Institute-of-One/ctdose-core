@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .tables import scanner_models
+from .ctdi_table import model_names
 
 #: Bowtie / scan-field-size qualifiers used in the table's model names.
 BOWTIE_QUALIFIERS = ("small", "medium", "large")
@@ -88,7 +88,7 @@ def match_models(model_name: str, manufacturer: str = "") -> list[ModelMatch]:
         return []
     vendor = _MANUFACTURER_PREFIXES.get(_normalise(manufacturer), "")
     out: list[ModelMatch] = []
-    for table_model in scanner_models():
+    for table_model in (m for _, m in model_names()):
         row_vendor = table_model_vendor(table_model)
         if vendor and row_vendor and row_vendor != vendor:
             continue
@@ -148,11 +148,23 @@ def resolve_model(
         LookupError: when nothing matches well enough.
         AmbiguousScannerError: when several entries tie and ``bowtie`` does not resolve it.
     """
+    # The open database's alias table is authoritative: it encodes which DICOM spellings
+    # denote the same machine, including the two the published annex misspells. Token
+    # matching cannot see through a typo, so try the alias first and fall back to fuzzy
+    # matching only for names it does not know.
+    from .ctdi_table import CoefficientNotAvailable
+    from .ctdi_table import resolve_model as _resolve_open
+
+    try:
+        return _resolve_open(manufacturer, model_name)[1], []
+    except CoefficientNotAvailable:
+        pass
+
     matches = [m for m in match_models(model_name, manufacturer) if m.score >= min_score]
     if not matches:
         raise LookupError(
             f"no coefficient-table entry resembles model {model_name!r} "
-            f"(manufacturer {manufacturer!r}); known models: {', '.join(scanner_models())}"
+            f"(manufacturer {manufacturer!r}); known models: {', '.join(m for _, m in model_names())}"
         )
     warnings: list[str] = []
     if bowtie:

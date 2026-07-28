@@ -29,7 +29,13 @@ from .drl import lookup as lookup_drl
 from .effdose import effective_dose
 from .geometry import kv_corrections, overbeaming_factor, overranging_length
 from .io import ScanSeries, load_series
-from .metrics import Acquisition, acquisition_from_series, ctdivol, dlp, dlp_in_air, dose_metrics
+from .metrics import (
+    Acquisition,
+    acquisition_from_series,
+    effective_dose_open,
+    estimate_ctdivol_open,
+    estimate_dlp_open,
+)
 from .pipeline import DoseReport, analyze_series, measure_patient_size, patient_size_label
 from .provenance import Quantity, Source
 from .scanners import match_models, resolve_model
@@ -45,11 +51,8 @@ from .ssde import (
 )
 from .tables import (
     ConversionFactors,
-    ScannerCoefficients,
     UnknownScannerError,
     lookup_conversion,
-    lookup_scanner,
-    scanner_models,
 )
 
 __all__ = [
@@ -67,10 +70,9 @@ __all__ = [
     # metrics
     "Acquisition",
     "acquisition_from_series",
-    "ctdivol",
-    "dlp",
-    "dlp_in_air",
-    "dose_metrics",
+    "effective_dose_open",
+    "estimate_ctdivol_open",
+    "estimate_dlp_open",
     # size / SSDE
     "BodyContour",
     "body_mask",
@@ -96,12 +98,9 @@ __all__ = [
     "outlier_alerts",
     "size_band",
     # tables
-    "ScannerCoefficients",
     "ConversionFactors",
     "UnknownScannerError",
-    "lookup_scanner",
     "lookup_conversion",
-    "scanner_models",
     "match_models",
     "resolve_model",
     # pipeline

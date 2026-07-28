@@ -18,9 +18,10 @@ from pathlib import Path
 
 from . import __version__
 from .alert import summarise
+from .ctdi_table import model_names
 from .io import load_series
 from .pipeline import analyze_series
-from .tables import conversion_regions, scanner_models
+from .tables import conversion_regions
 from .tcia import survey_directory, tag_coverage
 
 
@@ -131,7 +132,7 @@ def _cmd_models(args: argparse.Namespace) -> int:
         for r in conversion_regions():
             print(r)
     else:
-        for m in scanner_models():
+        for _v, m in model_names():
             print(m)
     return 0
 
