@@ -31,14 +31,20 @@ import statistics
 from pathlib import Path
 from typing import Any
 
+from ctdose_core.ctdi_table import resolve_model
 from ctdose_core.effdose import effective_dose
 from ctdose_core.io import load_series
-from ctdose_core.metrics import Acquisition, acquisition_from_series, estimate_ctdivol
+from ctdose_core.metrics import (
+    Acquisition,
+    acquisition_from_series,
+    estimate_ctdivol_open,
+    estimate_dlp_open,
+)
 from ctdose_core.pipeline import measure_patient_size
 from ctdose_core.provenance import Quantity, Source
 from ctdose_core.ssde import conversion_factor, phantom_for, ssde
 from ctdose_core.survey import DIAGNOSTIC_CTDIVOL_MGY
-from ctdose_core.tables import lookup_conversion, lookup_scanner
+from ctdose_core.tables import lookup_conversion
 
 REPO = Path(__file__).resolve().parents[1]
 RESULTS = REPO / "results"
@@ -93,15 +99,17 @@ def evaluate_case(case: dict, series_root: Path) -> dict[str, Any] | None:
 
     region = case["region"]
     acq: Acquisition = acquisition_from_series(series)
-    coef = lookup_scanner(case["table_model"], region, "Adults")
     factors = lookup_conversion(region, "Adults", series.patient_sex or "F")
 
     recorded = Quantity(
         value=case["recorded_ctdivol_mgy"], unit="mGy", source=Source.DICOM_TAG,
         formula="CTDI Volume (0018,9345)",
     )
-    reconstructed = estimate_ctdivol(acq, coef)
     phantom = phantom_for(region, float(diameter))
+    vendor, model = resolve_model(case.get("manufacturer_raw", case["vendor"]), case["model_name"])
+    reconstructed = estimate_ctdivol_open(
+        acq, vendor=vendor, model=model, phantom_cm=int(phantom)
+    )
     factor = conversion_factor(float(diameter), phantom, region="body")
 
     ssde_recorded = ssde(recorded, diameter, phantom=phantom, region="body")
@@ -148,18 +156,17 @@ def evaluate_case(case: dict, series_root: Path) -> dict[str, Any] | None:
         return row
 
     try:
-        from ctdose_core.metrics import dlp_in_air, estimate_dlp
-
-        dlp_recorded = estimate_dlp(acq, coef, recorded)
-        e_recorded = effective_dose(
-            coef, factors,
-            dlp_air=dlp_in_air(acq, coef) if coef.nctdi_air is not None else None,
-            dlp_mgycm=dlp_recorded, kvp=series.kvp,
-        )
+        # DLP from the recorded CTDIvol and the imaged length; effective dose from the
+        # published k factor. Both underestimate by the omitted over-ranging, which the
+        # DLP's own notes record and the effective dose inherits.
+        dlp_recorded = estimate_dlp_open(recorded, series.scan_range_mm)
+        e_recorded = effective_dose(dlp_recorded, factors)
         row["dlp_from_recorded_mgycm"] = float(dlp_recorded)
         row["effective_dose_msv"] = float(e_recorded)
-        row["effective_dose_route"] = coef.effective_dose_route
         row["effective_dose_formula"] = e_recorded.formula
+        row["effective_dose_note"] = (
+            "DLP omits helical over-ranging, so this is a conservative underestimate"
+        )
     except (ValueError, LookupError) as exc:
         row["effective_dose_msv"] = None
         row["effective_dose_note"] = f"{type(exc).__name__}: {exc}"

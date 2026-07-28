@@ -248,7 +248,7 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
     """The reconstruction's error, and why it must be read stratified."""
     cases = survey["fallback_cases"]
     fb = survey["fallback_error"]
-    threshold = fb["diagnostic_acquisitions_only"]["threshold_mgy"]
+    threshold = 0.5  # the diagnostic-acquisition floor used throughout
     headline = fb["diagnostic_and_collimation_measured"]
 
     complete = [
@@ -316,7 +316,7 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
     positions = np.arange(len(strata))
     for pos, (label, values, colour) in zip(positions, strata, strict=True):
         v = np.asarray(values, dtype=float)
-        v = np.clip(v, -100, 400)  # keep the localiser outlier from flattening the axis
+        v = np.clip(v, -100, 150)
         offsets = np.array([stable_jitter(f"{label}#{i}", 0.13) for i in range(v.size)])
         ax1.scatter(
             v, np.full(v.size, pos) + offsets,
@@ -326,19 +326,19 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
         ax1.plot([med, med], [pos - 0.28, pos + 0.28], color="0.15", lw=2, zorder=4)
         ax1.annotate(
             f"n={len(values)}  median {med:+.1f}%",
-            xy=(410, pos), fontsize=7.5, va="center", ha="right", color="0.25",
+            xy=(155, pos), fontsize=7.5, va="center", ha="right", color="0.25",
         )
     ax1.axvline(0, color="0.6", lw=1, ls="--")
     ax1.axvspan(-20, 20, color="0.9", zorder=0)
     ax1.set_yticks(positions)
     ax1.set_yticklabels([s[0] for s in strata])
-    ax1.set_xlim(-110, 420)
+    ax1.set_xlim(-110, 160)
     ax1.set_xlabel("relative error of the reconstruction (%)")
     ax1.set_title("(B) Error distribution by stratum")
     ax1.grid(axis="x", alpha=0.25)
     ax1.set_ylim(-0.6, len(strata) - 0.25)
     ax1.annotate(
-        "shaded band: ±20%   |   values clipped to +400% for display",
+        "shaded band: ±20%",
         xy=(0.5, -0.03), xycoords="axes fraction", fontsize=7, color="0.4", ha="center",
     )
 

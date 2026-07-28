@@ -23,16 +23,16 @@
       "Canon/Toshiba": 24.0
     },
     "feasible_pct": {
-      "GE": 73.0,
-      "Siemens": 47.0,
-      "Philips": 17.0,
-      "Canon/Toshiba": 73.0
+      "GE": 37.0,
+      "Siemens": 12.0,
+      "Philips": 7.0,
+      "Canon/Toshiba": 32.0
     },
     "surveyable_pct": {
-      "GE": 73.0,
+      "GE": 37.0,
       "Siemens": 52.0,
-      "Philips": 68.0,
-      "Canon/Toshiba": 85.0
+      "Philips": 66.0,
+      "Canon/Toshiba": 81.0
     },
     "n_per_vendor": {
       "GE": 100,
@@ -42,11 +42,11 @@
     }
   },
   "fig3_fallback_error": {
-    "n_cases": 38,
-    "n_headline": 23,
-    "headline_median": 18.9,
-    "reported_headline_median": 18.86436723684078,
-    "reported_headline_n": 23
+    "n_cases": 46,
+    "n_headline": 40,
+    "headline_median": -5.7,
+    "reported_headline_median": -5.685689653149401,
+    "reported_headline_n": 40
   },
   "fig4_modulation_and_wed": {
     "public_case": true,

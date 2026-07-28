@@ -204,8 +204,8 @@ class SeriesScreen:
     error: str = ""
 
     @property
-    def fallback_feasible(self) -> bool:
-        """Whether the physics reconstruction has the inputs it needs.
+    def parameters_complete(self) -> bool:
+        """Whether the acquisition description carries what a reconstruction needs.
 
         Pitch may legitimately be absent (an axial acquisition defaults to 1.0), and
         collimation can be rebuilt from table feed, so neither is required here; the
@@ -218,6 +218,23 @@ class SeriesScreen:
             and self.has_slice_thickness
             and self.has_slice_location
         )
+
+    @property
+    def scanner_covered(self) -> bool:
+        """Whether the coefficient database contains this scanner."""
+        return self.model_resolution == "resolved"
+
+    @property
+    def fallback_feasible(self) -> bool:
+        """Whether this series can actually be reconstructed.
+
+        Both conditions are required and they fail independently. A complete acquisition
+        description is useless without coefficients for the scanner that produced it, and
+        coefficients are useless without the technique. Reporting only the first -- as an
+        earlier definition did -- counts series as recoverable that no coefficient table
+        can reach, which overstates what the method delivers.
+        """
+        return self.parameters_complete and self.scanner_covered
 
     @property
     def surveyable(self) -> bool:
@@ -457,6 +474,16 @@ def summarise_screens(screens: Sequence[SeriesScreen]) -> dict[str, Any]:
             "dlp_absence_rate": _rate(n - sum(1 for r in ok if r.has_dlp_record), n),
             "fallback_feasible": feasible,
             "fallback_feasibility_rate": _rate(feasible, n),
+            # The two ways reconstruction fails, reported apart because they call for
+            # different remedies: missing metadata is a de-identification problem,
+            # an uncovered scanner is a coefficient-coverage problem.
+            "parameters_complete_rate": _rate(
+                sum(1 for r in rows if r.parameters_complete), n
+            ),
+            "scanner_covered_rate": _rate(sum(1 for r in rows if r.scanner_covered), n),
+            "n_parameters_complete_but_scanner_uncovered": sum(
+                1 for r in rows if r.parameters_complete and not r.scanner_covered
+            ),
             "surveyable": sum(1 for r in ok if r.surveyable),
             "surveyable_rate": _rate(sum(1 for r in ok if r.surveyable), n),
             "attribute_presence": {

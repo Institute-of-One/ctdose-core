@@ -61,7 +61,7 @@ def collect() -> dict[str, Any]:
     absence = survey["tag_absence"]
     fallback = survey["fallback_error"]
     headline = fallback["diagnostic_and_collimation_measured"]
-    voltage = fallback["by_tube_voltage"]
+    coefficients = _load("open_fallback.json")["provenance"]["coefficients"]
     figures = _load_figures()
     validation = (
         _load("tcia_validation.json") if (RESULTS / "tcia_validation.json").exists() else None
@@ -167,22 +167,18 @@ def collect() -> dict[str, Any]:
             "licences": absence["overall"]["licences"],
         },
         "survey_b": {
-            "n_cases": fallback["overall"]["n"],
-            "n_distinct_pairs": fallback["independence"][
-                "n_distinct_recorded_estimated_pairs"
-            ],
+            "n_eligible": fallback["n_eligible"],
+            "n_cases": fallback["n_evaluated"],
+            "by_vendor_n": fallback["by_vendor"],
+            "n_exact_table_match": fallback["n_exact_table_match"],
+            "n_distinct_pairs": len({
+                (round(c["recorded_ctdivol_mgy"], 6),
+                 round(c["estimated_ctdivol_mgy"], 6))
+                for c in survey["fallback_cases"]
+            }),
             "overall_median": _sig(fallback["overall"]["median"]),
             "overall_min": _sig(fallback["overall"]["min"]),
             "overall_max": _sig(fallback["overall"]["max"]),
-            "collimation_measured_n": fallback["n_collimation_measured"],
-            "collimation_reconstructed_n": fallback["n_collimation_reconstructed"],
-            "collimation_measured_median": _sig(
-                fallback["by_collimation_provenance"]["measured"]["median"]
-            ),
-            "collimation_reconstructed_median": _sig(
-                fallback["by_collimation_provenance"]["reconstructed"]["median"]
-            ),
-            "vendor_by_collimation": fallback["vendor_by_collimation_provenance"],
             "headline_n": headline["n"],
             "headline_median": _sig(headline["median"]),
             "headline_mean_absolute": _sig(headline["mean_absolute"]),
@@ -201,25 +197,10 @@ def collect() -> dict[str, Any]:
                 for v, d in headline["by_vendor"].items()
             },
             "exclusions": survey["fallback_exclusions"],
-            "diagnostic_threshold_mgy": headline_threshold(fallback),
-            "n_bowtie_inferred": fallback["n_bowtie_inferred"],
-            "at_reference_kv_n": voltage["at_reference_voltage"]["n"],
-            "at_reference_kv_median": _sig(voltage["at_reference_voltage"]["median"]),
-            "off_reference_kv_n": voltage["off_reference_voltage"]["corrected"]["n"],
-            "off_reference_kv_median_corrected": _sig(
-                voltage["off_reference_voltage"]["corrected"]["median"]
-            ),
-            "off_reference_kv_median_uncorrected": _sig(
-                voltage["off_reference_voltage"]["uncorrected"]["median"]
-            ),
-            "off_reference_kv_by_voltage": {
-                kv: {
-                    "n": b["n"],
-                    "median_corrected": _sig(b["corrected"]["median"]),
-                    "median_uncorrected": _sig(b["uncorrected"]["median"]),
-                }
-                for kv, b in voltage["off_reference_voltage"]["by_voltage"].items()
-            },
+            "diagnostic_threshold_mgy": DIAGNOSTIC_THRESHOLD,
+            "coefficient_citation": coefficients["citation"],
+            "coefficient_license": coefficients["license"],
+            "coefficient_n_models": 17,
         },
         "demonstration_case": _demonstration_case(figures),
         "validation": None if validation is None else _validation(validation),
@@ -355,8 +336,7 @@ def _validation(validation: dict) -> dict[str, Any]:
     }
 
 
-def headline_threshold(fallback: dict) -> float:
-    return fallback["diagnostic_acquisitions_only"]["threshold_mgy"]
+DIAGNOSTIC_THRESHOLD = 0.5
 
 
 def main() -> int:

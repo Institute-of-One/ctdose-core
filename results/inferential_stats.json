@@ -7,15 +7,15 @@
     "purpose": "Attach an interval to the headline reconstruction error and a test with an effect size to the manufacturer difference in recorded-dose availability, so neither point estimate is quoted bare."
   },
   "headline_error_median": {
-    "n": 23,
-    "median": 18.86436723684078,
-    "ci95_low": 7.3062756589538616,
-    "ci95_high": 39.50816106172424,
-    "ci_width": 32.20188540277037,
+    "n": 40,
+    "median": -5.685689653149401,
+    "ci95_low": -12.361599385756843,
+    "ci95_high": 7.750542065535619,
+    "ci_width": 20.112141451292462,
     "method": "percentile bootstrap",
     "resamples": 20000,
     "seed": 20260727,
-    "bootstrap_se": 6.790453966492089,
+    "bootstrap_se": 5.40537929030872,
     "stratum": "diagnostic acquisitions with a recorded collimation",
     "diagnostic_threshold_mgy": 0.5
   },
@@ -54,13 +54,13 @@
     "note": "Chi-squared test of independence between manufacturer and whether the image header carries CTDIvol. Cramer's V is reported because with n = 400 a small p-value is not evidence of a large difference; here the effect size is what carries the claim. The test assumes independent observations, which this sample does not satisfy (see 'independence_caveat'), so the p-value is anti-conservative and should be read as direction and magnitude rather than as an exact tail probability."
   },
   "independence_caveat": {
-    "n_fallback_cases": 38,
-    "n_distinct_pairs": 35,
-    "n_duplicate_pairs": 3,
-    "headline_n": 23,
-    "headline_n_distinct_pairs": 23,
-    "headline_n_duplicate_pairs": 0,
-    "headline_n_collections": 15,
+    "n_fallback_cases": 46,
+    "n_distinct_pairs": 45,
+    "n_duplicate_pairs": 1,
+    "headline_n": 40,
+    "headline_n_distinct_pairs": 39,
+    "headline_n_duplicate_pairs": 1,
+    "headline_n_collections": 21,
     "note": "Two distinct dependence concerns, which apply to different analyses. (1) Public archives re-release the same acquisition under different collection names: that affects the 38-case pooled figures, but the headline stratum contains no duplicated pair, so it does not affect the bootstrap interval. (2) Both analyses draw several series from the same collection, and series within a collection share a scanner and an export configuration, so they are not independent observations. The effective sample size is therefore smaller than n, and the interval and the p-value may both be optimistic. We do not claim a direction of bias beyond that: clustering does not make either statistic a strict bound."
   }
 }

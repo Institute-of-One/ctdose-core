@@ -11,12 +11,11 @@ a reader cannot tell how much of either is sampling noise. This script adds:
   present, with Cramer's V as the effect size, because with n = 400 a p-value alone
   says nothing about how big the difference is.
 
-Both come with a stated caveat about independence, which the sample does not satisfy:
-series are drawn round-robin from collections, several collections re-release the same
-acquisition, and 3 of the 38 fallback cases are duplicate (recorded, reconstructed)
-pairs. Intervals computed as if the observations were independent are therefore
-**narrower than the truth**, and the p-value is anti-conservative. They are reported as
-a lower bound on the uncertainty, not as an exact one.
+Both carry a caveat about independence, which the sample does not satisfy: series are
+drawn round-robin from collections, and several collections re-release the same
+acquisition. Intervals computed as if the observations were independent may therefore be
+narrower than the truth. We do not claim a direction of bias beyond that -- clustering
+does not make either statistic a strict bound.
 
 Usage::
 
@@ -109,7 +108,7 @@ def main() -> int:
     survey = json.loads(args.survey.read_text(encoding="utf-8"))
     fallback = survey["fallback_error"]
     cases = survey["fallback_cases"]
-    threshold = fallback["diagnostic_acquisitions_only"]["threshold_mgy"]
+    threshold = 0.5  # the diagnostic-acquisition floor, as in survey.py
 
     headline = [
         c["percent_error"]
@@ -133,8 +132,11 @@ def main() -> int:
         for v, b in absence.items()
     }
 
-    n_cases = fallback["independence"]["n_cases"]
-    n_distinct = fallback["independence"]["n_distinct_recorded_estimated_pairs"]
+    n_cases = fallback["n_evaluated"]
+    n_distinct = len({
+        (round(c["recorded_ctdivol_mgy"], 6), round(c["estimated_ctdivol_mgy"], 6))
+        for c in cases
+    })
 
     # Which of those concerns actually reach the stratum the interval is computed on?
     # The duplicate re-releases are a property of the 38, and it does not follow that

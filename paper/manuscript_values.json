@@ -124,12 +124,12 @@
     "with_ctdivol_overall": 194,
     "dlp_absence_pct_overall": "100.0",
     "fallback_feasible_pct": {
-      "Canon/Toshiba": "73.0",
-      "GE": "73.0",
-      "Philips": "17.0",
-      "Siemens": "47.0"
+      "Canon/Toshiba": "32.0",
+      "GE": "37.0",
+      "Philips": "7.0",
+      "Siemens": "12.0"
     },
-    "fallback_feasible_pct_overall": "52.5",
+    "fallback_feasible_pct_overall": "22.0",
     "without_ctdivol": {
       "Canon/Toshiba": 24,
       "GE": 100,
@@ -138,39 +138,39 @@
     },
     "without_ctdivol_overall": 206,
     "reconstructable_of_without": {
-      "Canon/Toshiba": 9,
-      "GE": 73,
-      "Philips": 2,
+      "Canon/Toshiba": 5,
+      "GE": 37,
+      "Philips": 0,
       "Siemens": 0
     },
-    "reconstructable_of_without_overall": 84,
+    "reconstructable_of_without_overall": 42,
     "conditional_reconstructability_pct": {
-      "Canon/Toshiba": "37.5",
-      "GE": "73.0",
-      "Philips": "5.9",
+      "Canon/Toshiba": "20.8",
+      "GE": "37.0",
+      "Philips": "0.0",
       "Siemens": "0.0"
     },
-    "conditional_reconstructability_pct_overall": "40.8",
+    "conditional_reconstructability_pct_overall": "20.4",
     "surveyable_count": {
-      "Canon/Toshiba": 85,
-      "GE": 73,
-      "Philips": 68,
+      "Canon/Toshiba": 81,
+      "GE": 37,
+      "Philips": 66,
       "Siemens": 52
     },
-    "surveyable_count_overall": 278,
-    "unsurveyable_count_overall": 122,
+    "surveyable_count_overall": 236,
+    "unsurveyable_count_overall": 164,
     "surveyable_pct": {
-      "Canon/Toshiba": "85.0",
-      "GE": "73.0",
-      "Philips": "68.0",
+      "Canon/Toshiba": "81.0",
+      "GE": "37.0",
+      "Philips": "66.0",
       "Siemens": "52.0"
     },
-    "surveyable_pct_overall": "69.5",
+    "surveyable_pct_overall": "59.0",
     "n_collections": 92,
     "model_resolution_overall": {
-      "resolved": 107,
-      "ambiguous": 49,
-      "unknown": 244
+      "resolved": 115,
+      "ambiguous": 0,
+      "unknown": 285
     },
     "unmatched_models_top": [
       [
@@ -178,23 +178,23 @@
         64
       ],
       [
-        "LightSpeed16",
+        "Brilliance 64",
+        34
+      ],
+      [
+        "Sensation 64",
+        18
+      ],
+      [
+        "SOMATOM Definition AS",
         15
       ],
       [
-        "Discovery CT750 HD",
-        14
-      ],
-      [
-        "iCT 256",
-        13
+        "Sensation 16",
+        12
       ],
       [
         "Discovery STE",
-        9
-      ],
-      [
-        "SOMATOM Definition Flash",
         9
       ],
       [
@@ -215,85 +215,49 @@
     ]
   },
   "survey_b": {
-    "n_cases": 38,
-    "n_distinct_pairs": 35,
-    "overall_median": "33.5",
-    "overall_min": "-56.3",
-    "overall_max": "44644.9",
-    "collimation_measured_n": 24,
-    "collimation_reconstructed_n": 14,
-    "collimation_measured_median": "20.5",
-    "collimation_reconstructed_median": "156.4",
-    "vendor_by_collimation": {
-      "Canon/Toshiba": {
-        "collimation_measured": 12,
-        "collimation_reconstructed": 2
-      },
-      "Philips": {
-        "collimation_measured": 0,
-        "collimation_reconstructed": 12
-      },
-      "Siemens": {
-        "collimation_measured": 12,
-        "collimation_reconstructed": 0
-      }
+    "n_eligible": 46,
+    "n_cases": 46,
+    "by_vendor_n": {
+      "Canon/Toshiba": 27,
+      "Philips": 7,
+      "Siemens": 12
     },
-    "headline_n": 23,
-    "headline_median": "18.9",
-    "headline_mean_absolute": "34.9",
-    "headline_p25": "3.5",
-    "headline_p75": "39.5",
-    "headline_min": "-56.3",
-    "headline_max": "107.2",
-    "headline_within_20_pct": "43.5",
-    "headline_within_50_pct": "73.9",
+    "n_exact_table_match": 0,
+    "n_distinct_pairs": 45,
+    "overall_median": "-8.7",
+    "overall_min": "-59.4",
+    "overall_max": "87.4",
+    "headline_n": 40,
+    "headline_median": "-5.7",
+    "headline_mean_absolute": "22.0",
+    "headline_p25": "-15.8",
+    "headline_p75": "11.2",
+    "headline_min": "-59.4",
+    "headline_max": "87.4",
+    "headline_within_20_pct": "60.0",
+    "headline_within_50_pct": "92.5",
     "headline_by_vendor": {
       "Canon/Toshiba": {
-        "n": 12,
-        "median": "22.5",
-        "mean_absolute": "36.3"
+        "n": 21,
+        "median": "-9.4",
+        "mean_absolute": "23.9"
       },
       "Philips": {
-        "n": 0,
-        "median": null,
-        "mean_absolute": null
+        "n": 7,
+        "median": "-11.7",
+        "mean_absolute": "16.0"
       },
       "Siemens": {
-        "n": 11,
-        "median": "9.2",
-        "mean_absolute": "33.5"
+        "n": 12,
+        "median": "9.7",
+        "mean_absolute": "22.2"
       }
     },
-    "exclusions": {
-      "no_recorded_ctdivol": 206,
-      "model_not_in_table": 108,
-      "series_too_large": 45,
-      "insufficient_parameters": 4
-    },
+    "exclusions": {},
     "diagnostic_threshold_mgy": 0.5,
-    "n_bowtie_inferred": 4,
-    "at_reference_kv_n": 29,
-    "at_reference_kv_median": "52.9",
-    "off_reference_kv_n": 9,
-    "off_reference_kv_median_corrected": "22.9",
-    "off_reference_kv_median_uncorrected": "54.5",
-    "off_reference_kv_by_voltage": {
-      "100": {
-        "n": 5,
-        "median_corrected": "25.1",
-        "median_uncorrected": "80.1"
-      },
-      "135": {
-        "n": 2,
-        "median_corrected": "31.2",
-        "median_uncorrected": "3.7"
-      },
-      "140": {
-        "n": 2,
-        "median_corrected": "-20.3",
-        "median_uncorrected": "-41.4"
-      }
-    }
+    "coefficient_citation": "Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. J Appl Clin Med Phys. 2026;27(2):e70473. doi:10.1002/acm2.70473",
+    "coefficient_license": "CC BY 4.0",
+    "coefficient_n_models": 17
   },
   "demonstration_case": {
     "public_case": true,
@@ -372,34 +336,34 @@
     "n_duplicate_pairs": 3
   },
   "size_and_dose": {
-    "n_cases_in_survey": 38,
+    "n_cases_in_survey": 46,
     "n_contour_failed": 1,
-    "n_evaluated": 37,
-    "n_phantom_collection": 2,
-    "n_too_few_slices": 3,
-    "n_below_diagnostic_ctdivol": 1,
-    "n_patient_like": 32,
-    "n_scan_range_unrecoverable": 4,
-    "n_patient_like_with_scan_range": 29,
-    "wed_median": "31.5",
-    "wed_p25": "28.0",
-    "wed_p75": "38.2",
+    "n_evaluated": 45,
+    "n_phantom_collection": 3,
+    "n_too_few_slices": 1,
+    "n_below_diagnostic_ctdivol": 0,
+    "n_patient_like": 41,
+    "n_scan_range_unrecoverable": 2,
+    "n_patient_like_with_scan_range": 39,
+    "wed_median": "30.3",
+    "wed_p25": "26.2",
+    "wed_p75": "35.3",
     "wed_min": "16.6",
-    "wed_max": "52.8",
-    "factor_median": "1.16",
-    "factor_p25": "0.91",
-    "factor_p75": "1.32",
+    "wed_max": "48.1",
+    "factor_median": "1.20",
+    "factor_p25": "1.01",
+    "factor_p75": "1.41",
     "factor_min": "0.71",
     "factor_max": "2.01",
-    "ssde_median": "11.6",
-    "ssde_p25": "9.2",
-    "ssde_p75": "22.6",
-    "effective_dose_n": 29,
-    "effective_dose_median": "13.1",
-    "effective_dose_p25": "4.8",
-    "effective_dose_p75": "21.5",
-    "effective_dose_min": "0.6",
-    "effective_dose_max": "30.9"
+    "ssde_median": "12.5",
+    "ssde_p25": "9.5",
+    "ssde_p75": "16.1",
+    "effective_dose_n": 39,
+    "effective_dose_median": "4.6",
+    "effective_dose_p25": "3.0",
+    "effective_dose_p75": "8.1",
+    "effective_dose_min": "0.1",
+    "effective_dose_max": "22.2"
   },
   "survey_parameters": {
     "seed": 20260726,
