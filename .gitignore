@@ -53,7 +53,7 @@ Thumbs.db
 # have public while the manuscript is under review.
 paper/jacmp_submission_kit.md
 paper/Scientific_Audit_Report*.md
-docs/HANDOFF_*.md
-docs/NEXT_STEPS_*.md
-docs/CI_*.md
-# Only docs/REPRODUCING_FIGURES.md is published; it is the one a reader needs.
+# docs/ is an allow-list: working notes kept arriving under new names and being swept in
+# by `git add -A`. Only files a reader of the paper needs are published.
+docs/*
+!docs/REPRODUCING_FIGURES.md
