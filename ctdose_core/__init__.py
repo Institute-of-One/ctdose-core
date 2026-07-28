@@ -20,7 +20,7 @@ formula, inputs and whether it was recorded or reconstructed.
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from .alert import Alert, Severity, drl_alerts, outlier_alerts, provenance_alerts, size_band
 from .drl import DRLComparison, DRLEntry

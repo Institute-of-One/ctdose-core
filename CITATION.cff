@@ -31,7 +31,7 @@ keywords:
   - radiation dose structured report
   - reproducibility
 license: MIT
-version: 0.1.0
+version: 0.1.1
 # Set to the tag date when the release is cut; Zenodo takes the date from the
 # GitHub release, so this is the human-readable copy rather than the authority.
 date-released: '2026-07-28'
