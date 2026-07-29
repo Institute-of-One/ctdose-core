@@ -140,3 +140,65 @@ def test_the_pdf_builder_runs_clean():
     assert result.returncode == 0, result.stderr
     assert "table(s)" in result.stdout
     assert "1 table(s)" in result.stdout, "Table 1 was not recognised as a table"
+
+
+# --- the double-masked review build ----------------------------------------------------
+
+MASKED_PDF = REPO / "paper" / "ctdose-core_jacmp_masked.pdf"
+
+
+def test_the_masked_review_pdf_names_nobody():
+    """The article file goes to a double-masked review; one leak defeats the whole build.
+
+    The masking is a scripted transform rather than a hand-edit precisely so it can be
+    re-checked after every revision. This asserts the property the transform exists for,
+    against the text the reviewer actually sees.
+    """
+    if not MASKED_PDF.exists():
+        pytest.skip("masked review PDF not built")
+    pytest.importorskip("pypdf", reason="pypdf is needed to read the PDF back")
+
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "build_masked_manuscript", REPO / "tools" / "build_masked_manuscript.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    leaked = module.verify(MASKED_PDF)
+    assert not leaked, f"the masked PDF still identifies the author: {leaked}"
+
+
+def test_the_masked_pdf_is_current_with_the_manuscript():
+    """A stale masked build submits the previous revision under the current title."""
+    if not MASKED_PDF.exists():
+        pytest.skip("masked review PDF not built")
+    assert MASKED_PDF.stat().st_mtime >= SOURCE.stat().st_mtime, (
+        "paper/ctdose-core_jacmp_masked.pdf is older than the manuscript; "
+        "re-run tools/build_masked_manuscript.py"
+    )
+
+
+def test_the_structured_abstract_carries_the_headings_jacmp_requires():
+    """JACMP returned the manuscript for these exact five headings, in this order."""
+    text = SOURCE.read_text(encoding="utf-8")
+    start = text.index("## Abstract")
+    end = text.index("\n---\n", start)
+    abstract = text[start:end]
+    headings = re.findall(r"\*\*(\w+):\*\*", abstract)
+    assert headings == ["Background", "Purpose", "Methods", "Results", "Conclusion"], (
+        f"the abstract headings are {headings}; JACMP requires Background, Purpose, "
+        "Methods, Results, Conclusion"
+    )
+    # The submission form's abstract box is filled from this file, so it must not drift
+    # from the manuscript.
+    box = (REPO / "paper" / "abstract_masked_structured.txt")
+    if box.exists():
+        for para in box.read_text(encoding="utf-8").split("\n\n"):
+            body = para.partition(":")[2].strip()
+            if body:
+                assert body in abstract, (
+                    "paper/abstract_masked_structured.txt has drifted from the "
+                    f"manuscript abstract: {body[:70]!r}"
+                )
