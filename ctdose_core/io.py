@@ -52,6 +52,13 @@ T_TOSHIBA_TABLE_SPEED = (0x7005, 0x100A)
 
 DICOM_EXTENSIONS = (".dcm", ".DCM", ".ima", ".IMA", "")
 
+T_PIXEL_PADDING = (0x0028, 0x0120)
+T_PIXEL_REPRESENTATION = (0x0028, 0x0103)
+
+#: A padding rule that would blank at least this fraction of a slice is not describing
+#: padding, and is refused. See :func:`_padding_value` for how one comes to exist.
+MAX_PADDED_FRACTION = 0.98
+
 
 @dataclass
 class Provenanced:
@@ -204,6 +211,30 @@ def _dlp_from_comment(ds: Dataset) -> Provenanced:
     return Provenanced(None, Source.DICOM_TEXT, _tag_str(T_DOSE_COMMENT), text.strip())
 
 
+def _padding_value(ds: Dataset) -> float | None:
+    """Pixel Padding Value (0028,0120), read the way its encoder meant it.
+
+    The value representation of this attribute depends on another attribute: US when
+    Pixel Representation is 0, SS when it is 1. Implementations do not reliably honour
+    that. GE writes ``63536`` with VR US on signed pixel data, which is the two's
+    complement encoding of the ``-2000`` it intended.
+
+    Taken literally, 63536 gives a padding threshold far above any Hounsfield value in
+    the image, so *every* voxel is treated as padding and the volume becomes uniform
+    air. Nothing downstream can detect that: the body contour finds no patient, the
+    water-equivalent diameter has nothing to measure, and the failure looks like an
+    empty image rather than a mis-read attribute.
+    """
+    raw = _get(ds, T_PIXEL_PADDING)
+    value = _as_float(raw)
+    if value is None:
+        return None
+    representation = _as_float(_get(ds, T_PIXEL_REPRESENTATION)) or 0.0
+    if int(representation) == 1 and value > 32767:
+        value -= 65536.0
+    return value
+
+
 def _parse_age(ds: Dataset) -> float | None:
     """Patient age in years from ``(0010,1010)``, falling back to birth/study dates."""
     raw = _get(ds, (0x0010, 0x1010))
@@ -336,11 +367,21 @@ class ScanSeries:
             slope = _as_float(_get(ds, (0x0028, 0x1053))) or 1.0
             intercept = _as_float(_get(ds, (0x0028, 0x1052))) or 0.0
             arr = arr * slope + intercept
-            padding = _get(ds, (0x0028, 0x0120))
-            if padding is not None:
-                pad = _as_float(padding)
-                if pad is not None:
-                    arr[arr <= pad * slope + intercept] = -1000.0
+            pad = _padding_value(ds)
+            if pad is not None:
+                padded = arr <= pad * slope + intercept
+                # A padding rule that would blank essentially the whole image is not
+                # describing padding. No reconstruction pads away the entire field, so
+                # the rule is rejected and the slice kept -- otherwise a single
+                # mis-encoded attribute turns the volume into uniform air, and the only
+                # symptom is that everything measured from it silently becomes nothing.
+                if padded.mean() <= MAX_PADDED_FRACTION:
+                    arr[padded] = -1000.0
+                else:
+                    self.warnings.append(
+                        f"{path.name}: pixel padding value {pad:g} would blank "
+                        f"{padded.mean():.1%} of the slice; the rule was not applied"
+                    )
             if vol is None:
                 expected = arr.shape
                 vol = np.empty((len(self.files), *arr.shape), dtype=dtype)
