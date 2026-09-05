@@ -213,6 +213,10 @@ class Run:
     image: Path | None = None
     image_w: float = 0.0
     image_h: float = 0.0
+    #: Revision marking, for the tracked-changes build: struck-through text was removed
+    #: and underlined text was added. Ordinary manuscripts never set either.
+    strike: bool = False
+    underline: bool = False
 
     def __post_init__(self) -> None:
         self.text = sanitise(self.text)
@@ -260,7 +264,10 @@ class Line:
 
 # --- inline markup ---------------------------------------------------------------------------
 
-INLINE = re.compile(r"(\*\*.+?\*\*|(?<!\*)\*[^*]+?\*(?!\*)|`[^`]+?`|\$[^$]+?\$)", re.DOTALL)
+INLINE = re.compile(
+    r"(~~.+?~~|\+\+.+?\+\+|\*\*.+?\*\*|(?<!\*)\*[^*]+?\*(?!\*)|`[^`]+?`|\$[^$]+?\$)",
+    re.DOTALL,
+)
 
 
 def parse_runs(
@@ -280,7 +287,11 @@ def parse_runs(
     for piece in INLINE.split(text):
         if not piece:
             continue
-        if piece.startswith("**") and piece.endswith("**"):
+        if piece.startswith("~~") and piece.endswith("~~"):
+            runs.append(Run(piece[2:-2], base, size, strike=True))
+        elif piece.startswith("++") and piece.endswith("++"):
+            runs.append(Run(piece[2:-2], base, size, underline=True))
+        elif piece.startswith("**") and piece.endswith("**"):
             runs.append(Run(piece[2:-2], BOLD_FONT, size))
         elif piece.startswith("*") and piece.endswith("*"):
             runs.append(Run(piece[1:-1], ITALIC_FONT, size))
@@ -328,7 +339,10 @@ def wrap_runs(runs: list[Run], width: float) -> list[list[Run]]:
             w = pdfmetrics.stringWidth(token, run.font, run.size)
             if token.isspace():
                 if lines[-1]:
-                    lines[-1].append(Run(" ", run.font, run.size))
+                    lines[-1].append(
+                        Run(" ", run.font, run.size, strike=run.strike,
+                            underline=run.underline)
+                    )
                     x += pdfmetrics.stringWidth(" ", run.font, run.size)
                 continue
             if x + w > width and lines[-1]:
@@ -336,7 +350,10 @@ def wrap_runs(runs: list[Run], width: float) -> list[list[Run]]:
                     lines[-1].pop()
                 lines.append([])
                 x = 0.0
-            lines[-1].append(Run(token, run.font, run.size))
+            lines[-1].append(
+                Run(token, run.font, run.size, strike=run.strike,
+                    underline=run.underline)
+            )
             x += w
     return [ln for ln in lines if ln]
 
@@ -650,6 +667,14 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
         c.line(MARGIN_L, y_at, MARGIN_L + COLUMN_W, y_at)
         c.setStrokeGray(0)
 
+    def draw_revision_mark(run: Run, x_at: float, baseline: float) -> None:
+        """Strike a deletion through the middle, underline an insertion below it."""
+        if not (run.strike or run.underline):
+            return
+        offset = 0.30 * run.size if run.strike else -0.22 * run.size
+        c.setLineWidth(0.5)
+        c.line(x_at, baseline + offset, x_at + run.width(), baseline + offset)
+
     for line in lines:
         if line.row is not None:
             needed = line.row.height + line.space_before
@@ -696,6 +721,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
                         else:
                             c.setFont(run.font, run.size)
                             c.drawString(tx, cy, run.text)
+                            draw_revision_mark(run, tx, cy)
                         tx += run.width()
             y -= row.height
             if line.rule_below:
@@ -726,6 +752,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
             else:
                 c.setFont(run.font, run.size)
                 c.drawString(x, baseline, run.text)
+                draw_revision_mark(run, x, baseline)
             x += run.width()
         y -= LEADING
 

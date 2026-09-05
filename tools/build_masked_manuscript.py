@@ -158,6 +158,11 @@ def main() -> int:
     ap.add_argument("--check", action="store_true",
                     help="verify the existing masked PDF without rebuilding it")
     args = ap.parse_args()
+    # Resolved so a relative path on the command line -- the natural way to name the
+    # Technical Note variant -- still reports itself relative to the repository below.
+    args.source, args.out_md, args.out_pdf = (
+        p.resolve() for p in (args.source, args.out_md, args.out_pdf)
+    )
 
     if not args.check:
         masked = mask(args.source.read_text(encoding="utf-8"))

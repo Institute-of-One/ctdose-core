@@ -53,6 +53,11 @@ Thumbs.db
 # have public while the manuscript is under review.
 paper/jacmp_submission_kit.md
 paper/Scientific_Audit_Report*.md
+# Correspondence with the journal. Same reason, and the same rule the other IORN
+# repositories use: a cover letter names what the author chose to tell the editor
+# privately, and a response to the editor carries the reviewers' words.
+paper/cover_letter_*
+paper/response_to_editor_*
 # docs/ is an allow-list: working notes kept arriving under new names and being swept in
 # by `git add -A`. Only files a reader of the paper needs are published.
 docs/*
