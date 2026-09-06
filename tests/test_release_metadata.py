@@ -26,7 +26,14 @@ REPO = Path(__file__).resolve().parents[1]
 PYPROJECT = REPO / "pyproject.toml"
 CITATION = REPO / "CITATION.cff"
 ZENODO = REPO / ".zenodo.json"
+#: The document that actually reaches the editor. The Section Editor reclassified this
+#: submission, so the full Research Article was reformatted into a Technical Note and is
+#: retained only for the separate Original Article -- and every check here went on
+#: reading the Research Article, which is to say a file nobody submits. Both are checked
+#: now, because both are still cited from somewhere.
+TECHNOTE = REPO / "paper" / "ctdose-core_jacmp_technote.md"
 MANUSCRIPT = REPO / "paper" / "ctdose-core_jacmp.md"
+SUBMITTED = (TECHNOTE, MANUSCRIPT)
 
 #: The organisation the manuscript's data-availability statement points a reader at.
 #: `Institute-of-One` was confirmed to exist on GitHub; `lisit-ioo` returns 404.
@@ -62,14 +69,49 @@ def test_every_declared_url_points_at_the_repository_the_manuscript_cites(pyproj
     related = [r["identifier"] for r in zenodo["related_identifiers"]]
     assert REPO_URL in related
 
-    assert REPO_URL in MANUSCRIPT.read_text(encoding="utf-8")
+    for path in SUBMITTED:
+        assert REPO_URL in path.read_text(encoding="utf-8"), (
+            f"{path.name} does not point a reader at {REPO_URL}"
+        )
 
 
 def test_the_manuscript_names_no_other_github_organisation():
     """A second organisation in the text means one of the two citations is dead."""
-    text = MANUSCRIPT.read_text(encoding="utf-8")
-    orgs = set(re.findall(r"github\.com/([A-Za-z0-9_.-]+)", text))
-    assert orgs == {"Institute-of-One"}, f"unexpected GitHub organisations: {orgs}"
+    for path in SUBMITTED:
+        text = path.read_text(encoding="utf-8")
+        orgs = set(re.findall(r"github\.com/([A-Za-z0-9_.-]+)", text))
+        assert orgs == {"Institute-of-One"}, (
+            f"unexpected GitHub organisations in {path.name}: {orgs}"
+        )
+
+
+def test_the_manuscript_cites_the_version_doi_and_not_the_concept_doi():
+    """The Zenodo badge shows the concept DOI. The paper has to cite the version.
+
+    A concept DOI resolves to whichever release is newest, so a reader who follows it
+    after the next tag is handed code that is not the code the results came from. The
+    two DOIs differ by a few digits in the middle of a number nobody reads, which is
+    exactly why this is asserted rather than looked at: the same substitution reached
+    print in nineteen files across this programme before anyone noticed.
+    """
+    zenodo = json.loads(ZENODO.read_text(encoding="utf-8"))
+    concept = next(
+        related["identifier"]
+        for related in zenodo["related_identifiers"]
+        if related["relation"] == "isVersionOf"
+    )
+    for path in SUBMITTED:
+        text = path.read_text(encoding="utf-8")
+        cited = set(re.findall(r"10\.5281/zenodo\.\d+", text))
+        assert cited, f"{path.name} cites no Zenodo archive at all"
+        assert concept not in cited, (
+            f"{path.name} cites the concept DOI {concept}, which follows the newest "
+            f"release rather than the archived version the results came from"
+        )
+        assert f"version {__version__}" in text, (
+            f"{path.name} cites a Zenodo archive without naming the version it pins; "
+            f"the declared version is {__version__}"
+        )
 
 
 def test_the_licence_is_mit_in_every_declaration(pyproject):
