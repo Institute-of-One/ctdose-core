@@ -1,0 +1,41 @@
+{
+  "_why": "Where this run's evidence lives. The authoritative copy is the summary.json in the shared runs directory; this file points at it rather than duplicating it.",
+  "name": "ctdose-core-ge-validation-arm",
+  "summary": "C:\\Users\\YamamotoShuji\\Documents\\Codex\\SharedTools\\AI-Check\\runs\\20261108T053844Z-c1035e28\\summary.json",
+  "run_directory": "C:\\Users\\YamamotoShuji\\Documents\\Codex\\SharedTools\\AI-Check\\runs\\20261108T053844Z-c1035e28",
+  "checked_at": null,
+  "verdict": "FAIL",
+  "reason": "Unresolved AI finding; inspect evidence, not majority vote",
+  "inputs_sha256": "eea8cdbe3e7bf570078e0b7bcc936c00e27f2f4bc236025a59dd4b159a3baf9c",
+  "reviews": {
+    "codex": {
+      "verdict": "fail",
+      "findings": 4,
+      "limitations": 2
+    },
+    "claude": {
+      "verdict": "fail",
+      "findings": 6,
+      "limitations": 2
+    }
+  },
+  "tests": {
+    "framework": "standard unittest, in the frozen snapshot under python -I",
+    "executed": 15,
+    "passed": 15,
+    "skipped": 0,
+    "file": "test_ge_arm_recompute.py"
+  },
+  "not_covered_by_this_framework": [
+    "The project's real suite is pytest (449 tests) and AI-Check v1 accepts only `unittest discover`. It was run separately and passed; that is reported as a separate check and is NOT part of this PASS/FAIL.",
+    "The GE sample objects themselves (OpenREM/PixelMed, GPL-3.0) were not sent; only measurements derived from them. Re-parsing them is a local check.",
+    "No figure, PDF page or built document was reviewed here."
+  ],
+  "unresolved": [
+    "FAIL. Both reviewers independently found that NO_TABLE_FEED_TYPES conflates axial step-and-shoot with stationary dwell. VCT event 12 is a sequenced acquisition over 397.5 mm with pitch 1.0: the table does move, so the stated exclusion reason does not apply to it. Events 23-26 (pitch 0.1, length 0.0) are correctly excluded but for a different reason.",
+    "The headline's '+11.6 %, all four within 20 %' rests on an arbitrary tie-break. For the Optima 660 at the 32 cm phantom the conventional 'medium' filter is not tabulated and _nearest_bowtie breaks the tie between 'small' and 'large' by list order, choosing 'small' for a body phantom. With the 'large' body filter the two Optima errors become +21.3 % and +22.4 %, the median +18.9 %, and two of four fall outside 20 %. Verified locally after the review.",
+    "Claude: the arm argues the recorded 2.5/5.0 mm is not a beam width, then uses the row nearest to that same figure, and the note says the headline 'uses the collimation the RDSR records', which is false -- 10 mm is not recorded.",
+    "Both: the duration ratio is algebraically 40/recorded collimation and so has no empirical content; DCM 113824 exposure time, or DLP/CTDIvol for the irradiated length, would test the premise directly and neither is used.",
+    "Both: test_ge_arm_recompute.py reads only the output file, so it shares every upstream decision and its claim to re-derive 'every reported number' is overstated."
+  ]
+}
