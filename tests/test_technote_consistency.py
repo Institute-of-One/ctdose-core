@@ -33,7 +33,21 @@ RESULTS = REPO / "results"
 #: JACMP counts every element of a Technical Note -- abstract, body, table, figure legends
 #: and references alike -- so the limit is checked against the whole file rather than
 #: against a body slice. The full manuscript is checked against its own 7500 elsewhere.
-WORD_LIMIT = 3000
+#:
+#: 5000, from Table 3 of the journal's own Author Guidelines, read on 2026-11-08:
+#: "Word limits account for all elements of the manuscript, including the title page,
+#: abstract, main text, figure and table legends, appendices, and references." This
+#: constant was 3000 for the whole of the first revision, which is the *Case Report*
+#: limit in the same table, not the Technical Note's. The manuscript was therefore
+#: condensed to 2972 words against a budget it had 2028 words of room inside, and the
+#: review that came back asks for definitions, a reorganisation and a whole validation
+#: arm -- none of which would have fitted under the limit that was being enforced.
+#: A limit read off the wrong row of the right table is the expensive kind of error.
+WORD_LIMIT = 5000
+
+#: The rest of Table 3's row for a Technical Note, pinned for the same reason.
+FIGURE_AND_TABLE_LIMIT = 6
+REFERENCE_LIMIT = 20
 
 #: Terms that would betray the withdrawn organ layer. Checked against both documents,
 #: because the whole point of withdrawing it is that none of it appears in JACMP.
@@ -121,13 +135,38 @@ def test_the_whole_manuscript_is_within_the_technical_note_limit(text):
     )
 
 
-def test_the_display_items_were_cut_to_three_figures_and_one_table(text):
-    figures = re.findall(r"\*\*Figure (\d)\.\*\*", text)
-    assert figures == ["1", "2", "3"], f"main text figures are {figures}; expected 1-3"
-    for stem in ("fig1_layer1_rdsr_agreement", "fig2_recorded_dose_availability",
-                 "fig3_fallback_error"):
-        assert (PAPER / "figures" / f"{stem}.png").exists(), f"missing figure: {stem}.png"
-    assert len(re.findall(r"\*\*Table \d\.\*\*", text)) == 1
+def test_the_display_items_are_within_the_technical_note_limit(text):
+    """Figures plus tables, against Table 3's limit of six for a Technical Note.
+
+    Only the word limit was ever checked, and it was checked against the wrong row.
+    The other two numbers in the same row went unenforced, so they are gates now:
+    a display item or a reference added during a revision cannot push past the limit
+    unnoticed.
+    """
+    figures = sorted(set(re.findall(r"\*\*Figure (\d)\.\*\*", text)), key=int)
+    tables = sorted(set(re.findall(r"\*\*Table (\d)\.\*\*", text)), key=int)
+    assert figures == [str(i) for i in range(1, len(figures) + 1)], (
+        f"main-text figures are numbered {figures}; expected 1..n with no gap"
+    )
+    assert tables == [str(i) for i in range(1, len(tables) + 1)], (
+        f"main-text tables are numbered {tables}; expected 1..n with no gap"
+    )
+    assert len(figures) + len(tables) <= FIGURE_AND_TABLE_LIMIT, (
+        f"{len(figures)} figures + {len(tables)} tables exceeds the Technical Note "
+        f"limit of {FIGURE_AND_TABLE_LIMIT}"
+    )
+    for n in figures:
+        matches = list((PAPER / "figures").glob(f"fig{n}_*.png"))
+        assert matches, f"no image file for Figure {n} in paper/figures"
+
+
+def test_the_reference_count_is_within_the_technical_note_limit(text):
+    """Table 3 allows twenty references for a Technical Note."""
+    refs = re.findall(r"^(\d+)\. ", text, flags=re.MULTILINE)
+    assert len(refs) <= REFERENCE_LIMIT, (
+        f"the Technical Note lists {len(refs)} references; the limit is "
+        f"{REFERENCE_LIMIT}"
+    )
 
 
 def test_the_references_are_numbered_contiguously_and_all_cited(text):

@@ -39,8 +39,9 @@ def patient_size_label(age_years: float | None, *, prefer_kfactor: bool = False)
     """Map patient age to the reference implementation's patient-size label.
 
     Adults (>= 15 y) use ``"Adults"``. Children map to the nearest tabulated
-    phantom -- the 8-week and 7-year phantoms on the DLP-in-air route, or the
-    0/1/5/10-year ICRP-103 phantoms when ``prefer_kfactor`` is set.
+    phantom -- the 8-week and 7-year phantoms of Deak et al. 2010 on the DLP-in-air
+    route, or the 0/1/5/10-year phantoms of AAPM Report 96 Table 3 when
+    ``prefer_kfactor`` is set.
     """
     if age_years is None or age_years >= 15:
         return SIZE_ADULT

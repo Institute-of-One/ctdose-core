@@ -216,8 +216,16 @@ def effective_dose_open(
             "size": size,
             "sex": sex,
         },
-        notes=tuple(notes),
-        reference="ICRP Publication 103 (2007) DLP-to-effective-dose conversion",
+        notes=(
+            *notes,
+            "the k-factor rests on ICRP 60 tissue weighting, via the European "
+            "Guidelines and Shrimpton et al. 2006; ICRP 103 revised several weighting "
+            "factors, so this is not an ICRP 103 effective dose",
+        ),
+        reference=(
+            "AAPM Report No. 96 (2008), Table 3: normalized effective dose per "
+            "dose-length product, by body region and patient age"
+        ),
     )
 
 

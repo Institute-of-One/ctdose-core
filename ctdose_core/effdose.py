@@ -4,11 +4,21 @@
 
     E = DLP_air * f_mean * k_CT * (kV/kV_ref)^2 * (kV/kV_ref)^0.5
 
-**ICRP-103 k-factor route** (the 0/1/5/10-year-old paediatric phantoms)::
+**k-factor route** (adults and the 0/1/5/10-year-old paediatric phantoms)::
 
     E = DLP * k_CT * (kV/kV_ref)^2 * (kV/kV_ref)^0.5 * k
 
 Both are region- and sex-dependent through the shipped conversion-factor table.
+
+The two routes rest on different ICRP generations, which a reported dose has to carry.
+The ``k`` values are AAPM Report No. 96 (2008) Table 3, which that report took from the
+European Guidelines for Multislice CT and Shrimpton et al. 2006, resting on NRPB Monte
+Carlo organ doses weighted by **ICRP Publication 60**. The ``f_mean`` values are the
+**ICRP Publication 103** set from Deak et al. 2010. This module previously described the
+k-factor route as the ICRP 103 route and stamped that on every value it returned; ICRP 103
+gives the effective-dose formalism and the tissue weighting factors, not DLP conversion
+coefficients, and it revised several of those weighting factors -- breast and the gonads
+most -- so the two sets are not interchangeable and the label was not cosmetic.
 """
 
 from __future__ import annotations
@@ -56,6 +66,14 @@ def effective_dose(
             "size": factors.size,
             "sex": factors.sex,
         },
-        notes=tuple(notes),
-        reference="ICRP Publication 103 (2007) DLP-to-effective-dose conversion",
+        notes=(
+            *notes,
+            "the k-factor rests on ICRP 60 tissue weighting, via the European "
+            "Guidelines and Shrimpton et al. 2006; ICRP 103 revised several weighting "
+            "factors, so this is not an ICRP 103 effective dose",
+        ),
+        reference=(
+            "AAPM Report No. 96 (2008), Table 3: normalized effective dose per "
+            "dose-length product, by body region and patient age"
+        ),
     )

@@ -2,10 +2,30 @@
   "provenance": {
     "name": "Effective-dose conversion factors",
     "primary_sources": [
-      "International Commission on Radiological Protection. The 2007 Recommendations of the ICRP. ICRP Publication 103. Ann ICRP. 2007;37(2-4). (tissue weighting and DLP-to-effective-dose k factors)"
+      "American Association of Physicists in Medicine. The Measurement, Reporting, and Management of Radiation Dose in CT. AAPM Report No. 96. College Park, MD: AAPM; 2008. Table 3, normalized effective dose per dose-length product, k in mSv mGy^-1 cm^-1, by body region and patient age. (the kfactor values)",
+      "Deak PD, Smal Y, Kalender WA. Multisection CT protocols: sex- and age-specific conversion factors used to determine effective dose from dose-length product. Radiology. 2010;257(1):158-166. doi:10.1148/radiol.10100047 (the fmean values)"
     ],
-    "note": "Region- and age-specific conversion factors as published in the sources above. Values are cross-checked against each other by tests/test_tables.py; no per-scanner CTDI data is involved.",
-    "transcription": "Transcribed from the published TG-204/ICRP-103 tables and cross-checked in the test suite."
+    "tissue_weighting": "The kfactor values rest on ICRP Publication 60 (1991) tissue weighting factors: AAPM Report 96 Table 3 cites the European Guidelines for Multislice CT (Bongartz et al. 2004) and Shrimpton et al. 2006, whose effective doses come from NRPB Monte Carlo organ doses weighted by ICRP 60. The fmean values are the ICRP Publication 103 (2007) set. ICRP 103 changed several tissue weighting factors, breast and the gonads most, so the two sets are not interchangeable and a value must carry which one produced it.",
+    "note": "Region- and age-specific factors transcribed from the published tables above. tests/test_tables.py holds every kfactor against AAPM Report 96 Table 3 as transcribed from the report itself, so a transcription error cannot survive. No per-scanner CTDI data is involved.",
+    "corrections": [
+      {
+        "date": "2026-11-08",
+        "field": "kfactor",
+        "region": "Head and Neck",
+        "size": "1 year old",
+        "was": 0.0065,
+        "now": 0.0085,
+        "source": "AAPM Report No. 96 (2008), Table 3",
+        "why": "Mistranscribed. Found while answering a reviewer who pointed out that k-factors are not described in ICRP 103, which sent us to the primary source. No released result changes: the published cohort uses the Chest and Head rows only."
+      },
+      {
+        "date": "2026-11-08",
+        "field": "provenance",
+        "was": "ICRP Publication 103 credited for the k-factors; 'TG-204/ICRP-103 tables' named as the transcription source",
+        "now": "AAPM Report No. 96 Table 3 for kfactor and Deak et al. 2010 for fmean, with the ICRP 60 and ICRP 103 weighting stated separately",
+        "why": "ICRP 103 gives the effective-dose formalism and tissue weighting factors, not DLP-to-effective-dose conversion coefficients. Report 204 is the SSDE report and is unrelated to this quantity."
+      }
+    ]
   },
   "records": [
     {
@@ -208,13 +228,13 @@
       "region": "Head and Neck",
       "size": "1 year old",
       "sex": "F",
-      "kfactor": 0.0065
+      "kfactor": 0.0085
     },
     {
       "region": "Head and Neck",
       "size": "1 year old",
       "sex": "M",
-      "kfactor": 0.0065
+      "kfactor": 0.0085
     },
     {
       "region": "Head and Neck",

@@ -45,9 +45,14 @@ class ConversionFactors:
     """DLP-to-effective-dose conversion factors for a region/size/sex combination.
 
     ``fmean``
-        Organ-dose conversion factor applied on the DLP-in-air route (mSv per mGy*cm).
+        Organ-dose conversion factor applied on the DLP-in-air route (mSv per mGy*cm),
+        from Deak et al. 2010, computed with **ICRP 103** tissue weighting.
     ``kfactor``
-        ICRP-103 DLP-to-effective-dose k-factor (mSv per mGy*cm).
+        DLP-to-effective-dose k-factor (mSv per mGy*cm), from AAPM Report No. 96 (2008)
+        Table 3, which rests on **ICRP 60** tissue weighting.
+
+    The two are not interchangeable, so a value must carry which one produced it;
+    :func:`conversion_provenance` holds the citations and the weighting.
     """
 
     region: str
@@ -89,6 +94,18 @@ def lookup_conversion(region: str, size: str = SIZE_ADULT, sex: str = "F") -> Co
 @lru_cache(maxsize=1)
 def conversion_regions() -> tuple[str, ...]:
     return tuple(sorted({r.region for r in _conversion_records()}))
+
+
+@lru_cache(maxsize=1)
+def conversion_provenance() -> dict[str, Any]:
+    """Where the conversion factors come from, and which tissue weighting they carry.
+
+    Exposed because the two quantities in the table rest on different ICRP generations:
+    ``kfactor`` on ICRP 60 via AAPM Report 96 Table 3, ``fmean`` on ICRP 103 via Deak
+    et al. 2010. A reported effective dose has to be able to say which produced it, and
+    a test has to be able to check that the file still says so.
+    """
+    return _load("conversion_factors.json")["provenance"]
 
 
 # --- SSDE lookup tables ---------------------------------------------------------------
