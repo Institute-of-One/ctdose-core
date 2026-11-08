@@ -113,7 +113,11 @@ def test_the_kit_names_the_files_that_are_actually_uploaded(kit):
         "paper/response_to_editor_jacmp_r2.pdf",
         "paper/title_page_jacmp.pdf",
         "paper/ctdose-core_jacmp_technote_supplement.pdf",
-        "paper/cover_letter_jacmp_r2.md",
+        # The pasted boxes name the *built* plain text, not the Markdown source: a
+        # textarea takes no Markdown, and the abstract has a wrong-version twin sitting
+        # next to it in paper/.
+        "paper/build/cover_letter_for_portal.txt",
+        "paper/build/abstract_for_portal.txt",
     ]
     for name in must_name:
         assert name in kit, f"the kit does not name {name} among the files to upload"
@@ -147,10 +151,15 @@ def test_the_kit_does_not_carry_a_superseded_cover_letter(kit):
     lives in its own file now and the kit points at it.
     """
     assert "Dear Editors," not in kit, (
-        "the kit embeds a cover letter; it should point at cover_letter_jacmp_r2.md so "
+        "the kit embeds a cover letter; it should point at the built portal text so "
         "there is one copy to keep current"
     )
-    assert "cover_letter_jacmp_r2.md" in kit
+    assert "cover_letter_for_portal.txt" in kit
+    # And it must warn off the Research Article's abstract, which is the file nearest to
+    # hand at the portal and 147 words too long for this submission.
+    assert "abstract_masked_structured.txt" in kit and "Do not paste" in kit, (
+        "the kit must name the superseded abstract and say not to paste it"
+    )
 
 
 def test_the_kit_gives_the_invoicing_instruction_in_force(kit):

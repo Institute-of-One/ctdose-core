@@ -90,6 +90,11 @@ STEPS: tuple[tuple[str, list[str], str], ...] = (
          "--out", "paper/cover_letter_jacmp_r2.pdf"],
         "cover_letter_jacmp_r2.pdf",
     ),
+    (
+        "plain text for the portal's abstract and cover-letter boxes",
+        [str(PAPER / "build_portal_text.py")],
+        "build/abstract_for_portal.txt",
+    ),
 )
 
 #: Every built file this submission ships, and the source each is built from. Counted
@@ -105,6 +110,11 @@ ARTEFACTS: dict[str, str] = {
     "response_to_editor_jacmp_r2.pdf": "response_to_editor_jacmp_r2.md",
     "cover_letter_jacmp_r2.pdf": "cover_letter_jacmp_r2.md",
     "ctdose-core_jacmp_masked.pdf": "ctdose-core_jacmp.md",
+    # Typed into the submission form rather than uploaded, and therefore the one thing a
+    # rebuild cannot reach once it has been pasted. Built here so at least the text that
+    # should be pasted is current; paper/record_portal_fields.py pins what was.
+    "build/abstract_for_portal.txt": "ctdose-core_jacmp_technote_masked.md",
+    "build/cover_letter_for_portal.txt": "cover_letter_jacmp_r2.md",
 }
 
 #: Inputs, not outputs. Rebuilding these would destroy what they record.
