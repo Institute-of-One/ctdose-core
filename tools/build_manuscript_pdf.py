@@ -675,6 +675,79 @@ def build_lines(markdown: str, work_dir: Path, *, include_figures: bool = True) 
     return lines
 
 
+#: The height one page can hold between the margins. A table taller than this cannot be
+#: kept whole however the breaks fall, so it is kept together only when it fits.
+USABLE_PAGE_H = PAGE_H - MARGIN_T - MARGIN_B
+
+
+def _mark_table_rows(lines: list[Line]) -> None:
+    """Keep each table whole where it fits, and never leave one row of it alone.
+
+    Tables are contiguous runs of row lines in the emitted stream, so they are found by
+    grouping rather than declared. The height used here is the same one the paginator
+    measures with, so a table judged to fit really does fit.
+    """
+    index = 0
+    while index < len(lines):
+        if lines[index].row is None:
+            index += 1
+            continue
+        start = index
+        while index < len(lines) and lines[index].row is not None:
+            index += 1
+        table = lines[start:index]
+
+        height = sum(line.row.height + line.space_before for line in table)
+        if height <= USABLE_PAGE_H:
+            # Short enough to fit a page: move the whole table rather than break it.
+            for line in table[:-1]:
+                line.keep_with_next = True
+            table[-1].keep_with_next = False
+            continue
+
+        # Too tall to keep whole. Keep the header with the first data row, and the last
+        # two rows with each other, so no page opens or closes on a single row.
+        for line in table:
+            line.keep_with_next = bool(line.row.header)
+        if len(table) >= 2:
+            table[-2].keep_with_next = True
+            table[-1].keep_with_next = False
+
+
+def _mark_paragraph_widows(lines: list[Line]) -> None:
+    """Never let a page break leave one line of a paragraph by itself.
+
+    A paragraph here is a run of body lines in which only the first carries
+    ``space_before``; the wrapper produces them that way. Without this rule the last
+    line of a paragraph can land alone on a page of its own: the tracked-changes
+    document ended with a page holding the four words "by stratum, median marked.", the
+    tail of the final figure legend, because that document drops its images and so the
+    legend had nothing after it to keep with.
+
+    Two lines of a paragraph therefore always travel together, which is the ordinary
+    typographic rule for widows and orphans, and the blank-page gate checks the result.
+    """
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.row is not None or line.image:
+            index += 1
+            continue
+        start = index
+        index += 1
+        while (
+            index < len(lines)
+            and lines[index].row is None
+            and not lines[index].image
+            and lines[index].space_before == 0.0
+        ):
+            index += 1
+        paragraph = lines[start:index]
+        if len(paragraph) >= 2:
+            # The penultimate line keeps with the last, so the break goes earlier.
+            paragraph[-2].keep_with_next = True
+
+
 def mark_keep_groups(lines: list[Line]) -> None:
     """Flag the lines that must not be separated from what follows them.
 
@@ -689,6 +762,11 @@ def mark_keep_groups(lines: list[Line]) -> None:
       except looking at the printed page.
     * **a table's header row and its first data row**, for the same reason: a header row
       alone at a page foot repeats nothing useful.
+    * **a table split so that one row stands alone overleaf.** A seven-row table in the
+      point-by-point response broke after its sixth row, putting "Validation arms 2 3"
+      at the top of the next page with nothing around it. A table short enough to fit a
+      page is therefore kept whole, and a table too long for one page keeps its last two
+      rows together, so a break never leaves a single row by itself.
 
     Marked here rather than at emission because it is a property of a line's neighbour,
     and the emitter writes each block without looking ahead.
@@ -696,13 +774,14 @@ def mark_keep_groups(lines: list[Line]) -> None:
     def text_of(line: Line) -> str:
         return "".join(run.text for run in line.runs)
 
+    _mark_table_rows(lines)
+    _mark_paragraph_widows(lines)
+
     for index, line in enumerate(lines[:-1]):
         following = lines[index + 1]
 
-        # A table row keeps with the row after it when it is the header.
         if line.row is not None:
-            line.keep_with_next = bool(line.row.header)
-            continue
+            continue  # handled above, as a property of the whole table
 
         # A caption paragraph, where a table or image follows. The whole paragraph has
         # to keep with it, not only its final line: a caption wraps to three or four

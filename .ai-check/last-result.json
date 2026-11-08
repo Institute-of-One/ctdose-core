@@ -1,41 +1,39 @@
 {
   "_why": "Where this run's evidence lives. The authoritative copy is the summary.json in the shared runs directory; this file points at it rather than duplicating it.",
   "name": "ctdose-core-ge-validation-arm",
-  "summary": "C:\\Users\\YamamotoShuji\\Documents\\Codex\\SharedTools\\AI-Check\\runs\\20261108T053844Z-c1035e28\\summary.json",
-  "run_directory": "C:\\Users\\YamamotoShuji\\Documents\\Codex\\SharedTools\\AI-Check\\runs\\20261108T053844Z-c1035e28",
-  "checked_at": null,
+  "summary": "C:\\Users\\YamamotoShuji\\Documents\\Codex\\SharedTools\\AI-Check\\runs\\20261108T111558Z-f174cec4\\summary.json",
+  "run_directory": "C:\\Users\\YamamotoShuji\\Documents\\Codex\\SharedTools\\AI-Check\\runs\\20261108T111558Z-f174cec4",
+  "checked_at": "2026-11-08",
   "verdict": "FAIL",
-  "reason": "Unresolved AI finding; inspect evidence, not majority vote",
-  "inputs_sha256": "eea8cdbe3e7bf570078e0b7bcc936c00e27f2f4bc236025a59dd4b159a3baf9c",
-  "reviews": {
-    "codex": {
-      "verdict": "fail",
-      "findings": 4,
-      "limitations": 2
-    },
-    "claude": {
-      "verdict": "fail",
-      "findings": 6,
-      "limitations": 2
-    }
-  },
-  "tests": {
-    "framework": "standard unittest, in the frozen snapshot under python -I",
-    "executed": 15,
-    "passed": 15,
-    "skipped": 0,
-    "file": "test_ge_arm_recompute.py"
+  "reason": "Unresolved AI findings remain at medium and low severity. Recorded as FAIL because that is the framework's verdict; POLICY forbids writing it up as a pass.",
+  "rounds": 20,
+  "what_the_review_changed": [
+    "The headline. The arm reported '+11.6 %, all four within 20 %'. That number rested on a bowtie tie broken by the order of a module-level tuple -- the head filter for a body phantom -- and on a recorded collimation the report's own exposure time refutes. Both were verified locally before any change.",
+    "Eligibility. Sequenced (step-and-shoot) acquisitions were excluded as though the table did not move; in CID 10013 it advances between rotations. One admissible event was being lost, and it is the only event in the arm whose recorded geometry its own exposure time corroborates.",
+    "DCM 113824, the event total exposure time, was defined in the parser and never read. It is the measurement that independently constrains beam width.",
+    "Five successive rules for choosing a tabulated collimation row from that measurement were tried and all five refused, each resting on a number chosen rather than measured. The arm now uses the measurement to refute the recorded width and not to select a replacement, and publishes both defensible readings of what follows.",
+    "A stated failure condition, which the arm had none of: the best admissible combination must come within 1 % of the recorded value. It does, to 0.50 % at worst, under either reading.",
+    "Neither accuracy arm has an independent reference. The recorded CTDIvol is a console figure and the coefficient table is a survey of console figures from the same factory calibrations (Dinwiddie et al. 2026, sections 2.1-2.2). This is now stated in the manuscript (2.3, 2.7, Limitations), the supplement and both letters; the word 'measured' was removed where the manuscript used it of that table.",
+    "Three crashes on paths the five frozen events do not reach: an empty assumption grid reaching the headline, a missing pitch formatted into an exclusion reason, and an incompatible reading read for a percent error.",
+    "Roughly a dozen assertions that could not fail, in both the standalone test and the project suite, including one that proved the beam-width argument by comparing two predictions differing by exactly 40/collimation."
+  ],
+  "residual_findings": [
+    "Several numeric claims in provenance.what_the_sample_can_discriminate are written by hand and no test re-derives them. Two such figures were found wrong during the session and corrected; the class is not closed.",
+    "The eligibility oracle checks counts against rows and reason text against rule text, but does not check each exclusion reason against the excluded event's own recorded fields.",
+    "summary.by_model_reported_band is built from the wide reading only; the narrow reading does not appear per model.",
+    "The standalone test cannot check the coefficient values, only the grid's keys, because the published table is not in the snapshot. tests/test_ctdi_table.py pins the eighteen GE cells this arm reads, which detects a silent change to the data or the lookup but does not re-verify the extraction."
+  ],
+  "why_stopped": "Twenty rounds. The last several produced no high-severity finding and consisted mostly of documentation lag from the previous round's own edits plus completeness gaps on branches the five frozen events cannot reach. The findings that moved a reported number, or that would have reached JACMP reviewers, were all raised in the first five rounds and are fixed. The residual list above is carried forward rather than closed.",
+  "local_verification": {
+    "project_suite": "455 passed, 2 skipped (pytest, with CTDOSE_RDSR_SAMPLES set)",
+    "standalone_snapshot": "42 tests under python -I, as the framework runs them",
+    "injection_harness": "tools/prove_ge_arm_recompute.py: 20 injected defects, all refused, real result file passes",
+    "artefacts": "paper/build_all.py: 12 artefacts current from 9 steps"
   },
   "not_covered_by_this_framework": [
-    "The project's real suite is pytest (449 tests) and AI-Check v1 accepts only `unittest discover`. It was run separately and passed; that is reported as a separate check and is NOT part of this PASS/FAIL.",
+    "AI-Check v1 accepts only `unittest discover`, so the project's pytest suite is outside it and is reported here as a separate check rather than claimed as part of this verdict.",
+    "tests/test_ge_rdsr_accuracy.py drives exclusion_reason() directly on synthetic events; the three-file snapshot cannot, so eligibility findings needing that were noted in the brief rather than claimed untestable.",
     "The GE sample objects themselves (OpenREM/PixelMed, GPL-3.0) were not sent; only measurements derived from them. Re-parsing them is a local check.",
-    "No figure, PDF page or built document was reviewed here."
-  ],
-  "unresolved": [
-    "FAIL. Both reviewers independently found that NO_TABLE_FEED_TYPES conflates axial step-and-shoot with stationary dwell. VCT event 12 is a sequenced acquisition over 397.5 mm with pitch 1.0: the table does move, so the stated exclusion reason does not apply to it. Events 23-26 (pitch 0.1, length 0.0) are correctly excluded but for a different reason.",
-    "The headline's '+11.6 %, all four within 20 %' rests on an arbitrary tie-break. For the Optima 660 at the 32 cm phantom the conventional 'medium' filter is not tabulated and _nearest_bowtie breaks the tie between 'small' and 'large' by list order, choosing 'small' for a body phantom. With the 'large' body filter the two Optima errors become +21.3 % and +22.4 %, the median +18.9 %, and two of four fall outside 20 %. Verified locally after the review.",
-    "Claude: the arm argues the recorded 2.5/5.0 mm is not a beam width, then uses the row nearest to that same figure, and the note says the headline 'uses the collimation the RDSR records', which is false -- 10 mm is not recorded.",
-    "Both: the duration ratio is algebraically 40/recorded collimation and so has no empirical content; DCM 113824 exposure time, or DLP/CTDIvol for the irradiated length, would test the premise directly and neither is used.",
-    "Both: test_ge_arm_recompute.py reads only the output file, so it shares every upstream decision and its claim to re-derive 'every reported number' is overstated."
+    "No figure, PDF page or built document was reviewed by the framework."
   ]
 }

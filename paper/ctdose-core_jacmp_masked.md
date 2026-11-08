@@ -209,7 +209,7 @@ A CT dose index can be recovered from acquisition metadata when no recorded valu
 
 **Ethics approval and consent to participate.** Not applicable. This study used only publicly available, de-identified imaging data — TCIA collections released under Creative Commons licences [14, 18] — and third-party sample files. No new institutional review board approval and no informed consent were required.
 
-**Data and code availability.** The software and all numerical results are available in a public repository under the MIT License; the repository URL and the archived-version DOI are withheld here for double-masked review and are provided on the title page. The results reported here, including the rows they summarize, ship under `results/` with the scripts that generate them and the figure code.
+**Data and code availability.** The software and all numerical results are available in a public repository under the MIT License; the repository URL and the archived-version DOI are withheld here for double-masked review and are provided on the title page. The results reported here, including the rows they summarize, ship under `results/` with the scripts that generate them and with the figure code.
 
 **Imaging data are not redistributed.** Every image shown comes from a public TCIA collection and stays there, identified as described in §2.7 with retrieval instructions in `docs/REPRODUCING_FIGURES.md`. The RDSR sample objects remain with their GPL-3.0 distributor. The coefficient table is redistributed with the software under its own CC BY 4.0 licence [20], attributed in the shipped data rather than relicensed. No private, institutional or internally anonymised patient images were used at any point.
 

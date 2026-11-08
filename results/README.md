@@ -58,25 +58,52 @@ Read three things before quoting a number from it:
   because the technique is read from a structured report rather than reconstructed from a
   de-identified image header. They are different claims.
 - **`summary.exclusions_by_reason`.** Of 35 GE irradiation events, 15 record a CTDIvol
-  and 4 enter the comparison. Events without table feed (stationary and cine) are
-  excluded because their recorded CTDIvol accumulates over the dwell, so mAs per rotation
-  does not describe the exposure behind it. Two more are refused because `LightSpeed RT16`
-  is not the diagnostic `LightSpeed 16`.
+  and 5 enter the comparison, under three distinct exclusions. Four are *stationary*: the
+  table does not move, so the recorded CTDIvol accumulates over the dwell and mAs per
+  rotation does not describe the exposure behind it. Four have *degenerate geometry*: a
+  recorded pitch of 0.100 over zero scanning length is a cine series wearing the label of
+  a step-and-shoot. Two are refused on the *scanner*, because `LightSpeed RT16` is the
+  80 cm-bore radiotherapy configuration and not the tabulated diagnostic `LightSpeed 16`.
+  A **sequenced** acquisition is admitted: in CID 10013 the table advances between
+  rotations, so the formula applies with pitch = increment / (N·T).
 - **`cases[].beam_width_consistency`.** The reports record a 2.5 or 5.0 mm total
-  collimation on 64-slice scanners. Taken literally, one 468 mm helical pass would need
-  97 s of continuous rotation; at 40 mm it needs 6 s. The recorded field is therefore not
-  a total beam width, and because the narrowest beam tabulated for these two models is
-  10 mm, every case carries that substitution as an assumption. (It is not 10 mm for
-  every GE model — Revolution CT ES is tabulated at 5 mm — so a report from that scanner
-  would match exactly and hide the same recording defect behind a clean lookup. The check
-  therefore tests the recorded width against the scan duration, not against the
-  table.) `summary.collimation_sensitivity` shows
-  what the other tabulated rows would give — as a sensitivity, not as a result. Choosing
-  the best-agreeing row would fit one free parameter to four observations.
+  collimation on 64-slice scanners. The report also carries DCM 113824, the event's total
+  exposure time, which the scanner measured and which does not depend on the width it
+  claims. For a moving table the width the exposure actually used is
+  `L × t_rot / (duration × pitch)` — four recorded numbers and no assumption. On four of
+  the five events that figure is 18.6 to 36.4 mm against a recorded 2.5 or 5.0 mm, so the
+  recorded field is **refuted by the scanner's own clock**. On the fifth it is 39.8 mm
+  against a recorded 40.0 mm, and the geometry is **corroborated** to 0.6 %.
+- **`cases[].reported_band`.** DICOM Table D-1 defines the scanning length as the table
+  travel over the **entire tube loading**, which "might be longer than the programmed
+  acquisition length", so `L` and the exposure time cover the same interval and their
+  ratio gives the width the exposure used. **That measurement refutes the recorded width
+  and does not select a replacement**, and the two need very different precision: at the
+  86 % to 87 % discrepancy these four events show, refuting needs none, while choosing
+  among the table's 10, 20 and 40 mm rows would need a few per cent that the report does
+  not support — any figure for the width's precision is dominated by a rotation time GE
+  records as a discrete console setting. So `how_the_width_was_resolved` is either
+  `"recorded width stands"`, where `widths_mm` holds the one row for it, or
+  `"undetermined, recorded width refuted"`, where it holds every tabulated row. Nothing
+  is corrected: the measured width is reported beside the recorded one, never substituted
+  into the lookup, and no figure is published for how precisely it is known. Four earlier
+  rules did select a row and each rested on a chosen number; the arm's history is in the
+  docstring of `widths_admitted_by_exposure_time` and in supplementary §S2.5.
+- **`summary.headline`.** The result is a range, split by whether the exposure time
+  corroborates the recorded width, with `if_the_exposure_time_is_disbelieved` carrying the
+  span over every tabulated width for a reader who sets that measurement aside.
+- **`summary.by_model_reported_band`** is the per-model band.
+  `by_model_point_estimate_under_the_default_assumptions` and
+  `point_estimate_under_the_default_assumptions` are the single-number result at the row
+  nearest the **recorded** collimation, kept for audit and named for what they rest on;
+  the exposure time refutes that row on four of the five events, so neither is the result.
 
 `summary.implied_coefficient_mgy_per_100mas` is the coefficient obtained by inverting the
-formula on the recorded value. It lands in a narrow band across both models and both
-pitches, which is evidence about the formula's *structure* rather than about the table.
+formula on the recorded value, and `cases[].assumption_envelope` is every prediction the
+unrecorded choices allow. Read the envelope rather than
+`summary.point_estimate_under_the_default_assumptions`, which is one combination of them:
+reporting that alone is how a tie between two equally distant bowtie filters, broken by
+the order of a tuple, came to decide the headline.
 
 ## Reading the survey
 

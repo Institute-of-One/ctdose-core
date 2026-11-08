@@ -1,9 +1,16 @@
 {
   "provenance": {
     "generated_by": "tools/evaluate_ge_rdsr.py",
-    "question": "Does the open-table reconstruction predict GE CTDIvol? The archive cannot answer this because GE records CTDIvol in no sampled image header, so the reference is taken from the scanner's own Radiation Dose SR instead.",
-    "what_this_tests": "the dose model (table coefficient, mAs per rotation, pitch) on GE scanners. It does NOT test the metadata-gap recovery path, because the technique is read from a structured report rather than reconstructed from a de-identified image header.",
+    "question": "Does the open-table arithmetic reproduce the CTDIvol a GE scanner computed, given the technique that scanner recorded? The archive cannot answer this because GE records CTDIvol in no sampled image header, so the reference is taken from the scanner's own Radiation Dose SR instead.",
+    "what_this_tests": "the arithmetic that turns recorded metadata into a dose index on GE scanners: the model match, the phantom and tube-potential lookup -- at 120 kVp only, which is the single potential all five events use, so the interpolation and refusal paths are not exercised here -- mAs per rotation from current x time, and the division by pitch. It does NOT test the choice of collimation row or bowtie filter -- those are varied over, which is what the reported range is -- so an error in either would widen the range rather than show up as disagreement. A reviewer pointed out on 2026-11-08 that listing them as tested overstated the arm. It does NOT test the metadata-gap recovery path, because the technique is read from a structured report rather than reconstructed from a de-identified image header; and it does NOT test the vendor's dosimetry, for the reason given under 'the_reference_and_the_coefficients_share_a_source'.",
+    "the_reference_and_the_coefficients_share_a_source": "The reference here is the CTDIvol the scanner displayed and wrote into its own dose report, which is pre-set by the manufacturer from in-factory measurements. The open coefficient table is the MIRDct survey, whose values are console-reported CTDIvol normalized to 100 mAs (Dinwiddie et al. 2026, sections 2.1-2.2) -- also console figures, from the same factory calibration. The two are therefore NOT independent. What this arm tests is the arithmetic that turns recorded metadata into a dose index: the model match, the phantom and tube-potential lookup (at 120 kVp only here), mAs per rotation from current x time, and the pitch division. It does NOT test the vendor's dosimetry, and where an event's technique coincides with a tabulated row exact agreement is close to tautological -- which is what the one corroborated event shows. Nor does it test the choice of collimation row or bowtie filter: those are varied over, which is what the reported range is. See 'what_this_tests'.",
     "independence": "Events are not independent patients. The comparison draws several events from each study, and events within a study share a scanner, a calibration and a session.",
+    "what_the_sample_can_discriminate": {
+      "the_pitch_division": "Yes, though not through the exact event, whose pitch is 1.0. The implied coefficient is nCTDIw = recorded CTDIvol * pitch / (mAs_rot / 100), so omitting or inverting the pitch division would separate two events of the same model and phantom by their pitch ratio. The LightSpeed VCT at 32 cm gives 8.478 at pitch 0.97 and 8.504 at pitch 1.38, agreeing to 0.31 % where the ratio is 1.42; the Optima 660 gives 8.657 at 0.98 and 8.740 at 1.38, agreeing to 0.95 %. That is the sharpest arithmetic check in this arm.",
+      "the_coefficient_lookup": "Weakly. A tabulated row matches the recorded value by construction where the technique coincides with one, so the exact event does not test which row was chosen. What the sample does show is that every implied coefficient falls inside the range its own model and phantom tabulate -- see cases[].implied_nctdi_w_mgy_per_100mas against the nctdi_w_mgy_per_100mas values in the same case's assumption_envelope grid. Hand-written figures stood here until a reviewer found them wrong on 2026-11-08; the comparison is now left to the rows, which a test re-derives.",
+      "the_collimation_and_filter_choice": "No. Those are varied over rather than tested, which is what the reported range is; an error in either would widen the range rather than show as disagreement.",
+      "an_error_of_a_few_per_cent": "No, on the four refuted events: their spans are about 34 percentage points wide, so a 2-3 % error anywhere in the chain would sit inside them undetected. Only the exact event, where the recorded geometry stands, is sharp -- and its reference is a console figure from the same calibration as the table, so it tests transcription more than dosimetry."
+    },
     "coefficients": {
       "name": "MIRDct normalized CTDI database",
       "citation": "Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. J Appl Clin Med Phys. 2026;27(2):e70473. doi:10.1002/acm2.70473",
@@ -25,8 +32,10 @@
     "eligibility_rules": [
       "the event records a CTDIvol (DCM 113830)",
       "the scanner model resolves in the open coefficient database, exactly or by an alias denoting the same machine",
-      "the acquisition has table feed (helical), because the formula models one rotation's output spread along the feed",
-      "tube potential, mean tube current, exposure time per rotation, pitch, total collimation and the CTDIw phantom code are all recorded"
+      "the acquisition type is one in which the table moves -- spiral, or sequenced, where the table advances between rotations (CID 10013) -- because the formula models one rotation's output spread along the feed. Stationary, constant-angle and free acquisitions are excluded: their recorded CTDIvol accumulates over the dwell, so exposure time per rotation does not describe the exposure behind it",
+      "the geometry is not degenerate. A recorded pitch at or below 0.2 cannot be carrying the table, so such an event is excluded unless the report records a positive scanning length to show that it moved -- an absent DCM 113825 does not rescue it, and nor does a recorded 0. Four events record 0.100 over a scanning length of 0.0 mm. A low pitch over a recorded positive distance is a slow feed and is admitted, which is why the pitch alone does not decide. A recorded 0 at a pitch that would carry the table is contradictory and is excluded under its own reason. Where the pitch is real and only the scanning length is absent, the event is admitted: the CTDIvol formula does not use the length, so only the beam-width cross-check is lost and the case reports itself as not measured",
+      "tube potential, mean tube current, exposure time per rotation, pitch, total collimation and the CTDIw phantom code are all recorded",
+      "the technique falls inside the tabulated grid: the lookup must not refuse the tube potential as outside the measured range, and the assumption grid must hold at least one exactly tabulated cell -- which is what rejects an interpolated potential, since a cell is admitted only when the lookup records no assumption at all. The point estimate itself may rest on an interpolated potential, and records that on the case. This rule is applied after the others, when the lookup is attempted, and an event failing it is counted under 'technique outside the tabulated grid'. A reviewer noted on 2026-11-08 that it was being applied without being published, and on the next round that its first clause claimed more than the code does"
     ]
   },
   "formula_input_check": {
@@ -39,24 +48,41 @@
     "n_files": 3,
     "n_events_seen": 35,
     "n_events_with_ctdivol": 15,
-    "n_evaluated": 4,
-    "n_excluded": 31,
+    "n_evaluated": 5,
+    "n_excluded": 30,
     "exclusions_by_reason": {
       "no recorded CTDIvol to compare against": 20,
-      "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it": 9,
+      "the table does not move, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it": 4,
+      "degenerate geometry: a pitch of 0.1 cannot carry the table, and no positive scanning length is recorded to show that it did": 4,
       "scanner not in the open coefficient database": 2
     },
-    "by_model": {
+    "by_model_reported_band": {
       "LightSpeed VCT": {
+        "n": 3,
+        "assumed": "bowtie and collimation; bowtie only",
+        "worst_case_percent_error_min": -18.158567774936042,
+        "worst_case_percent_error_max": 16.421713180306202,
+        "every_event_within_20_percent_for_every_assumption": true
+      },
+      "Optima 660": {
         "n": 2,
-        "median": 16.240665215252328,
-        "mean": 16.240665215252328,
-        "min": 16.059617250198453,
+        "assumed": "bowtie and collimation",
+        "worst_case_percent_error_min": -12.929061784897003,
+        "worst_case_percent_error_max": 22.448979591836732,
+        "every_event_within_20_percent_for_every_assumption": false
+      }
+    },
+    "by_model_point_estimate_under_the_default_assumptions": {
+      "LightSpeed VCT": {
+        "n": 3,
+        "median": 16.059617250198453,
+        "mean": 10.827110143501548,
+        "min": -1.596007941958895e-14,
         "max": 16.421713180306202,
-        "mean_absolute": 16.240665215252328,
+        "mean_absolute": 10.827110143501557,
         "within_20_percent": 1.0,
         "within_50_percent": 1.0,
-        "stdev": 0.25604048761923953
+        "stdev": 9.378300161025235
       },
       "Optima 660": {
         "n": 2,
@@ -71,64 +97,92 @@
       }
     },
     "n_exact_table_match": 0,
-    "overall": {
-      "n": 4,
-      "median": 11.57235772020897,
-      "mean": 11.40762546181719,
-      "min": 6.064073226544619,
+    "pass_condition": "for each event, the admissible combination of bowtie filter and collimation that comes closest to the recorded CTDIvol must come within 1 % of it -- a round threshold, stated above both the rounding of the two numbers compared (0.02 % to 0.15 % on the recorded value, about 0.05 % on the coefficients) and the observed best-cell errors (0.00 % to 0.50 %), and claimed to follow from neither; every event's actual best-cell error is published so a stricter threshold can be applied. An event where no admissible combination came that close would be one the open table cannot reproduce however those inputs are chosen, and would count against the arithmetic. The condition is evaluated separately under every reading the arm publishes, so that stating it does not choose between them.",
+    "arithmetic_reproduced_by_reading": {
+      "also_contradicted_removed": {
+        "n_events": 4,
+        "n_events_this_reading_can_answer": 4,
+        "n_events_incompatible_with_this_reading": 0,
+        "all_within_tolerance": true,
+        "worst_best_cell_percent_error": 0.50057758952637,
+        "worst_case_is_over_all_events": true
+      },
+      "as_reported": {
+        "n_events": 5,
+        "n_events_this_reading_can_answer": 5,
+        "n_events_incompatible_with_this_reading": 0,
+        "all_within_tolerance": true,
+        "worst_best_cell_percent_error": 0.50057758952637,
+        "worst_case_is_over_all_events": true
+      }
+    },
+    "point_estimate_under_the_default_assumptions": {
+      "n": 5,
+      "median": 7.085098190219485,
+      "mean": 9.126100369453749,
+      "min": -1.596007941958895e-14,
       "max": 16.421713180306202,
-      "mean_absolute": 11.40762546181719,
+      "mean_absolute": 9.126100369453756,
       "within_20_percent": 1.0,
       "within_50_percent": 1.0,
-      "stdev": 5.598210897321318
+      "stdev": 7.037880197444782
     },
-    "implied_coefficient_mgy_per_100mas": {
-      "n": 4,
-      "median": 8.580458333333333,
-      "mean": 8.594679166666666,
-      "min": 8.4778,
-      "max": 8.74,
-      "mean_absolute": 8.594679166666666,
-      "within_20_percent": 1.0,
-      "within_50_percent": 1.0,
-      "stdev": 0.1248983166975798
-    },
-    "collimation_sensitivity": {
-      "note": "sensitivity only; the headline result uses the collimation the RDSR records. Choosing the best-agreeing row would fit a free parameter.",
-      "by_collimation_mm": {
-        "10mm": {
-          "n": 4,
-          "median": 11.57235772020896,
-          "mean": 11.407625461817183,
-          "min": 6.0640732265446085,
-          "max": 16.421713180306206,
-          "mean_absolute": 11.407625461817183,
-          "within_20_percent": 1.0,
-          "within_50_percent": 1.0,
-          "stdev": 5.598210897321321
-        },
-        "20mm": {
-          "n": 4,
-          "median": -1.2453760888248064,
-          "mean": -1.3888066129089465,
-          "min": -6.864988558352403,
-          "max": 3.80051428436623,
-          "mean_absolute": 5.027900219212958,
-          "within_20_percent": 1.0,
-          "within_50_percent": 1.0,
-          "stdev": 5.818738372425285
-        },
-        "40mm": {
-          "n": 4,
-          "median": -7.716660254665059,
-          "mean": -7.850816385559898,
-          "min": -12.929061784897023,
-          "max": -3.0408832480124492,
-          "mean_absolute": 7.850816385559898,
-          "within_20_percent": 1.0,
-          "within_50_percent": 1.0,
-          "stdev": 5.3922018425970535
+    "headline": {
+      "what_it_means": "Two inputs are not determined by the report: the bowtie filter, which DICOM never records, and the total collimation, which the report records but its own total exposure time contradicts for four of five events by 86 % to 87 %. The result is therefore a range over what those choices allow, not a single number. The measurement refutes the recorded width but is not precise enough to name which tabulated row the scan used -- any figure for its precision is dominated by a rotation time GE records as a discrete console setting -- so where it refutes, the width is undetermined and every tabulated row stands. Applying the same margin to the candidate rows instead is the consistent reading and leaves one row per event, but then the margin is selecting; the report does not determine which reading to take, so each case publishes both (cases[].reported_band.also_contradicted_removed).",
+      "geometry_corroborated_by_exposure_time": {
+        "n": 1,
+        "assumed": "bowtie only",
+        "worst_case_percent_error_min": -1.596007941958895e-14,
+        "worst_case_percent_error_max": 12.704402515723267,
+        "every_event_within_20_percent_for_every_assumption": true,
+        "if_the_margin_is_applied_to_the_candidates_too": null,
+        "over_every_tabulated_collimation_and_filter": {
+          "assumed": "bowtie and every tabulated collimation",
+          "worst_case_percent_error_min": -1.596007941958895e-14,
+          "worst_case_percent_error_max": 35.28301886792452,
+          "every_event_within_20_percent_for_every_assumption": false
         }
+      },
+      "geometry_refuted_by_exposure_time": {
+        "n": 4,
+        "assumed": "bowtie and collimation",
+        "worst_case_percent_error_min": -18.158567774936042,
+        "worst_case_percent_error_max": 22.448979591836732,
+        "every_event_within_20_percent_for_every_assumption": false,
+        "if_the_margin_is_applied_to_the_candidates_too": {
+          "assumed": "bowtie, and the width the margin leaves",
+          "n": 4,
+          "worst_case_percent_error_min": -12.929061784897003,
+          "worst_case_percent_error_max": 3.800514284366242
+        },
+        "over_every_tabulated_collimation_and_filter": {
+          "assumed": "bowtie and every tabulated collimation",
+          "worst_case_percent_error_min": -18.158567774936042,
+          "worst_case_percent_error_max": 22.448979591836732,
+          "every_event_within_20_percent_for_every_assumption": false
+        }
+      },
+      "n_corroborated": 1,
+      "n_refuted": 4,
+      "n_without_a_measured_exposure_time": 0
+    },
+    "implied_coefficient_mgy_per_100mas_by_phantom": {
+      "16cm": {
+        "n": 1,
+        "unit": "mGy per 100 mAs at pitch 1",
+        "median": 15.900000000000002,
+        "mean": 15.900000000000002,
+        "min": 15.900000000000002,
+        "max": 15.900000000000002
+      },
+      "32cm": {
+        "n": 4,
+        "unit": "mGy per 100 mAs at pitch 1",
+        "median": 8.580458333333333,
+        "mean": 8.594679166666666,
+        "min": 8.4778,
+        "max": 8.74,
+        "stdev": 0.1248983166975798
       }
     }
   },
@@ -209,28 +263,138 @@
       },
       "beam_width_consistency": {
         "scanning_length_mm": 418.75,
-        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
-        "at_collimation_mm": {
-          "5": {
-            "rotations": 60.68840579710145,
-            "scan_duration_s": 36.41304347826087,
-            "is_the_recorded_value": true
+        "recorded_collimation_mm": 5.0,
+        "exposure_time_total_s": 5.27,
+        "formula": "implied collimation = L * t_rot / (total exposure time * pitch)",
+        "measured": true,
+        "implied_collimation_mm": 34.54747958089267,
+        "relative_difference": -0.8552716417910448,
+        "corroborated": false,
+        "refutation_margin": 0.25,
+        "margin_note": "used only to decide whether the recorded width is contradicted, never to choose a tabulated row; see _band_over_admitted_widths",
+        "predicted_duration_at_recorded_collimation_s": 36.41304347826087
+      },
+      "assumption_envelope": {
+        "bowties_tabulated": [
+          "small",
+          "large"
+        ],
+        "collimations_tabulated": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "conventional_bowtie_for_phantom": "medium",
+        "conventional_bowtie_is_tabulated": false,
+        "grid": [
+          {
+            "bowtie": "small",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.27,
+            "estimated_ctdivol_mgy": 3.425869565217391,
+            "is_nearest_to_recorded": true,
+            "percent_error": 6.064073226544619
           },
-          "10": {
-            "rotations": 30.344202898550726,
-            "scan_duration_s": 18.206521739130434,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.14,
+            "estimated_ctdivol_mgy": 3.008260869565218,
+            "is_nearest_to_recorded": false,
+            "percent_error": -6.864988558352384
           },
-          "20": {
-            "rotations": 15.172101449275363,
-            "scan_duration_s": 9.103260869565217,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 7.61,
+            "estimated_ctdivol_mgy": 2.812391304347827,
+            "is_nearest_to_recorded": false,
+            "percent_error": -12.929061784897003
           },
-          "40": {
-            "rotations": 7.586050724637682,
-            "scan_duration_s": 4.551630434782608,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "large",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 10.6,
+            "estimated_ctdivol_mgy": 3.9173913043478263,
+            "is_nearest_to_recorded": true,
+            "percent_error": 21.281464530892457
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.31,
+            "estimated_ctdivol_mgy": 3.4406521739130436,
+            "is_nearest_to_recorded": false,
+            "percent_error": 6.521739130434786
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.7,
+            "estimated_ctdivol_mgy": 3.2152173913043476,
+            "is_nearest_to_recorded": false,
+            "percent_error": -0.45766590389016715
           }
+        ],
+        "percent_error_min": -12.929061784897003,
+        "percent_error_max": 21.281464530892457,
+        "n_combinations": 6,
+        "any_within_20_percent": true,
+        "all_within_20_percent": false
+      },
+      "reported_band": {
+        "widths_mm": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "n": 6,
+        "percent_error_min": -12.929061784897003,
+        "percent_error_max": 21.281464530892457,
+        "assumed": "bowtie and collimation",
+        "recorded_collimation_is_admitted": false,
+        "recorded_vs_measured_relative_difference": 0.8552716417910448,
+        "refutation_margin_used": 0.25,
+        "how_the_width_was_resolved": "undetermined within the table, recorded width refuted",
+        "also_contradicted_removed": {
+          "widths_mm": [
+            40.0
+          ],
+          "n": 2,
+          "percent_error_min": -12.929061784897003,
+          "percent_error_max": -0.45766590389016715,
+          "note": "the consistent reading: the margin that refused the recorded width, applied to every candidate. It leaves one row here, so the margin is selecting and this span depends on where it is set -- which is why it is reported beside the wider one rather than instead of it"
+        },
+        "because": "the exposure time gives 34.5 mm against a recorded 5.0 mm, a difference of 86 %, so the recorded field is not a beam width. It is not precise enough to name which tabulated row the scan used, so the width is undetermined and every tabulated row stands. Applying the same margin to the candidates instead would leave 40 mm and a span of -12.9 % to -0.5 %; the report does not determine which of the two readings to take, so both are published"
+      },
+      "arithmetic_reproduced": {
+        "as_reported": {
+          "n": 6,
+          "bowtie": "large",
+          "collimation_mm": 40.0,
+          "percent_error": -0.45766590389016715,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
+        },
+        "also_contradicted_removed": {
+          "n": 2,
+          "bowtie": "large",
+          "collimation_mm": 40.0,
+          "percent_error": -0.45766590389016715,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
         }
       }
     },
@@ -281,28 +445,138 @@
       },
       "beam_width_consistency": {
         "scanning_length_mm": 443.75,
-        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
-        "at_collimation_mm": {
-          "5": {
-            "rotations": 90.56122448979592,
-            "scan_duration_s": 54.33673469387755,
-            "is_the_recorded_value": true
+        "recorded_collimation_mm": 5.0,
+        "exposure_time_total_s": 7.47,
+        "formula": "implied collimation = L * t_rot / (total exposure time * pitch)",
+        "measured": true,
+        "implied_collimation_mm": 36.36996967461683,
+        "relative_difference": -0.8625239436619718,
+        "corroborated": false,
+        "refutation_margin": 0.25,
+        "margin_note": "used only to decide whether the recorded width is contradicted, never to choose a tabulated row; see _band_over_admitted_widths",
+        "predicted_duration_at_recorded_collimation_s": 54.33673469387755
+      },
+      "assumption_envelope": {
+        "bowties_tabulated": [
+          "small",
+          "large"
+        ],
+        "collimations_tabulated": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "conventional_bowtie_for_phantom": "medium",
+        "conventional_bowtie_is_tabulated": false,
+        "grid": [
+          {
+            "bowtie": "small",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.27,
+            "estimated_ctdivol_mgy": 5.6755102040816325,
+            "is_nearest_to_recorded": true,
+            "percent_error": 7.085098190219485
           },
-          "10": {
-            "rotations": 45.28061224489796,
-            "scan_duration_s": 27.168367346938776,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.14,
+            "estimated_ctdivol_mgy": 4.983673469387756,
+            "is_nearest_to_recorded": false,
+            "percent_error": -5.968425105891397
           },
-          "20": {
-            "rotations": 22.64030612244898,
-            "scan_duration_s": 13.584183673469388,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 7.61,
+            "estimated_ctdivol_mgy": 4.659183673469387,
+            "is_nearest_to_recorded": false,
+            "percent_error": -12.090874085483252
           },
-          "40": {
-            "rotations": 11.32015306122449,
-            "scan_duration_s": 6.792091836734694,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "large",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 10.6,
+            "estimated_ctdivol_mgy": 6.489795918367347,
+            "is_nearest_to_recorded": true,
+            "percent_error": 22.448979591836732
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.31,
+            "estimated_ctdivol_mgy": 5.7,
+            "is_nearest_to_recorded": false,
+            "percent_error": 7.547169811320762
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.7,
+            "estimated_ctdivol_mgy": 5.326530612244897,
+            "is_nearest_to_recorded": false,
+            "percent_error": 0.50057758952637
           }
+        ],
+        "percent_error_min": -12.090874085483252,
+        "percent_error_max": 22.448979591836732,
+        "n_combinations": 6,
+        "any_within_20_percent": true,
+        "all_within_20_percent": false
+      },
+      "reported_band": {
+        "widths_mm": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "n": 6,
+        "percent_error_min": -12.090874085483252,
+        "percent_error_max": 22.448979591836732,
+        "assumed": "bowtie and collimation",
+        "recorded_collimation_is_admitted": false,
+        "recorded_vs_measured_relative_difference": 0.8625239436619718,
+        "refutation_margin_used": 0.25,
+        "how_the_width_was_resolved": "undetermined within the table, recorded width refuted",
+        "also_contradicted_removed": {
+          "widths_mm": [
+            40.0
+          ],
+          "n": 2,
+          "percent_error_min": -12.090874085483252,
+          "percent_error_max": 0.50057758952637,
+          "note": "the consistent reading: the margin that refused the recorded width, applied to every candidate. It leaves one row here, so the margin is selecting and this span depends on where it is set -- which is why it is reported beside the wider one rather than instead of it"
+        },
+        "because": "the exposure time gives 36.4 mm against a recorded 5.0 mm, a difference of 86 %, so the recorded field is not a beam width. It is not precise enough to name which tabulated row the scan used, so the width is undetermined and every tabulated row stands. Applying the same margin to the candidates instead would leave 40 mm and a span of -12.1 % to +0.5 %; the report does not determine which of the two readings to take, so both are published"
+      },
+      "arithmetic_reproduced": {
+        "as_reported": {
+          "n": 6,
+          "bowtie": "large",
+          "collimation_mm": 40.0,
+          "percent_error": 0.50057758952637,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
+        },
+        "also_contradicted_removed": {
+          "n": 2,
+          "bowtie": "large",
+          "collimation_mm": 40.0,
+          "percent_error": 0.50057758952637,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
         }
       }
     },
@@ -353,28 +627,169 @@
       },
       "beam_width_consistency": {
         "scanning_length_mm": 468.12,
-        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
-        "at_collimation_mm": {
-          "2.5": {
-            "rotations": 193.03917525773198,
-            "scan_duration_s": 96.51958762886599,
-            "is_the_recorded_value": true
+        "recorded_collimation_mm": 2.5,
+        "exposure_time_total_s": 12.67,
+        "formula": "implied collimation = L * t_rot / (total exposure time * pitch)",
+        "measured": true,
+        "implied_collimation_mm": 19.044906793383184,
+        "relative_difference": -0.8687313082115696,
+        "corroborated": false,
+        "refutation_margin": 0.25,
+        "margin_note": "used only to decide whether the recorded width is contradicted, never to choose a tabulated row; see _band_over_admitted_widths",
+        "predicted_duration_at_recorded_collimation_s": 96.51958762886599
+      },
+      "assumption_envelope": {
+        "bowties_tabulated": [
+          "small",
+          "medium",
+          "large"
+        ],
+        "collimations_tabulated": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "conventional_bowtie_for_phantom": "medium",
+        "conventional_bowtie_is_tabulated": true,
+        "grid": [
+          {
+            "bowtie": "small",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.36,
+            "estimated_ctdivol_mgy": 8.618556701030927,
+            "is_nearest_to_recorded": true,
+            "percent_error": -1.3895114298520914
           },
-          "10": {
-            "rotations": 48.259793814432996,
-            "scan_duration_s": 24.129896907216498,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 7.45,
+            "estimated_ctdivol_mgy": 7.680412371134021,
+            "is_nearest_to_recorded": false,
+            "percent_error": -12.1234282478945
           },
-          "20": {
-            "rotations": 24.129896907216498,
-            "scan_duration_s": 12.064948453608249,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 6.96,
+            "estimated_ctdivol_mgy": 7.175257731958763,
+            "is_nearest_to_recorded": false,
+            "percent_error": -17.9032296114558
           },
-          "40": {
-            "rotations": 12.064948453608249,
-            "scan_duration_s": 6.0324742268041245,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "medium",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.87,
+            "estimated_ctdivol_mgy": 10.175257731958762,
+            "is_nearest_to_recorded": true,
+            "percent_error": 16.421713180306202
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.8,
+            "estimated_ctdivol_mgy": 9.07216494845361,
+            "is_nearest_to_recorded": false,
+            "percent_error": 3.800514284366242
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.22,
+            "estimated_ctdivol_mgy": 8.474226804123711,
+            "is_nearest_to_recorded": false,
+            "percent_error": -3.0408832480124572
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.5,
+            "estimated_ctdivol_mgy": 9.793814432989691,
+            "is_nearest_to_recorded": true,
+            "percent_error": 12.05737337516809
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.47,
+            "estimated_ctdivol_mgy": 8.731958762886599,
+            "is_nearest_to_recorded": false,
+            "percent_error": -0.09200500129749797
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 7.92,
+            "estimated_ctdivol_mgy": 8.164948453608247,
+            "is_nearest_to_recorded": false,
+            "percent_error": -6.579537144070405
           }
+        ],
+        "percent_error_min": -17.9032296114558,
+        "percent_error_max": 16.421713180306202,
+        "n_combinations": 9,
+        "any_within_20_percent": true,
+        "all_within_20_percent": true
+      },
+      "reported_band": {
+        "widths_mm": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "n": 9,
+        "percent_error_min": -17.9032296114558,
+        "percent_error_max": 16.421713180306202,
+        "assumed": "bowtie and collimation",
+        "recorded_collimation_is_admitted": false,
+        "recorded_vs_measured_relative_difference": 0.8687313082115696,
+        "refutation_margin_used": 0.25,
+        "how_the_width_was_resolved": "undetermined within the table, recorded width refuted",
+        "also_contradicted_removed": {
+          "widths_mm": [
+            20.0
+          ],
+          "n": 3,
+          "percent_error_min": -12.1234282478945,
+          "percent_error_max": 3.800514284366242,
+          "note": "the consistent reading: the margin that refused the recorded width, applied to every candidate. It leaves one row here, so the margin is selecting and this span depends on where it is set -- which is why it is reported beside the wider one rather than instead of it"
+        },
+        "because": "the exposure time gives 19.0 mm against a recorded 2.5 mm, a difference of 87 %, so the recorded field is not a beam width. It is not precise enough to name which tabulated row the scan used, so the width is undetermined and every tabulated row stands. Applying the same margin to the candidates instead would leave 20 mm and a span of -12.1 % to +3.8 %; the report does not determine which of the two readings to take, so both are published"
+      },
+      "arithmetic_reproduced": {
+        "as_reported": {
+          "n": 9,
+          "bowtie": "large",
+          "collimation_mm": 20.0,
+          "percent_error": -0.09200500129749797,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
+        },
+        "also_contradicted_removed": {
+          "n": 3,
+          "bowtie": "large",
+          "collimation_mm": 20.0,
+          "percent_error": -0.09200500129749797,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
         }
       }
     },
@@ -425,28 +840,332 @@
       },
       "beam_width_consistency": {
         "scanning_length_mm": 468.12,
-        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
-        "at_collimation_mm": {
-          "2.5": {
-            "rotations": 135.68695652173915,
-            "scan_duration_s": 54.27478260869566,
-            "is_the_recorded_value": true
+        "recorded_collimation_mm": 2.5,
+        "exposure_time_total_s": 7.28,
+        "formula": "implied collimation = L * t_rot / (total exposure time * pitch)",
+        "measured": true,
+        "implied_collimation_mm": 18.638318203535597,
+        "relative_difference": -0.8658677262240452,
+        "corroborated": false,
+        "refutation_margin": 0.25,
+        "margin_note": "used only to decide whether the recorded width is contradicted, never to choose a tabulated row; see _band_over_admitted_widths",
+        "predicted_duration_at_recorded_collimation_s": 54.27478260869566
+      },
+      "assumption_envelope": {
+        "bowties_tabulated": [
+          "small",
+          "medium",
+          "large"
+        ],
+        "collimations_tabulated": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "conventional_bowtie_for_phantom": "medium",
+        "conventional_bowtie_is_tabulated": true,
+        "grid": [
+          {
+            "bowtie": "small",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.36,
+            "estimated_ctdivol_mgy": 4.846376811594203,
+            "is_nearest_to_recorded": true,
+            "percent_error": -1.6962107181703239
           },
-          "10": {
-            "rotations": 33.92173913043479,
-            "scan_duration_s": 13.568695652173915,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 7.45,
+            "estimated_ctdivol_mgy": 4.3188405797101455,
+            "is_nearest_to_recorded": false,
+            "percent_error": -12.396742805068039
           },
-          "20": {
-            "rotations": 16.960869565217394,
-            "scan_duration_s": 6.784347826086957,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "small",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 6.96,
+            "estimated_ctdivol_mgy": 4.034782608695653,
+            "is_nearest_to_recorded": false,
+            "percent_error": -18.158567774936042
           },
-          "40": {
-            "rotations": 8.480434782608697,
-            "scan_duration_s": 3.3921739130434787,
-            "is_the_recorded_value": false
+          {
+            "bowtie": "medium",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.87,
+            "estimated_ctdivol_mgy": 5.721739130434783,
+            "is_nearest_to_recorded": true,
+            "percent_error": 16.059617250198453
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.8,
+            "estimated_ctdivol_mgy": 5.10144927536232,
+            "is_nearest_to_recorded": false,
+            "percent_error": 3.4776729282417946
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.22,
+            "estimated_ctdivol_mgy": 4.765217391304349,
+            "is_nearest_to_recorded": false,
+            "percent_error": -3.342446423846876
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 9.5,
+            "estimated_ctdivol_mgy": 5.507246376811595,
+            "is_nearest_to_recorded": true,
+            "percent_error": 11.708851456624645
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 8.47,
+            "estimated_ctdivol_mgy": 4.9101449275362326,
+            "is_nearest_to_recorded": false,
+            "percent_error": -0.4027398065672853
+          },
+          {
+            "bowtie": "large",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 7.92,
+            "estimated_ctdivol_mgy": 4.591304347826087,
+            "is_nearest_to_recorded": false,
+            "percent_error": -6.870094364582407
           }
+        ],
+        "percent_error_min": -18.158567774936042,
+        "percent_error_max": 16.059617250198453,
+        "n_combinations": 9,
+        "any_within_20_percent": true,
+        "all_within_20_percent": true
+      },
+      "reported_band": {
+        "widths_mm": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "n": 9,
+        "percent_error_min": -18.158567774936042,
+        "percent_error_max": 16.059617250198453,
+        "assumed": "bowtie and collimation",
+        "recorded_collimation_is_admitted": false,
+        "recorded_vs_measured_relative_difference": 0.8658677262240452,
+        "refutation_margin_used": 0.25,
+        "how_the_width_was_resolved": "undetermined within the table, recorded width refuted",
+        "also_contradicted_removed": {
+          "widths_mm": [
+            20.0
+          ],
+          "n": 3,
+          "percent_error_min": -12.396742805068039,
+          "percent_error_max": 3.4776729282417946,
+          "note": "the consistent reading: the margin that refused the recorded width, applied to every candidate. It leaves one row here, so the margin is selecting and this span depends on where it is set -- which is why it is reported beside the wider one rather than instead of it"
+        },
+        "because": "the exposure time gives 18.6 mm against a recorded 2.5 mm, a difference of 87 %, so the recorded field is not a beam width. It is not precise enough to name which tabulated row the scan used, so the width is undetermined and every tabulated row stands. Applying the same margin to the candidates instead would leave 20 mm and a span of -12.4 % to +3.5 %; the report does not determine which of the two readings to take, so both are published"
+      },
+      "arithmetic_reproduced": {
+        "as_reported": {
+          "n": 9,
+          "bowtie": "large",
+          "collimation_mm": 20.0,
+          "percent_error": -0.4027398065672853,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
+        },
+        "also_contradicted_removed": {
+          "n": 3,
+          "bowtie": "large",
+          "collimation_mm": 20.0,
+          "percent_error": -0.4027398065672853,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
+        }
+      }
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 12,
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "LightSpeed VCT",
+      "table_vendor": "GE",
+      "table_model": "LightSpeed VCT",
+      "acquisition_type": "Sequenced Acquisition",
+      "protocol": "",
+      "phantom_cm": 16,
+      "kvp": 120.0,
+      "mean_tube_current_ma": 200.0,
+      "exposure_time_per_rotation_s": 0.7,
+      "mas_per_rotation": 140.0,
+      "pitch": 1.0,
+      "recorded_collimation_mm": 40.0,
+      "scanning_length_mm": 397.5,
+      "modulation_type": "",
+      "recorded_ctdivol_mgy": 22.26,
+      "estimated_ctdivol_mgy": 22.259999999999998,
+      "percent_error": -1.596007941958895e-14,
+      "table_ctdiw_mgy_per_100mas": 15.9,
+      "table_collimation_mm": 40.0,
+      "table_kvp": 120.0,
+      "table_bowtie": "small",
+      "exact_table_match": false,
+      "assumptions": [
+        "bowtie not recorded in DICOM; used the 'small' filter, the usual choice for the 16 cm phantom"
+      ],
+      "implied_nctdi_w_mgy_per_100mas": 15.900000000000002,
+      "table_at_every_collimation": {
+        "10mm": {
+          "nctdi_w_mgy_per_100mas": 19.08,
+          "bowtie": "small"
+        },
+        "20mm": {
+          "nctdi_w_mgy_per_100mas": 17.01,
+          "bowtie": "small"
+        },
+        "40mm": {
+          "nctdi_w_mgy_per_100mas": 15.9,
+          "bowtie": "small"
+        }
+      },
+      "beam_width_consistency": {
+        "scanning_length_mm": 397.5,
+        "recorded_collimation_mm": 40.0,
+        "exposure_time_total_s": 7.0,
+        "formula": "implied collimation = L * t_rot / (total exposure time * pitch)",
+        "measured": true,
+        "implied_collimation_mm": 39.75,
+        "relative_difference": 0.006289308176100629,
+        "corroborated": true,
+        "refutation_margin": 0.25,
+        "margin_note": "used only to decide whether the recorded width is contradicted, never to choose a tabulated row; see _band_over_admitted_widths",
+        "predicted_duration_at_recorded_collimation_s": 6.95625
+      },
+      "assumption_envelope": {
+        "bowties_tabulated": [
+          "small",
+          "medium"
+        ],
+        "collimations_tabulated": [
+          10.0,
+          20.0,
+          40.0
+        ],
+        "conventional_bowtie_for_phantom": "small",
+        "conventional_bowtie_is_tabulated": true,
+        "grid": [
+          {
+            "bowtie": "small",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 19.08,
+            "estimated_ctdivol_mgy": 26.711999999999996,
+            "is_nearest_to_recorded": false,
+            "percent_error": 19.999999999999975
+          },
+          {
+            "bowtie": "small",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 17.01,
+            "estimated_ctdivol_mgy": 23.814,
+            "is_nearest_to_recorded": false,
+            "percent_error": 6.981132075471692
+          },
+          {
+            "bowtie": "small",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 15.9,
+            "estimated_ctdivol_mgy": 22.259999999999998,
+            "is_nearest_to_recorded": true,
+            "percent_error": -1.596007941958895e-14
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 10.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 21.51,
+            "estimated_ctdivol_mgy": 30.114,
+            "is_nearest_to_recorded": false,
+            "percent_error": 35.28301886792452
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 20.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 19.18,
+            "estimated_ctdivol_mgy": 26.851999999999997,
+            "is_nearest_to_recorded": false,
+            "percent_error": 20.62893081761004
+          },
+          {
+            "bowtie": "medium",
+            "collimation_mm": 40.0,
+            "kvp": 120.0,
+            "exact_row": true,
+            "nctdi_w_mgy_per_100mas": 17.92,
+            "estimated_ctdivol_mgy": 25.088,
+            "is_nearest_to_recorded": true,
+            "percent_error": 12.704402515723267
+          }
+        ],
+        "percent_error_min": -1.596007941958895e-14,
+        "percent_error_max": 35.28301886792452,
+        "n_combinations": 6,
+        "any_within_20_percent": true,
+        "all_within_20_percent": false
+      },
+      "reported_band": {
+        "widths_mm": [
+          40.0
+        ],
+        "n": 2,
+        "percent_error_min": -1.596007941958895e-14,
+        "percent_error_max": 12.704402515723267,
+        "assumed": "bowtie only",
+        "recorded_collimation_is_admitted": true,
+        "recorded_collimation_is_tabulated": true,
+        "recorded_vs_measured_relative_difference": 0.006289308176100629,
+        "refutation_margin_used": 0.25,
+        "how_the_width_was_resolved": "recorded width stands",
+        "because": "the exposure time gives 39.8 mm against a recorded 40.0 mm, agreeing to 0.6 %, so the recorded width stands and only the filter is assumed"
+      },
+      "arithmetic_reproduced": {
+        "as_reported": {
+          "n": 2,
+          "bowtie": "small",
+          "collimation_mm": 40.0,
+          "percent_error": -1.596007941958895e-14,
+          "within_tolerance": true,
+          "tolerance_percent": 1.0
         }
       }
     }
@@ -521,7 +1240,7 @@
       "event_index": 4,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Stationary Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "the table does not move, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
       "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 5.0 mm"
     },
     {
@@ -561,16 +1280,8 @@
       "event_index": 11,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Stationary Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "the table does not move, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
       "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 5.0 mm"
-    },
-    {
-      "file": "CT-ESR-GE_VCT.dcm",
-      "event_index": 12,
-      "model_raw": "LightSpeed VCT",
-      "acquisition_type": "Sequenced Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
-      "detail": "acquisition type 'Sequenced Acquisition', pitch 1.0, scanning length 397.5 mm"
     },
     {
       "file": "CT-ESR-GE_VCT.dcm",
@@ -641,7 +1352,7 @@
       "event_index": 21,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Stationary Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "the table does not move, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
       "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 5.0 mm"
     },
     {
@@ -649,7 +1360,7 @@
       "event_index": 22,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Stationary Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "the table does not move, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
       "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 18.75 mm"
     },
     {
@@ -657,7 +1368,7 @@
       "event_index": 23,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Sequenced Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "degenerate geometry: a pitch of 0.1 cannot carry the table, and no positive scanning length is recorded to show that it did",
       "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
     },
     {
@@ -665,7 +1376,7 @@
       "event_index": 24,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Sequenced Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "degenerate geometry: a pitch of 0.1 cannot carry the table, and no positive scanning length is recorded to show that it did",
       "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
     },
     {
@@ -673,7 +1384,7 @@
       "event_index": 25,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Sequenced Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "degenerate geometry: a pitch of 0.1 cannot carry the table, and no positive scanning length is recorded to show that it did",
       "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
     },
     {
@@ -681,7 +1392,7 @@
       "event_index": 26,
       "model_raw": "LightSpeed VCT",
       "acquisition_type": "Sequenced Acquisition",
-      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "reason": "degenerate geometry: a pitch of 0.1 cannot carry the table, and no positive scanning length is recorded to show that it did",
       "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
     },
     {

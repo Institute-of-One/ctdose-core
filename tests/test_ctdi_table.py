@@ -218,3 +218,54 @@ def test_the_model_grid_is_reported_for_coverage_analysis():
     flash = grids["Definition Flash"]
     assert flash.vendor == "Siemens"
     assert flash.kvp_values(32, "medium", 38.4) == [70.0, 80.0, 100.0, 120.0, 140.0]
+
+
+def test_the_rows_the_ge_validation_arm_reads_are_pinned():
+    """Every cell the GE arm's assumption grid uses, at the value it has today.
+
+    What this is: a regression test. A reviewer observed on 2026-11-08 that the arm's
+    standalone recomputation checks the *keys* of its grid against an inventory but takes
+    the coefficient *values* from the same output it is checking, so a misextracted or
+    mislooked-up coefficient would pass every arithmetic check. These eighteen values
+    close that at the project level.
+
+    What this is not: a check against the published annex. The values below were read
+    from the shipped data file, which `tools/extract_mirdct_coefficients.py` produced
+    from the source spreadsheet whose sha256 the provenance block records. So this
+    detects a silent change to the data or to the lookup; it does not re-verify the
+    extraction. `test_an_exact_grid_point_returns_the_tabulated_value` is the one value
+    quoted verbatim from the annex.
+    """
+    PINNED = {
+        ("Optima 660", 32, "small"): {10.0: 9.27, 20.0: 8.14, 40.0: 7.61},
+        ("Optima 660", 32, "large"): {10.0: 10.6, 20.0: 9.31, 40.0: 8.7},
+        ("LightSpeed VCT", 32, "small"): {10.0: 8.36, 20.0: 7.45, 40.0: 6.96},
+        ("LightSpeed VCT", 32, "medium"): {10.0: 9.87, 20.0: 8.8, 40.0: 8.22},
+        ("LightSpeed VCT", 32, "large"): {10.0: 9.5, 20.0: 8.47, 40.0: 7.92},
+        ("LightSpeed VCT", 16, "small"): {10.0: 19.08, 20.0: 17.01, 40.0: 15.9},
+        ("LightSpeed VCT", 16, "medium"): {10.0: 21.51, 20.0: 19.18, 40.0: 17.92},
+    }
+    for (model, phantom, bowtie), widths in PINNED.items():
+        for collimation, expected in widths.items():
+            hit = lookup(
+                "GE", model,
+                kvp=120, collimation_mm=collimation, phantom_cm=phantom, bowtie=bowtie,
+            )
+            assert hit.nctdi_w_mgy_per_100mas == pytest.approx(expected), (
+                f"GE {model} {phantom} cm {bowtie} {collimation:g} mm at 120 kVp is "
+                f"{hit.nctdi_w_mgy_per_100mas} and was pinned at {expected}"
+            )
+            assert hit.exact, f"should be an exact grid point: {hit.assumptions}"
+            assert hit.bowtie == bowtie
+            assert hit.collimation_mm == collimation
+
+    # And the filters tabulated per phantom must be exactly these, since the arm's
+    # envelope is their product with the collimations: asking for one that is not there
+    # resolves to the nearest and records the substitution, which is how the arm knows to
+    # exclude that cell from the grid.
+    absent = lookup(
+        "GE", "LightSpeed VCT",
+        kvp=120, collimation_mm=40.0, phantom_cm=16, bowtie="large",
+    )
+    assert absent.bowtie != "large", "the 16 cm head phantom has no large filter here"
+    assert absent.assumptions, "a substituted filter must be recorded as an assumption"

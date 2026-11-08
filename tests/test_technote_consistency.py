@@ -448,62 +448,175 @@ def test_the_ge_arm_numbers_are_quoted_correctly(text):
     """§3.4 and Table 2 against results/ge_rdsr_accuracy.json, value by value.
 
     The Section Editor asked for phantom scanning or a database carrying RDSR for GE.
-    This is the answer, so every figure in it is resolved from the result file rather
-    than from the sentence that was easiest to write.
+    This is the answer, so every figure in it is resolved from the result file.
+
+    What the gate checks changed twice on 2026-11-08, because what the arm claims changed
+    twice.
+
+    First the arm reported one number, "+11.6 %, all four within 20 %", and an
+    independent review found that it rested on a bowtie tie broken by tuple order and on
+    a collimation the report's own exposure time refutes. It became a range over the
+    unrecorded choices.
+
+    Then a second review found that the range used the exposure time against the recorded
+    width and ignored it for every other width, so the span still ran over tabulated rows
+    the same measurement refutes two to three and a half times over -- and both values
+    outside 20 % came from such a row. The measurement is now a floor on the width,
+    applied to every candidate, and the reported span runs over the rows at or above it,
+    with the span over all rows stated beside it. The gate follows the result file, so it
+    cannot drift from whichever rule the arm applies.
     """
     path = RESULTS / "ge_rdsr_accuracy.json"
     if not path.exists():
         pytest.skip("the GE arm has not been run; see tools/evaluate_ge_rdsr.py")
     payload = _load(path)
     summary, cases = payload["summary"], payload["cases"]
+    headline = summary["headline"]
 
     assert_quoted(text, f"hold {summary['n_events_seen']} irradiation events", "GE events")
     assert_quoted(
         text, f"{summary['n_events_with_ctdivol']} of which record a CTDIvol", "with CTDIvol"
     )
+
     reasons = summary["exclusions_by_reason"]
-    no_feed = next(n for r, n in reasons.items() if "no table feed" in r)
+    stationary = next(n for r, n in reasons.items() if "table does not move" in r)
+    degenerate = next(n for r, n in reasons.items() if "degenerate geometry" in r)
     refused = reasons["scanner not in the open coefficient database"]
-    assert_quoted(text, f"{no_feed} of those 15 were excluded", "no-table-feed exclusions")
+    assert_quoted(
+        text, f"{stationary} of those 15 were excluded because the table does not move",
+        "stationary exclusions",
+    )
+    assert_quoted(text, f"{degenerate} for a geometry", "degenerate exclusions")
     assert_quoted(text, f"and {refused} because their scanner", "model refusals")
     assert_quoted(text, f"{summary['n_evaluated']} events from 2 scanner models", "evaluated")
 
-    errors = [c["percent_error"] for c in cases]
-    assert_quoted(text, f"median of {_signed(summary['overall']['median'])}", "GE median")
+    # The corroborated event, which carries the exact agreement.
+    corroborated = [
+        c for c in cases if c["beam_width_consistency"].get("corroborated")
+    ]
+    assert len(corroborated) == headline["n_corroborated"]
+    assert len(corroborated) == 1, "the manuscript's wording assumes exactly one"
+    only = corroborated[0]
     assert_quoted(
         text,
-        f"range of {_signed(min(errors))} to {_signed(max(errors))}",
-        "GE error range",
+        f"({only['recorded_ctdivol_mgy']:.2f} mGy against "
+        f"{only['estimated_ctdivol_mgy']:.2f} mGy, "
+        f"{_signed(only['percent_error'])})",
+        "the corroborated event's exact agreement",
     )
-    assert summary["overall"]["within_20_percent"] == 1.0
-    assert_quoted(text, "within 20% of the value the scanner recorded", "within 20")
 
-    implied = summary["implied_coefficient_mgy_per_100mas"]
+    # The implied widths that refute the other four, as a range.
+    refuted = [
+        c["beam_width_consistency"] for c in cases
+        if c["beam_width_consistency"].get("measured")
+        and not c["beam_width_consistency"]["corroborated"]
+    ]
+    assert len(refuted) == headline["n_refuted"]
+    low = min(b["implied_collimation_mm"] for b in refuted)
+    high = max(b["implied_collimation_mm"] for b in refuted)
+    # "gives", not "requires at least": DICOM Table D-1 defines the scanning length as
+    # the table travel over the entire tube loading, so the figure locates the width
+    # rather than bounding it from below. The manuscript said "implies" when the arm
+    # treated it as a point, then "requires at least" when the arm read it as a floor,
+    # and now says "gives" because the definition settles it. The range is printed to one
+    # decimal, since the smallest and largest are 18.6 and 36.4 mm.
+    assert_quoted(
+        text, f"gives {low:.1f} to {high:.1f} mm", "measured width range"
+    )
     assert_quoted(
         text,
-        f"{implied['min']:.2f} to {implied['max']:.2f} mGy per 100 mAs",
+        f"gives "
+        f"{corroborated[0]['beam_width_consistency']['implied_collimation_mm']:.1f} mm "
+        f"against a recorded "
+        f"{corroborated[0]['beam_width_consistency']['recorded_collimation_mm']:.1f} mm",
+        "the corroborated width",
+    )
+
+    # The wider span must be stated too, so the narrowing the measurement buys is
+    # visible. Taken from the headline, not from a sentence.
+    for key in ("geometry_corroborated_by_exposure_time", "geometry_refuted_by_exposure_time"):
+        band = headline[key]
+        if not band.get("n"):
+            continue
+        wide = band["over_every_tabulated_collimation_and_filter"]
+        assert _signed(wide["worst_case_percent_error_max"]) in text, (
+            f"the span over all tabulated widths "
+            f"({_signed(wide['worst_case_percent_error_max'])}) is not stated, so a "
+            f"reader cannot see what the exposure time narrowed"
+        )
+
+    # Both bands, from the headline rather than from a sentence.
+    for key, label in (
+        ("geometry_corroborated_by_exposure_time", "corroborated band"),
+        ("geometry_refuted_by_exposure_time", "refuted band"),
+    ):
+        band = headline[key]
+        if not band.get("n"):
+            continue
+        assert_quoted(
+            text,
+            f"{_signed(band['worst_case_percent_error_min'])} to "
+            f"{_signed(band['worst_case_percent_error_max'])}",
+            label,
+        )
+
+    # The manuscript quotes the 32 cm band, and the result file now keeps the phantoms
+    # apart: a pooled median over both mixes quantities that differ by about a factor of
+    # two, which a reviewer found on 2026-11-08.
+    by_phantom = summary["implied_coefficient_mgy_per_100mas_by_phantom"]
+    body_only = [
+        c["implied_nctdi_w_mgy_per_100mas"] for c in cases if c["phantom_cm"] == 32
+    ]
+    assert_quoted(
+        text,
+        f"{min(body_only):.2f} to {max(body_only):.2f} mGy per 100 mAs",
         "implied coefficient band",
     )
+    assert by_phantom["32cm"]["n"] == len(body_only)
+    assert sum(b["n"] for b in by_phantom.values()) == len(cases)
 
-    # Table 2: every row's four numbers must be the computed ones.
+    # Table 2: every row's stated and measured collimation, its bracket and its span.
     for case in cases:
-        row = (
-            f"| {case['mas_per_rotation']:.1f} | {case['pitch']:.2f} | "
-            f"{case['recorded_ctdivol_mgy']:.2f} | "
-            f"{case['estimated_ctdivol_mgy']:.2f} | "
-            f"**{_signed(case['percent_error'])}**"
+        b = case["beam_width_consistency"]
+        band = case["reported_band"]
+        stated = (
+            f"{b['recorded_collimation_mm']:.1f} / {b['implied_collimation_mm']:.1f}"
         )
-        assert row in text, f"Table 2 is missing or misquotes the row {row!r}"
+        assert stated in text, f"Table 2 is missing the collimation pair {stated!r}"
+        # Whether the recorded collimation stood or was refused, which is what decides
+        # whether the span runs over one row or all of them. Taken from the result file,
+        # so the table cannot say "stands" for an event the measurement refuted.
+        verdict = "stands" if band["recorded_collimation_is_admitted"] else "refuted"
+        row = next(
+            line for line in text.splitlines() if stated in line and line.startswith("|")
+        )
+        assert verdict in row, (
+            f"Table 2's row for the collimation pair {stated!r} does not say the "
+            f"recorded width {verdict}; the row reads {row.strip()!r}"
+        )
+        span = (
+            f"{_signed(band['percent_error_min'])} to "
+            f"{_signed(band['percent_error_max'])}"
+        )
+        assert span in text, f"Table 2 is missing or misquotes the range {span!r}"
 
-    # The sensitivity must be named as one, not adopted.
-    sensitivity = summary["collimation_sensitivity"]["by_collimation_mm"]["20mm"]
-    assert_quoted(
-        text, f"median error of {_signed(sensitivity['median'])}", "20 mm sensitivity"
-    )
-    assert "not adopted" in text, (
-        "the better-agreeing collimation row must be reported as a sensitivity and "
-        "explicitly not adopted"
-    )
+    # Neither withdrawn headline may come back.
+    assert "all four within 20%" not in text
+    assert "all four fell within 20%" not in text
+    # And the span quoted for each row must come from the bracketing rows only, so a
+    # width outside the bracket cannot be supplying either end of it.
+    for case in cases:
+        band = case["reported_band"]
+        outside = band.get("widths_outside_the_bracket_mm") or []
+        for width in outside:
+            for cell in case["assumption_envelope"]["grid"]:
+                if cell["collimation_mm"] != width:
+                    continue
+                for end in ("percent_error_min", "percent_error_max"):
+                    assert abs(cell["percent_error"] - band[end]) > 1e-9, (
+                        f"the span's {end} comes from the {width} mm row, which is "
+                        f"outside this event's bracket"
+                    )
 
 
 def test_the_manuscript_separates_the_dose_model_from_the_recovery_path(text):

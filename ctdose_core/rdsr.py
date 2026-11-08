@@ -135,6 +135,12 @@ class RdsrAcquisition:
     mean_tube_current_ma: float | None = None
     max_tube_current_ma: float | None = None
     exposure_time_per_rotation_s: float | None = None
+    #: DCM 113824, the event's *total* exposure time in seconds, as distinct from the
+    #: per-rotation time above. It was defined in the code list here but never read,
+    #: which left the package unable to check a recorded geometry against the time the
+    #: scanner says the exposure actually took -- the one measurement in the report that
+    #: constrains the beam width independently of the width the report claims.
+    exposure_time_total_s: float | None = None
     modulation_type: str = ""
     pitch: float | None = None
     total_collimation_mm: float | None = None
@@ -235,6 +241,8 @@ def _parse_acq_params(item: Dataset, acq: RdsrAcquisition) -> None:
             acq.total_collimation_mm, _ = _num(child)
         elif code == C_PITCH:
             acq.pitch, _ = _num(child)
+        elif code == C_EXPOSURE_TIME:
+            acq.exposure_time_total_s, _ = _num(child)
         elif code == C_XRAY_SOURCE_PARAMS:
             _parse_source_params(child, acq)
 

@@ -146,19 +146,88 @@ def test_no_table_or_figure_caption_is_stranded_from_what_it_labels(name):
             )
 
 
+#: Which Markdown each uploaded PDF is built from, so the gate below can ask the source
+#: what the headings actually are instead of recognising them by shape.
+SOURCE_OF = {
+    "ctdose-core_jacmp_technote_masked.pdf": "ctdose-core_jacmp_technote_masked.md",
+    "ctdose-core_jacmp_technote_supplement.pdf": "ctdose-core_jacmp_technote_supplement.md",
+    "ctdose-core_jacmp_technote_tracked_changes.pdf": (
+        "ctdose-core_jacmp_technote_tracked_changes.md"
+    ),
+    "response_to_editor_jacmp_r2.pdf": "response_to_editor_jacmp_r2.md",
+    "title_page_jacmp.pdf": "title_page_jacmp.md",
+}
+
+
+def _headings_of(name: str) -> set[str]:
+    """The document's real headings, read from the Markdown it was built from.
+
+    The first version of this gate recognised a heading by shape -- a number, a space,
+    then a word -- and that shape is also a table cell. It reported the row
+    "Supplementary Material | 1 file | 1 file, one section added" in the point-by-point
+    response as an orphaned heading, which it is not. A rule that fires on things that
+    are not defects is a rule that gets switched off, so the headings are now resolved
+    from the source: whatever the Markdown marks with ``#`` is a heading and nothing else
+    is.
+    """
+    source = PAPER / SOURCE_OF[name]
+    if not source.is_file():
+        pytest.skip(f"{SOURCE_OF[name]} is not in this checkout")
+    found = set()
+    for line in source.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^#{1,6}\s+(.+?)\s*$", line)
+        if not match:
+            continue
+        # The rendered page carries no emphasis marks, and the tracked-changes document
+        # wraps its headings in its own diff markers.
+        plain = re.sub(r"[*_`]|~~|\+\+", "", match.group(1))
+        found.add(" ".join(plain.split()))
+    return found
+
+
 @pytest.mark.parametrize("name", UPLOADED)
 def test_no_heading_is_the_last_line_of_a_page(name):
     """Word does this by default and so did this renderer; both need telling."""
-    heading = re.compile(r"^\s*(?:\d+(?:\.\d+)?|S\d+(?:\.\d+)?)\s+\S")
+    headings = _headings_of(name)
+    if not headings:
+        # The title page is a flat block of labelled metadata with no headings at all,
+        # so it has nothing to orphan. That the gate is not vacuous across the set is
+        # asserted separately, below.
+        pytest.skip(f"{SOURCE_OF[name]} has no headings")
     for number, text in enumerate(pages(name), 1):
-        lines = [ln for ln in text.splitlines() if ln.strip()]
-        tail = [ln for ln in lines[-2:] if not ln.strip().isdigit()]
-        for line in tail:
-            if heading.match(line) and len(line.strip()) < 80:
-                pytest.fail(
-                    f"{name} page {number} ends on the heading {line.strip()!r}, with "
-                    f"its text overleaf"
-                )
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        # Drop the marginal line numbers and the page-number footer, both digits alone.
+        lines = [ln for ln in lines if not ln.isdigit()]
+        if not lines:
+            continue
+        if " ".join(lines[-1].split()) in headings:
+            pytest.fail(
+                f"{name} page {number} ends on the heading {lines[-1]!r}, with "
+                f"its text overleaf"
+            )
+
+
+def test_the_orphaned_heading_gate_is_not_vacuous():
+    """At least the manuscript and the supplement must contribute headings to check.
+
+    The gate above skips a document with no headings, which is right for the title page
+    and would be a silent hole if every document took that branch -- so the documents
+    that must have headings are named here, and a build that stopped emitting them fails
+    rather than skipping.
+    """
+    must_have = [
+        "ctdose-core_jacmp_technote_masked.pdf",
+        "ctdose-core_jacmp_technote_supplement.pdf",
+        "response_to_editor_jacmp_r2.pdf",
+    ]
+    for name in must_have:
+        if not (PAPER / SOURCE_OF[name]).is_file():
+            continue
+        headings = _headings_of(name)
+        assert len(headings) >= 4, (
+            f"{SOURCE_OF[name]} yields {len(headings)} headings; the orphan gate would "
+            f"check almost nothing on it"
+        )
 
 
 @pytest.mark.parametrize("name", UPLOADED)

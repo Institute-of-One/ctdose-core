@@ -98,7 +98,7 @@ REPLACEMENTS: tuple[tuple[str, str], ...] = (
         "available in a public repository under the MIT License; the repository URL and the "
         "archived-version DOI are withheld here for double-masked review and are provided "
         "on the title page. The results reported here, including the rows they summarize, "
-        "ship under `results/` with the scripts that generate them and the figure code.",
+        "ship under `results/` with the scripts that generate them and with the figure code.",
     ),
     (
         "**Author contributions.** S.Y.: conceptualisation, methodology, software, "

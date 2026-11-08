@@ -21,7 +21,8 @@ from ctdose_core.ctdi_table import CoefficientNotAvailable, resolve_model
 from ctdose_core.provenance import Quantity, Source
 from ctdose_core.rdsr import RdsrAcquisition
 from tools.evaluate_ge_rdsr import (
-    HELICAL_TYPES,
+    MOVING_TABLE_TYPES,
+    STATIONARY_TYPES,
     _slug,
     beam_width_consistency,
     check_formula_inputs,
@@ -50,6 +51,7 @@ def _event(**overrides) -> RdsrAcquisition:
         pitch=0.97,
         total_collimation_mm=2.5,
         scanning_length_mm=468.1,
+        exposure_time_total_s=12.67,
     )
     defaults.update(overrides)
     return RdsrAcquisition(**defaults)
@@ -58,22 +60,146 @@ def _event(**overrides) -> RdsrAcquisition:
 # --- the eligibility rules -------------------------------------------------------------
 
 
-def test_only_acquisitions_with_table_feed_are_helical() -> None:
-    """The acquisition types that irradiate without table feed must not be admitted.
+def test_the_table_moves_in_a_sequenced_acquisition_as_well_as_a_spiral() -> None:
+    """Two types qualify, not one, and the distinction is the table, not the label.
 
-    This is the rule that matters most. GE's reports carry stationary and cine events
-    whose recorded CTDIvol accumulates over the dwell: event 22 of the VCT report records
-    176 mGy from 80 mAs per rotation, which the single-rotation formula would under-
-    predict by a factor of twenty and call model error.
+    This rule was wrong until 2026-11-08 and two independent reviewers caught it. A
+    sequenced acquisition is axial step-and-shoot: in CID 10013 the table advances
+    between rotations, so its CTDIvol is CTDIw x (N.T / increment), which is the same
+    formula with pitch = increment / (N.T). It was being excluded for accumulating over
+    a stationary dwell, which is what a *stationary* acquisition does. The cost was VCT
+    event 12, which turned out to be the only event in the arm whose recorded geometry
+    its own exposure time corroborates, and whose prediction is exact.
     """
+    for kind in ("Spiral Acquisition", "Sequenced Acquisition"):
+        assert _slug(kind) in MOVING_TABLE_TYPES, f"the table moves in a {kind}"
     for kind in (
         "Stationary Acquisition",
-        "Sequenced Acquisition",
         "Constant Angle Acquisition",
         "Free Acquisition",
     ):
-        assert _slug(kind) not in HELICAL_TYPES, f"{kind} has no table feed"
-    assert _slug("Spiral Acquisition") in HELICAL_TYPES
+        assert _slug(kind) in STATIONARY_TYPES, f"the table does not move in a {kind}"
+        assert _slug(kind) not in MOVING_TABLE_TYPES
+    assert not set(MOVING_TABLE_TYPES) & set(STATIONARY_TYPES)
+
+
+def test_a_sequenced_label_does_not_rescue_a_cine_series() -> None:
+    """Type is necessary and not sufficient: the geometry has to agree with it.
+
+    Four events in the sample are labelled sequenced and record a pitch of 0.100 over a
+    scanning length of 0.0 mm. That is a cine series at one couch position wearing the
+    label of a step-and-shoot. Admitting them because the label now qualifies would have
+    been the opposite error to the one just fixed.
+    """
+    resolved = ("GE", "LightSpeed VCT")
+    cine = _event(acquisition_type="Sequenced Acquisition", pitch=0.1,
+                  scanning_length_mm=0.0)
+    reason, _ = exclusion_reason(cine, resolved=resolved)
+    assert "degenerate geometry" in reason
+    assert "pitch" in reason
+
+    # Zero travel at a pitch that *would* carry the table is contradictory rather than a
+    # dwell, and gets its own reason. Until 2026-11-08 both cases returned the same
+    # "degenerate geometry" reason, which made the pitch half of the rule above decide
+    # nothing; a reviewer pointed that out.
+    no_length = _event(
+        acquisition_type="Sequenced Acquisition", pitch=0.97, scanning_length_mm=0.0
+    )
+    reason, _ = exclusion_reason(no_length, resolved=resolved)
+    assert "contradictory geometry" in reason and "scanning length" in reason
+    assert "degenerate geometry" not in reason
+
+    # An absent scanning length is not evidence of zero travel at a *real* pitch: the
+    # CTDIvol formula does not use the length, so the event is admitted and only the
+    # width cross-check is lost.
+    absent_length = _event(
+        acquisition_type="Spiral Acquisition", pitch=0.97, scanning_length_mm=None
+    )
+    assert exclusion_reason(absent_length, resolved=resolved) == ("", ""), (
+        "a missing DCM 113825 must not be read as a table that did not move"
+    )
+
+    # But a degenerate pitch with no recorded distance is still refused. Requiring the
+    # zero to be *recorded*, which this rule did for one round after a reviewer objected
+    # to firing on the pitch alone, let a pitch-0.100 cine series with no DCM 113825
+    # through to be predicted by the single-rotation formula -- a tenfold error reported
+    # as model error. Only a recorded positive distance shows the table moved.
+    cine_no_length = _event(
+        acquisition_type="Sequenced Acquisition", pitch=0.1, scanning_length_mm=None
+    )
+    reason, _ = exclusion_reason(cine_no_length, resolved=resolved)
+    assert "degenerate geometry" in reason, reason
+    assert "cannot carry the table" in reason
+
+    # A recorded zero travel with no recorded pitch is an incomplete technique, and must
+    # be counted rather than crash the run. Formatting the missing pitch into the
+    # contradictory-geometry reason raised TypeError until 2026-11-08, and two reviewers
+    # found the path on the same round.
+    no_pitch = _event(
+        acquisition_type="Sequenced Acquisition", pitch=None, scanning_length_mm=0.0
+    )
+    reason, detail = exclusion_reason(no_pitch, resolved=resolved)
+    assert reason == "incomplete technique", reason
+    assert "pitch" in detail
+
+    real = _event(acquisition_type="Sequenced Acquisition", pitch=1.0,
+                  scanning_length_mm=397.5)
+    assert exclusion_reason(real, resolved=resolved) == ("", "")
+
+
+def test_a_low_pitch_over_a_real_distance_is_a_feed_and_is_admitted() -> None:
+    """A positive low pitch does not by itself establish that the table stood still.
+
+    The rule fired on the pitch alone until 2026-11-08, which is wider than its own
+    rationale: an event at pitch 0.15 over 300 mm has demonstrably moved 300 mm, and
+    excluding it as a dwell would have been a silent loss. Two independent reviewers
+    raised it. Both conditions are now required, and this test is the one that would
+    have failed before the correction.
+    """
+    resolved = ("GE", "LightSpeed VCT")
+    slow_feed = _event(
+        acquisition_type="Spiral Acquisition", pitch=0.15, scanning_length_mm=300.0
+    )
+    assert exclusion_reason(slow_feed, resolved=resolved) == ("", ""), (
+        "a low pitch over a real scanning length is a slow feed, not a dwell"
+    )
+
+    # And the pair is still refused, naming both halves of the reason.
+    dwell = _event(
+        acquisition_type="Sequenced Acquisition", pitch=0.15, scanning_length_mm=0.0
+    )
+    reason, _ = exclusion_reason(dwell, resolved=resolved)
+    assert "degenerate geometry" in reason
+    assert "pitch" in reason and "scanning length" in reason
+
+
+def test_an_event_with_no_tabulated_cell_is_excluded_rather_than_crashing() -> None:
+    """The envelope can be empty, and an empty envelope must not reach the headline.
+
+    Every cell of the assumption grid is required to be an exactly tabulated row, so an
+    event at an untabulated tube potential leaves none. Until 2026-11-08 that produced an
+    envelope with no span, which _headline then read, and the whole run died with a
+    KeyError -- the opposite of this script's claim that every exclusion is counted with
+    a reason. A reviewer found the path. The event must now be refused through
+    CoefficientNotAvailable, which the file loop already counts.
+    """
+    pytest.importorskip("pydicom")
+    from ctdose_core.ctdi_table import CoefficientNotAvailable
+
+    from tools.evaluate_ge_rdsr import evaluate_event  # noqa: PLC0415
+
+    # 60 kVp is below every tabulated potential for this model, so the lookup refuses.
+    acq = _event(acquisition_type="Spiral Acquisition", kvp=60.0)
+    with pytest.raises(CoefficientNotAvailable):
+        evaluate_event(
+            file_name="synthetic.dcm",
+            vendor="GE",
+            model="LightSpeed VCT",
+            manufacturer_raw="GE MEDICAL SYSTEMS",
+            model_raw="LightSpeed VCT",
+            index=0,
+            acq=acq,
+        )
 
 
 def test_incomplete_technique_is_named_field_by_field() -> None:
@@ -108,18 +234,31 @@ def test_a_complete_helical_event_is_admitted_and_each_rule_fires_in_order() -> 
     assert unresolved[0] == "scanner not in the open coefficient database"
     assert unresolved[1] == "not in the database"
 
-    cine = exclusion_reason(
+    stationary = exclusion_reason(
         _event(acquisition_type="Stationary Acquisition"), resolved=resolved
     )
-    assert "accumulates over the dwell" in cine[0]
+    assert "the table does not move" in stationary[0]
+    assert "accumulates over the dwell" in stationary[0]
 
     unknown_type = exclusion_reason(
         _event(acquisition_type="Some Future Acquisition"), resolved=resolved
     )
-    assert unknown_type[0] == "acquisition type is not a helical scan"
+    assert unknown_type[0] == "acquisition type is not one the formula models"
 
     incomplete = exclusion_reason(_event(pitch=None), resolved=resolved)
     assert incomplete == ("incomplete technique", "missing: pitch")
+
+    # Each exclusion names a distinct reason, so the tally in the paper cannot merge
+    # three different situations under one heading as it did until 2026-11-08.
+    reasons = {
+        exclusion_reason(event, resolved=resolved)[0]
+        for event in (
+            _event(acquisition_type="Stationary Acquisition"),
+            _event(acquisition_type="Sequenced Acquisition", pitch=0.1),
+            _event(acquisition_type="Some Future Acquisition"),
+        )
+    }
+    assert len(reasons) == 3, f"three situations collapsed into {reasons}"
 
 
 def test_lightspeed_rt16_does_not_resolve_to_lightspeed_16() -> None:
@@ -200,25 +339,44 @@ def test_the_implied_coefficient_inverts_the_formula() -> None:
     )
 
 
-def test_beam_width_check_computes_the_scan_duration() -> None:
-    """Rotations and duration, against values computed by hand.
+def test_the_recorded_collimation_is_checked_against_a_measured_duration() -> None:
+    """The exposure time the scanner recorded, not a ratio that restates the input.
 
-    468.1 mm at a 2.5 mm beam and pitch 0.97 is 468.1 / 2.425 = 193.0 rotations, and at
-    0.5 s each that is 96.5 s of continuous rotation for one body pass -- the figure that
-    shows the recorded field is not a total beam width. The same pass at 40 mm is 6.0 s.
+    The previous version of this check compared the duration implied by the recorded
+    collimation with the duration implied by 40 mm, and asserted the ratio exceeded ten.
+    Two reviewers pointed out that the ratio is algebraically 40 divided by the recorded
+    collimation: it holds for any recorded width below 4 mm and measures nothing.
+
+    DCM 113824 is the event's total exposure time, recorded by the scanner and
+    independent of the width it claims, so the width the exposure actually used is
+    L * t_rot / (duration * pitch) -- four recorded numbers and no assumption.
+
+    VCT event 5: 468.12 mm, 0.5 s per rotation, pitch 0.97, 12.67 s total. That is
+    468.12 * 0.5 / (12.67 * 0.97) = 19.0 mm, against the 2.5 mm the report claims.
     """
-    out = beam_width_consistency(_event())
-    at = out["at_collimation_mm"]
-    assert at["2.5"]["rotations"] == pytest.approx(468.1 / (2.5 * 0.97))
-    assert at["2.5"]["scan_duration_s"] == pytest.approx(96.51, abs=0.05)
-    assert at["2.5"]["is_the_recorded_value"] is True
-    assert at["40"]["scan_duration_s"] == pytest.approx(6.03, abs=0.05)
-    assert at["40"]["is_the_recorded_value"] is False
-    # The implausible duration is the evidence, so it must be an order of magnitude out.
-    assert at["2.5"]["scan_duration_s"] / at["40"]["scan_duration_s"] > 10
+    out = beam_width_consistency(_event(exposure_time_total_s=12.67))
+    assert out["measured"] is True
+    assert out["implied_collimation_mm"] == pytest.approx(
+        468.1 * 0.5 / (12.67 * 0.97), rel=1e-9
+    )
+    assert out["implied_collimation_mm"] == pytest.approx(19.0, abs=0.1)
+    assert out["corroborated"] is False, "2.5 mm is not within 10 % of 19 mm"
 
-    # An event with no recorded length cannot support the check and must say so.
-    assert beam_width_consistency(_event(scanning_length_mm=0.0))["at_collimation_mm"] == {}
+    # A width the clock agrees with is corroborated, and the arithmetic says so rather
+    # than a tolerance chosen to make one case pass.
+    agreeing = beam_width_consistency(
+        _event(total_collimation_mm=40.0, scanning_length_mm=397.5, pitch=1.0,
+               exposure_time_per_rotation_s=0.7, exposure_time_total_s=7.0)
+    )
+    assert agreeing["implied_collimation_mm"] == pytest.approx(39.75, abs=0.01)
+    assert agreeing["corroborated"] is True
+
+    # Without the exposure time there is no measurement, and the result must say so
+    # rather than fall back on the ratio that measured nothing.
+    silent = beam_width_consistency(_event(exposure_time_total_s=None))
+    assert silent["measured"] is False
+    assert "implied_collimation_mm" not in silent
+    assert "cannot be checked" in silent["note"]
 
 
 def test_the_prediction_ignores_the_fields_an_rdsr_does_not_record() -> None:
@@ -251,7 +409,7 @@ def test_the_run_admits_only_helical_ge_events_with_a_reference() -> None:
     assert summary["n_evaluated"] + summary["n_excluded"] == summary["n_events_seen"]
 
     for case in payload["cases"]:
-        assert _slug(case["acquisition_type"]) in HELICAL_TYPES
+        assert _slug(case["acquisition_type"]) in MOVING_TABLE_TYPES
         assert case["table_vendor"] == "GE"
         assert case["recorded_ctdivol_mgy"] > 0
         assert case["phantom_cm"] in (16, 32)

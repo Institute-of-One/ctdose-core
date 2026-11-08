@@ -251,7 +251,12 @@ def test_ge_arm_only_compared_helical_ge_events():
     """Every row satisfies the eligibility rules the provenance block states."""
     payload = _load("ge_rdsr_accuracy.json")
     for case in payload["cases"]:
-        assert case["acquisition_type"].lower() == "spiral acquisition"
+        assert case["acquisition_type"].lower() in (
+            "spiral acquisition", "sequenced acquisition",
+        ), (
+            f"{case['acquisition_type']!r} is not a type the formula models; a "
+            f"sequenced acquisition qualifies because the table moves between rotations"
+        )
         assert case["table_vendor"] == "GE"
         assert case["recorded_ctdivol_mgy"] > 0
         assert case["phantom_cm"] in (16, 32)
@@ -281,8 +286,9 @@ def test_ge_arm_readme_counts_come_from_the_results_file():
     """The README's prose about this arm must be resolved from the numbers, not recalled.
 
     "Of 35 GE irradiation events, 15 record a CTDIvol and 4 enter the comparison" is the
-    kind of sentence that stays in a README for two revisions after the run changed. Each
-    figure it states is checked against the file here, so the prose cannot drift.
+    kind of sentence that stays in a README after the run changed, and it did: the
+    comparison became five when a sequenced acquisition stopped being excluded for a
+    reason that did not describe it.
     """
     payload = _load("ge_rdsr_accuracy.json")
     summary = payload["summary"]
@@ -299,23 +305,26 @@ def test_ge_arm_readme_counts_come_from_the_results_file():
         1 for e in payload["excluded"]
         if e["reason"] == "scanner not in the open coefficient database"
     )
-    assert "Two more are refused" in text and refused == 2
+    assert "Two are refused" in text and refused == 2
 
-    # The scan-duration figures the README quotes, rounded as it quotes them.
-    worst = max(
-        payload["cases"],
-        key=lambda c: c["beam_width_consistency"]["at_collimation_mm"][
-            f"{c['recorded_collimation_mm']:g}"
-        ]["scan_duration_s"],
+    # The implied widths the README quotes, as a range, from the cases themselves.
+    refuted = [
+        c["beam_width_consistency"] for c in payload["cases"]
+        if c["beam_width_consistency"].get("measured")
+        and not c["beam_width_consistency"]["corroborated"]
+    ]
+    corroborated = [
+        c["beam_width_consistency"] for c in payload["cases"]
+        if c["beam_width_consistency"].get("corroborated")
+    ]
+    assert refuted and corroborated, "the README describes both groups"
+    low = min(b["implied_collimation_mm"] for b in refuted)
+    high = max(b["implied_collimation_mm"] for b in refuted)
+    assert f"{low:.1f} to {high:.1f} mm" in text, (
+        f"the README's implied-width range is stale; it is {low:.1f} to {high:.1f} mm"
     )
-    at = worst["beam_width_consistency"]["at_collimation_mm"]
-    recorded_key = f"{worst['recorded_collimation_mm']:g}"
-    assert (
-        f"{worst['beam_width_consistency']['scanning_length_mm']:.0f} mm helical pass"
-        in text
-    )
-    assert f"{at[recorded_key]['scan_duration_s']:.0f} s of continuous rotation" in text
-    assert f"at 40 mm it needs {at['40']['scan_duration_s']:.0f} s" in text
+    assert f"{corroborated[0]['implied_collimation_mm']:.1f} mm" in text
+    assert f"{corroborated[0]['recorded_collimation_mm']:.1f} mm" in text
 
 
 def test_ge_arm_proved_the_formula_ignores_the_fields_it_invented():
@@ -328,21 +337,136 @@ def test_ge_arm_proved_the_formula_ignores_the_fields_it_invented():
     )
 
 
-def test_ge_arm_collimation_sensitivity_is_marked_as_sensitivity():
-    """The headline must be the recorded collimation, not the best-agreeing row.
+def test_ge_arm_reports_a_range_rather_than_one_choice():
+    """Two inputs are not determined by the report, so one number would be a choice.
 
-    The recorded 2.5-5 mm beams snap to the narrowest row tabulated for these two
-    models, 10 mm (it is 5 mm for Revolution CT ES), and the
-    20 mm row would agree far better. Picking it would fit one free parameter to four
-    observations, so the alternatives are reported and labelled.
+    The bowtie filter is never recorded in DICOM. For the Optima 660 at the 32 cm
+    phantom the conventional 'medium' is not tabulated either, and the tie between
+    'small' and 'large' was broken by tuple order -- which picked the head filter for a
+    body phantom and decided the headline. Under the body filter two of the events leave
+    the 20 % band the single number claimed for all of them.
+
+    The collimation is recorded, but for four of five events the scanner's own exposure
+    time refutes it, so the width is an assumption as well. The result is therefore a
+    range over both, split by whether the geometry is corroborated.
     """
-    summary = _load("ge_rdsr_accuracy.json")["summary"]
-    sensitivity = summary["collimation_sensitivity"]
-    assert "sensitivity only" in sensitivity["note"]
-    assert "fit a free parameter" in sensitivity["note"]
-    assert summary["overall"]["n"] == sum(
-        1 for _ in _load("ge_rdsr_accuracy.json")["cases"]
-    )
+    payload = _load("ge_rdsr_accuracy.json")
+    summary = payload["summary"]
+    headline = summary["headline"]
+
+    assert headline["n_corroborated"] + headline["n_refuted"] == summary["n_evaluated"]
+    for key in (
+        "geometry_corroborated_by_exposure_time",
+        "geometry_refuted_by_exposure_time",
+    ):
+        band = headline[key]
+        if band.get("n"):
+            assert band["worst_case_percent_error_min"] <= band[
+                "worst_case_percent_error_max"
+            ]
+            # A group's label is the labels of its events. Both Optima events are
+            # refuted at their recorded width and yet admit only the 40 mm row, so the
+            # refuted group carries both labels; that is the point of the one rule, not
+            # a defect, so the check is on the parts rather than on the whole string.
+            parts = [p.strip() for p in band["assumed"].split(";")]
+            assert parts, "a band with events must say what it assumed"
+            for part in parts:
+                assert part in ("bowtie only", "bowtie and collimation"), (
+                    f"{key} assumed {part!r}"
+                )
+
+            # The wider span, for a reader who disbelieves the exposure time, must be
+            # present and must really be wider -- otherwise the narrowing the measured
+            # time buys is asserted rather than shown.
+            wide = band["over_every_tabulated_collimation_and_filter"]
+            assert wide["worst_case_percent_error_min"] <= band[
+                "worst_case_percent_error_min"
+            ] + 1e-9
+            assert wide["worst_case_percent_error_max"] >= band[
+                "worst_case_percent_error_max"
+            ] - 1e-9
+
+    # The measurement is applied against every candidate width or against none, and with
+    # no tolerance in the rule. Two reviewers found, on 2026-11-08, that the exposure
+    # time was first used only against the recorded width -- the band still spanned the
+    # 10 mm row the same measurement refutes two to three and a half times over -- and
+    # then that the repair rested on reading DCM 113825 as the planned range. Table D-1
+    # defines it as the table travel over the entire tube loading, so the measured width
+    # is an estimate rather than a floor, and the admitted rows are the two tabulated
+    # rows bracketing it.
+    for case in payload["cases"]:
+        check = case["beam_width_consistency"]
+        band = case["reported_band"]
+        if not check.get("measured") or not band.get("n"):
+            continue
+        implied = check["implied_collimation_mm"]
+        recorded = check["recorded_collimation_mm"]
+        widths = band["widths_mm"]
+        # The measurement refutes the recorded width or it does not. Where it does, the
+        # width is undetermined and every tabulated row stands; where it does not, the
+        # recorded width stands and only the filter varies. Nothing in between: the arm
+        # spent four versions selecting a row from the measurement, and every rule rested
+        # on a chosen number, the last of them a declared input precision dominated by a
+        # rotation time that GE records as a discrete console setting. Two independent
+        # reviewers refused it on 2026-11-08.
+        tabulated = sorted({c["collimation_mm"] for c in case["assumption_envelope"]["grid"]})
+        relative = abs(recorded - implied) / implied
+        if band["recorded_collimation_is_admitted"]:
+            assert len(widths) == 1, (
+                f"{case['file']} #{case['event_index']}: a standing recorded width "
+                f"leaves one row, got {widths}"
+            )
+            assert relative <= band["refutation_margin_used"], (
+                f"{case['file']} #{case['event_index']}: the recorded width stands at "
+                f"{100 * relative:.0f} % from the measured one"
+            )
+        else:
+            assert widths == tabulated, (
+                f"{case['file']} #{case['event_index']}: the measured width refutes the "
+                f"recorded one, so the collimation is undetermined and every tabulated "
+                f"row must stand; got {widths} of {tabulated}"
+            )
+            assert band["percent_error_min"] == pytest.approx(
+                case["assumption_envelope"]["percent_error_min"]
+            )
+            assert band["percent_error_max"] == pytest.approx(
+                case["assumption_envelope"]["percent_error_max"]
+            )
+        # And nothing may publish how precisely the measured width is known, or claim it
+        # selects or bounds a tabulated row.
+        for withdrawn in (
+            "span_is_a_bound_on_the_untabulated_width",
+            "coefficient_is_monotone_across_the_bracket",
+            "measured_width_relative_uncertainty",
+            "widths_outside_the_bracket_mm",
+        ):
+            assert withdrawn not in band, (
+                f"{case['file']} #{case['event_index']}: {withdrawn} is back"
+            )
+        for withdrawn in (
+            "implied_collimation_relative_uncertainty",
+            "implied_collimation_half_width_mm",
+        ):
+            assert withdrawn not in check, (
+                f"{case['file']} #{case['event_index']}: {withdrawn} is back; any such "
+                f"figure is an assumption, and it is what selected a table row before"
+            )
+        assert "BOUNDS" not in band["because"]
+
+    # Every case carries the whole grid, so the range can be re-derived rather than
+    # taken on trust.
+    for case in payload["cases"]:
+        envelope = case["assumption_envelope"]
+        if not envelope.get("grid"):
+            continue
+        errors = [cell["percent_error"] for cell in envelope["grid"]]
+        assert envelope["percent_error_min"] == pytest.approx(min(errors))
+        assert envelope["percent_error_max"] == pytest.approx(max(errors))
+        assert envelope["n_combinations"] == len(errors)
+
+    # The point estimate survives, demoted and labelled, so the change is auditable.
+    assert "point_estimate_under_the_default_assumptions" in summary
+    assert "not a single number" in headline["what_it_means"]
     # Every case used the collimation the report recorded, not a chosen one. Where the
     # table had no such row, the substitution must be written on the case, naming both
     # the recorded width and the row actually used.
