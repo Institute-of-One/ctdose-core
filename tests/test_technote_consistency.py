@@ -112,6 +112,24 @@ def _signed(value: float, digits: int = 1) -> str:
     return f"{'−' if value < 0 else '+'}{abs(value):.{digits}f}%"
 
 
+#: Small numbers read better spelled out in a letter, so a gate that demands the numeral
+#: forces prose to be worse to satisfy it. Accept either form.
+_SPELLED = {
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
+    8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen",
+    14: "fourteen", 15: "fifteen", 16: "sixteen", 17: "seventeen", 18: "eighteen",
+    19: "nineteen", 20: "twenty",
+}
+
+
+def _states(body: str, value: int) -> bool:
+    """Whether the text gives this count, as a numeral or spelled out."""
+    if re.search(rf"\b{value}\b", body):
+        return True
+    word = _SPELLED.get(value)
+    return bool(word and re.search(rf"\b{word}\b", body, flags=re.IGNORECASE))
+
+
 # --- the constraints the reformat exists to satisfy ------------------------------------
 
 
@@ -182,10 +200,22 @@ def test_the_references_are_numbered_contiguously_and_all_cited(text):
     )
 
 
-def test_the_structured_abstract_headings_survived_the_condensation(text):
+def test_the_structured_abstract_uses_the_headings_the_journal_specifies(text):
+    """"Background, Purpose, Methods, Results, and Conclusions", per the guidelines.
+
+    The last was "Conclusion" here for two submissions. The journal's own Author
+    Guidelines give the Technical Note abstract as "Background, Purpose, Methods,
+    Results, and Conclusions", so the manuscript was right to change and this test was
+    wrong to require the singular: where a test and the journal disagree, the journal is
+    correct.
+    """
     abstract = text[text.index("## Abstract"):text.index("\n---\n", text.index("## Abstract"))]
     headings = re.findall(r"\*\*(\w+):\*\*", abstract)
-    assert headings == ["Background", "Purpose", "Methods", "Results", "Conclusion"]
+    assert headings == ["Background", "Purpose", "Methods", "Results", "Conclusions"]
+    # Max 500 words, from the same row of the same table as the other limits.
+    assert len(abstract.split()) <= 500, (
+        f"the structured abstract is {len(abstract.split())} words; the limit is 500"
+    )
 
 
 # --- the organ layer was withdrawn, not relocated ---------------------------------------
@@ -284,7 +314,7 @@ def test_layer1_numbers_are_quoted_correctly(text, layer1):
     )
     assert_quoted(
         text,
-        f"declares in {counts['files_matching']} of {counts['files_declaring_a_count']}",
+        f"declared in {counts['files_matching']} of {counts['files_declaring_a_count']}",
         "event count check",
     )
 
@@ -372,7 +402,9 @@ def test_accuracy_numbers_are_quoted_correctly(text, survey):
     assert ge["with_ctdivol_tag"] == 0
     assert_quoted(text, f"({100 * ge['ctdivol_absence_rate']:.1f}% absence)",
                   "the reason GE contributes nothing")
-    assert "unvalidated on GE" in text, "the GE caveat must survive into the Limitations"
+    # The accuracy arm drawn from the archive still has no GE case, and the manuscript
+    # must point the reader at where GE is addressed instead of leaving the zero bare.
+    assert_quoted(text, "§3.4 addresses GE separately", "the pointer to the GE arm")
 
     assert_quoted(text, f"median relative error was {_signed(fb['overall']['median'])}",
                   "pooled median")
@@ -384,6 +416,265 @@ def test_accuracy_numbers_are_quoted_correctly(text, survey):
     assert_quoted(text, f"median relative error {_signed(h['median'])}", "headline median")
     assert_quoted(text, f"mean absolute error {h['mean_absolute']:.1f}%", "headline MAE")
     assert_quoted(text, f"{100 * h['within_20_percent']:.1f}% of cases within ±20%", "within 20")
+
+
+def test_the_ge_arm_numbers_are_quoted_correctly(text):
+    """§3.4 and Table 2 against results/ge_rdsr_accuracy.json, value by value.
+
+    The Section Editor asked for phantom scanning or a database carrying RDSR for GE.
+    This is the answer, so every figure in it is resolved from the result file rather
+    than from the sentence that was easiest to write.
+    """
+    path = RESULTS / "ge_rdsr_accuracy.json"
+    if not path.exists():
+        pytest.skip("the GE arm has not been run; see tools/evaluate_ge_rdsr.py")
+    payload = _load(path)
+    summary, cases = payload["summary"], payload["cases"]
+
+    assert_quoted(text, f"hold {summary['n_events_seen']} irradiation events", "GE events")
+    assert_quoted(
+        text, f"{summary['n_events_with_ctdivol']} of which record a CTDIvol", "with CTDIvol"
+    )
+    reasons = summary["exclusions_by_reason"]
+    no_feed = next(n for r, n in reasons.items() if "no table feed" in r)
+    refused = reasons["scanner not in the open coefficient database"]
+    assert_quoted(text, f"{no_feed} of those 15 were excluded", "no-table-feed exclusions")
+    assert_quoted(text, f"and {refused} because their scanner", "model refusals")
+    assert_quoted(text, f"{summary['n_evaluated']} events from 2 scanner models", "evaluated")
+
+    errors = [c["percent_error"] for c in cases]
+    assert_quoted(text, f"median of {_signed(summary['overall']['median'])}", "GE median")
+    assert_quoted(
+        text,
+        f"range of {_signed(min(errors))} to {_signed(max(errors))}",
+        "GE error range",
+    )
+    assert summary["overall"]["within_20_percent"] == 1.0
+    assert_quoted(text, "within 20% of the value the scanner recorded", "within 20")
+
+    implied = summary["implied_coefficient_mgy_per_100mas"]
+    assert_quoted(
+        text,
+        f"{implied['min']:.2f} to {implied['max']:.2f} mGy per 100 mAs",
+        "implied coefficient band",
+    )
+
+    # Table 2: every row's four numbers must be the computed ones.
+    for case in cases:
+        row = (
+            f"| {case['mas_per_rotation']:.1f} | {case['pitch']:.2f} | "
+            f"{case['recorded_ctdivol_mgy']:.2f} | "
+            f"{case['estimated_ctdivol_mgy']:.2f} | "
+            f"**{_signed(case['percent_error'])}**"
+        )
+        assert row in text, f"Table 2 is missing or misquotes the row {row!r}"
+
+    # The sensitivity must be named as one, not adopted.
+    sensitivity = summary["collimation_sensitivity"]["by_collimation_mm"]["20mm"]
+    assert_quoted(
+        text, f"median error of {_signed(sensitivity['median'])}", "20 mm sensitivity"
+    )
+    assert "not adopted" in text, (
+        "the better-agreeing collimation row must be reported as a sensitivity and "
+        "explicitly not adopted"
+    )
+
+
+def test_the_manuscript_separates_the_dose_model_from_the_recovery_path(text):
+    """The GE arm validates the dose model, not recovery from a de-identified header.
+
+    Those are different claims, and the result file says so in its provenance. If the
+    manuscript merges them it claims GE validation it does not have, which is the exact
+    gap the reviewers raised. The denial has to be in the body and in the Limitations.
+    """
+    assert "does **not** test recovery from a de-identified header" in text, (
+        "§2.7 must state which claim the GE arm does not support"
+    )
+    assert "not independent patients" in text, (
+        "the GE events come several to a study and the text must say so"
+    )
+    limitations = text[text.index("**Limitations.**"):]
+    assert "validating the dose model and not recovery from a de-identified header" in (
+        limitations
+    ), "the Limitations must repeat the separation, not only the Methods"
+    assert "remains unvalidated against a header-derived reference" in limitations, (
+        "the GE conditional rate in Table 1 still has no header-derived reference"
+    )
+
+
+def test_the_two_sided_error_claim_replaced_the_conservative_underestimate(text):
+    """Reviewer 1: Figure 3A shows over-estimates, so "underestimate" was not supported.
+
+    The claim was in two places, the Methods and the Limitations, and both had to go.
+    What replaces it is a count, taken from the result file.
+    """
+    assert "conservative underestimate" not in text, (
+        "the withdrawn claim is still in the manuscript"
+    )
+    fb = _load(RESULTS / "open_fallback.json")
+    cases = fb["cases"]
+    over = [c for c in cases if c["percent_error"] > 0]
+    under = [c for c in cases if c["percent_error"] < 0]
+    assert_quoted(
+        text,
+        f"over-estimated the recorded CTDIvol in {len(over)} of the {len(cases)} cases "
+        f"and under-estimated it in {len(under)}",
+        "the two-sided count",
+    )
+    worst = max(cases, key=lambda c: c["percent_error"])
+    assert_quoted(
+        text,
+        f"reconstructed {worst['estimated_ctdivol_mgy']:.2f} mGy where the scanner "
+        f"recorded {worst['recorded_ctdivol_mgy']:.2f} mGy",
+        "the largest over-estimate",
+    )
+    # And nothing may describe a reconstructed value as a bound.
+    for claim in ("is a lower bound", "are underestimates of unquantified size"):
+        assert claim not in text, f"{claim!r} contradicts the two-sided result"
+
+
+def test_the_k_factor_is_attributed_to_aapm_96_not_icrp_103(text):
+    """Reviewer 1, line 65: "k-factors are not described in ICRP 103."
+
+    They are AAPM Report 96 Table 3, on ICRP 60 weighting. The manuscript has to name
+    the right document and say which weighting the reported effective doses carry,
+    because ICRP 103 revised several of the factors.
+    """
+    assert "AAPM Report 96, Table 3" in text, "the k-factor needs its real source"
+    assert "ICRP Publication 60 tissue weighting" in text, (
+        "the manuscript must say which weighting generation the coefficients rest on"
+    )
+    assert "not an ICRP 103 quantity" in text
+    assert re.search(r"AAPM Report No\. 96\b.*2008", text), (
+        "Report 96 must be in the reference list"
+    )
+    assert "Deak" in text, "the ICRP 103 alternative coefficients must be cited"
+    # The old wording must not survive anywhere.
+    assert "conversion factor of ICRP Publication 103" not in text
+
+
+def test_the_bowtie_limitation_is_quantified(text):
+    """Reviewer 1, line 74: bowtie varies by patient and study, and affects nCTDIw.
+
+    A limitation that says it could matter is weaker than one that says how much, and
+    the table measures several filters for the same technique, so the figure is
+    available rather than assumed.
+    """
+    limitations = text[text.index("**Limitations.**"):]
+    for phrase in ("pediatric", "cardiac", "differently sized bodies"):
+        assert phrase in limitations, f"the bowtie limitation does not mention {phrase}"
+    assert "605 comparisons" in limitations and "median of 12.2%" in limitations, (
+        "the bowtie sensitivity must be quantified from the coefficient table"
+    )
+
+
+def test_the_reviewers_undefined_terms_are_defined(text):
+    """Reviewer 1's minor comments, each a term used without a definition.
+
+    Keyed to the lines of the reviewed manuscript. The point is not that a particular
+    word was removed but that the manuscript now says what it means.
+    """
+    # L51: the four provenance labels, defined explicitly.
+    for label in ("**recorded**", "**reconstructed**", "**derived**", "**unrecoverable**"):
+        assert label in text, f"{label} is used as a provenance level but never defined"
+    # L53: what keeping the lower-ranked candidates means.
+    assert "The lower-ranked candidates are not discarded" in text
+    assert "losers" not in text, "the metaphor the reviewer asked about is still there"
+    # L70: row selection, said to be from the coefficient table.
+    assert "Selecting a row from the coefficient table of Dinwiddie" in text
+    # L104: what makes a series recoverable.
+    assert "A series is counted as **dose-recoverable** if" in text
+    # L43: "good" meaning accurate.
+    assert "only as accurate as its metadata" in text
+    # L85 "here", L86 jargon.
+    assert "no stale or hand-edited figure passes continuous integration" not in text, (
+        "the undefined jargon is still there"
+    )
+    assert "Every number reported in this note" in text
+    # L118, L142.
+    assert "present in nearly every series" in text
+    assert "Availability of a recorded CTDIvol was strongly associated" in text
+
+
+def test_the_manuscript_is_written_in_the_first_person_singular(text):
+    """One author, so one voice.
+
+    The authorial "we" spreads one person's choices, judgements and labelling over a
+    team that does not exist, and the reviewers' objections are precisely to those
+    choices. Quoted reviewer text is not covered by this; the manuscript is.
+    """
+    stray = re.findall(r"\b(we|our|us)\b", text, flags=re.IGNORECASE)
+    assert not stray, f"authorial plural in a single-author manuscript: {stray}"
+    assert "to my knowledge" in text
+
+
+#: British spellings and their US forms. A named list, not a pattern over "-ised":
+#: "revised", "advised", "supervised" and "comprised" are US English too, and a greedy
+#: rule flags them. A gate that cries wolf is a gate someone switches off.
+#: The -ise/-isation stems that occur in this field, checked with their inflections.
+#: Doing it by stem rather than by whole word is what catches the inflection nobody
+#: thought of: the first pass of this gate listed "modelling" and missed "modelled",
+#: and listed "analyse" and missed "analysing". Both were in the supplement.
+BRITISH_STEMS = (
+    "optimis", "normalis", "anonymis", "emphasis", "summaris", "conceptualis",
+    "visualis", "organis", "recognis", "characteris", "standardis", "minimis",
+    "maximis", "utilis", "prioritis", "parameteris", "digitis", "realis",
+    "generalis", "specialis", "discretis", "quantis", "analys", "catalys", "paralys",
+)
+#: Inflections to try after each stem. The bare stem is not a word, so it is excluded.
+BRITISH_ENDINGS = ("e", "ed", "es", "ing", "ation", "ations", "er", "ers")
+
+#: Pairs that are not an -ise/-ize matter.
+US_SPELLING = {
+    "licence": "license",
+    "defence": "defense",
+    "offence": "offense",
+    "centre": "center",
+    "metre": "meter",
+    "litre": "liter",
+    "fibre": "fiber",
+    "paediatric": "pediatric",
+    "foetal": "fetal",
+    "oedema": "edema",
+    "anaemia": "anemia",
+    "colour": "color",
+    "behaviour": "behavior",
+    "favour": "favor",
+    "modelling": "modeling",
+    "modelled": "modeled",
+    "labelling": "labeling",
+    "labelled": "labeled",
+    "signalled": "signaled",
+    "judgement": "judgment",
+    "acknowledgement": "acknowledgment",
+    "ageing": "aging",
+    "whilst": "while",
+    "amongst": "among",
+    "learnt": "learned",
+}
+
+
+def test_the_manuscript_uses_us_spelling(text, supplement):
+    """Reviewer 3 asked for one instance; the journal is American throughout.
+
+    Checked in the supplement too, which is uploaded alongside and had its own copy of
+    the word the reviewer named.
+    """
+    for name, document in (("manuscript", text), ("supplement", supplement)):
+        found = {
+            british: american
+            for british, american in US_SPELLING.items()
+            if re.search(rf"\b{british}\b", document, flags=re.IGNORECASE)
+        }
+        for stem in BRITISH_STEMS:
+            pattern = rf"\b{stem}(?:{'|'.join(BRITISH_ENDINGS)})\b"
+            for match in re.finditer(pattern, document, flags=re.IGNORECASE):
+                word = match.group(0)
+                found[word] = word.lower().replace("is", "iz", 1)
+        assert not found, (
+            f"British spellings in the {name}: "
+            + ", ".join(f"{b} -> {a}" for b, a in sorted(found.items()))
+        )
 
 
 def test_the_uncertainty_on_the_headline_claim_is_quoted_correctly(text):
@@ -506,21 +797,81 @@ def test_the_full_manuscript_was_preserved_unchanged():
     assert "**Article type:** Research Article" in FULL.read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize(
-    "letter", ["response_to_editor_jacmp_r1.md", "cover_letter_jacmp_r1.md"]
-)
+#: The round being submitted. The letters of earlier rounds stay in paper/ as the record
+#: of what was told to the editor then, and are NOT checked against the current
+#: manuscript: the r1 letters correctly describe the r1 manuscript, and holding them
+#: against this one would force the history to be rewritten. What must be true is that
+#: the letters for the round being submitted describe the manuscript being submitted.
+CURRENT_ROUND = "r2"
+CURRENT_LETTERS = [
+    f"response_to_editor_jacmp_{CURRENT_ROUND}.md",
+    f"cover_letter_jacmp_{CURRENT_ROUND}.md",
+]
+
+
+@pytest.mark.parametrize("letter", CURRENT_LETTERS)
 def test_the_revision_letters_quote_the_real_counts(text, letter):
-    """A letter telling the editor the manuscript is N words must mean this manuscript."""
+    """A letter telling the editor the manuscript is N words must mean this manuscript.
+
+    The runbook's rule is that a revision's letter is left over from the previous
+    submission more often than not, so the counts it quotes are the ones to check.
+    """
     path = PAPER / letter
-    if not path.exists():
-        pytest.skip(f"{letter} not written")
+    assert path.exists(), (
+        f"{letter} has not been written; the letters for round {CURRENT_ROUND} are part "
+        f"of the submission"
+    )
     body = path.read_text(encoding="utf-8")
 
     words = len(text.split())
     assert str(words) in body, f"{letter} does not quote the Technical Note's {words} words"
-    assert str(len(FULL.read_text(encoding='utf-8').split())) in body, (
-        f"{letter}'s figure for the previous version is stale"
-    )
+
+
+@pytest.mark.parametrize("letter", CURRENT_LETTERS)
+def test_the_current_letters_quote_the_limits_from_the_guidelines(text, letter):
+    """The limits a letter asserts must be the journal's, and the counts must be real.
+
+    This revision exists partly because the previous one was written to the wrong limit
+    and the letter asserted that wrong limit back to the editor. So the letter's figures
+    for the limits are resolved from the same constants the manuscript is checked
+    against, and its figures for the manuscript from the manuscript.
+    """
+    body = (PAPER / letter).read_text(encoding="utf-8")
+    figures = len(set(re.findall(r"\*\*Figure (\d)\.\*\*", text)))
+    tables = len(set(re.findall(r"\*\*Table (\d)\.\*\*", text)))
+    refs = len(re.findall(r"^(\d+)\. ", text, flags=re.MULTILINE))
+
+    assert str(WORD_LIMIT) in body, f"{letter} does not state the {WORD_LIMIT}-word limit"
+    for value, what in (
+        (len(text.split()), "the manuscript's word count"),
+        (figures, "the figure count"),
+        (tables, "the table count"),
+        (refs, "the reference count"),
+        (REFERENCE_LIMIT, "the reference limit"),
+        (FIGURE_AND_TABLE_LIMIT, "the display-item limit"),
+    ):
+        assert _states(body, value), f"{letter} does not quote {what} ({value})"
+
+
+def test_the_previous_rounds_letters_are_kept_as_the_record(text):
+    """The r1 letters must still exist, and must not have been edited to match this one.
+
+    They are what was told to the editor in July. Updating them to agree with the
+    current manuscript would destroy the record of the round they belong to -- and
+    "2972 words" appearing in an r1 letter is correct, not stale.
+    """
+    for name in ("response_to_editor_jacmp_r1.md", "cover_letter_jacmp_r1.md"):
+        path = PAPER / name
+        assert path.exists(), f"{name} is the record of revision 1 and must be kept"
+        body = path.read_text(encoding="utf-8")
+        assert "2972 words" in body, (
+            f"{name} no longer quotes the word count of the manuscript it accompanied; "
+            f"it appears to have been edited to match a later revision"
+        )
+        assert str(len(text.split())) not in body, (
+            f"{name} quotes this revision's word count, so it has been edited; the "
+            f"letters of a past round are history and are not updated"
+        )
 
 
 @pytest.mark.parametrize(
