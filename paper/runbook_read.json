@@ -1,12 +1,12 @@
 {
   "_why": "The submission runbook was read before this manuscript was worked on. tests/test_runbook_was_read.py fails while the runbook on disk has a different sha256 from the one recorded here, which covers both never having read it and its having changed since. The runbook is not public and none of its content is stored here.",
   "runbook": "IoO_Submission_Runbook.md",
-  "sha256": "64a65832b63253ffe2bf091af344deba602bb75caea41bb44176fb11ba31b62d",
+  "sha256": "0838a766802ea52a948fec7c10836385480ae4654bb05d9fbdd146c5b180189d",
   "sections": [
     "2",
     "11"
   ],
   "read_on": "2026-11-08",
-  "by": "Claude Opus 5, for the JACMP revision 2 (2026-10019A)",
-  "note": "Re-read after runbook section 5.3.0 was added from the IORN-007 portal-field defect."
+  "by": "Claude Opus 5",
+  "note": "re-read after adding section 5.15, the validation arm resting on a chosen constant, which this session's cross-review produced"
 }
