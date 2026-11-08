@@ -92,12 +92,12 @@ REPLACEMENTS: tuple[tuple[str, str], ...] = (
         "https://github.com/Institute-of-One/ctdose-core under the MIT License. The version "
         "used in this study (version 0.1.1) is archived at Zenodo "
         "(https://doi.org/10.5281/zenodo.21636719). All numerical results reported here, "
-        "including the rows they summarise, ship under `results/` with the scripts that "
+        "including the rows they summarize, ship under `results/` with the scripts that "
         "generate them and the figure code.",
         "**Data and code availability.** The software and all numerical results are "
         "available in a public repository under the MIT License; the repository URL and the "
         "archived-version DOI are withheld here for double-masked review and are provided "
-        "on the title page. The results reported here, including the rows they summarise, "
+        "on the title page. The results reported here, including the rows they summarize, "
         "ship under `results/` with the scripts that generate them and the figure code.",
     ),
     (
@@ -118,6 +118,46 @@ BARE_NAME = (
 )
 
 
+#: Spelling variants that must not decide whether a declaration is found. The passages
+#: below are matched exactly, which is the right default -- a loose match on a
+#: declaration that names the author's companies is how one occurrence gets through. But
+#: it made the whole masking fail on a copy-edit: converting the manuscript to US
+#: spelling for revision 2 changed "MIT licence" to "MIT License" and "summarise" to
+#: "summarize", and the build then refused the whole document. The two manuscripts in
+#: this repository now differ in spelling, the Research Article being preserved as
+#: submitted, so the match is made spelling-insensitive rather than pinned to either.
+SPELLING_VARIANTS = (
+    ("licence", "license"),
+    ("summarise", "summarize"),
+    ("summarises", "summarizes"),
+    ("conceptualisation", "conceptualization"),
+    ("visualisation", "visualization"),
+    ("normalised", "normalized"),
+    ("analysed", "analyzed"),
+    ("organisation", "organization"),
+)
+
+
+def _spelling_insensitive(passage: str) -> re.Pattern[str]:
+    """A pattern matching ``passage`` with either spelling of each listed word."""
+    parts: list[str] = []
+    for token in re.split(r"(\w+)", passage):
+        alternatives = {token}
+        for british, american in SPELLING_VARIANTS:
+            if token.lower() in (british, american):
+                alternatives = {british, american}
+        if len(alternatives) > 1:
+            parts.append(
+                "(?:" + "|".join(re.escape(a) for a in sorted(alternatives)) + ")"
+            )
+        else:
+            parts.append(re.escape(token))
+    # Case-insensitive, because "MIT licence" became "MIT License" and the capital was
+    # enough to fail the match. These passages are whole declarations and distinctive
+    # enough that ignoring case adds no risk of hitting the wrong one.
+    return re.compile("".join(parts), re.IGNORECASE)
+
+
 def mask(text: str) -> str:
     """Return the review manuscript: same science, no author."""
     text, n = AUTHOR_BLOCK.subn("\n", text)
@@ -127,12 +167,14 @@ def mask(text: str) -> str:
             "changed shape; update AUTHOR_BLOCK rather than letting the block through."
         )
     for old, new in REPLACEMENTS:
-        if old not in text:
+        pattern = _spelling_insensitive(old)
+        found = pattern.search(text)
+        if found is None:
             raise SystemExit(
                 "a passage this script masks is no longer in the manuscript, so the "
                 "masking is out of date with the source. Missing:\n\n" + old[:160]
             )
-        text = text.replace(old, new, 1)
+        text = text[: found.start()] + new + text[found.end() :]
     for old, new in BARE_NAME:
         text = text.replace(old, new)
     return text
@@ -144,9 +186,19 @@ def extract_text(pdf: Path) -> str:
     return "\n".join(page.extract_text() or "" for page in PdfReader(str(pdf)).pages)
 
 
-def verify(pdf: Path) -> list[str]:
-    """Every forbidden token that survived into the built PDF."""
-    body = extract_text(pdf).lower()
+def verify(path: Path) -> list[str]:
+    """Every forbidden token that survived into a built artefact.
+
+    Takes a PDF or a Markdown file. The Markdown case matters because the frozen masked
+    manuscript of a previous round is a review-facing *input* -- the tracked-changes diff
+    is built from it -- so anything identifying in it reaches the reviewer through the
+    diff even though the file itself is never uploaded.
+    """
+    body = (
+        path.read_text(encoding="utf-8")
+        if path.suffix.lower() in (".md", ".txt")
+        else extract_text(path)
+    ).lower()
     return [token for token in FORBIDDEN if token.lower() in body]
 
 

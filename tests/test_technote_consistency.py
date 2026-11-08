@@ -660,7 +660,24 @@ def test_the_manuscript_uses_us_spelling(text, supplement):
     Checked in the supplement too, which is uploaded alongside and had its own copy of
     the word the reviewer named.
     """
-    for name, document in (("manuscript", text), ("supplement", supplement)):
+    # The masked manuscript and the tracked-changes file are what get uploaded, and each
+    # is built by a script holding its own copy of the declarations -- the masking script
+    # still said "MIT licence" after the manuscript said "License". A gate that reads
+    # only the canonical source would not have seen it.
+    documents = [("manuscript", text), ("supplement", supplement)]
+    for name in (
+        "ctdose-core_jacmp_technote_masked.md",
+        "ctdose-core_jacmp_technote_tracked_changes.md",
+    ):
+        path = PAPER / name
+        if path.exists():
+            body = path.read_text(encoding="utf-8")
+            if name.endswith("tracked_changes.md"):
+                # Struck-through text quotes the superseded wording on purpose.
+                body = re.sub(r"~~.*?~~", "", body, flags=re.DOTALL)
+            documents.append((name, body))
+
+    for name, document in documents:
         found = {
             british: american
             for british, american in US_SPELLING.items()
@@ -675,6 +692,61 @@ def test_the_manuscript_uses_us_spelling(text, supplement):
             f"British spellings in the {name}: "
             + ", ".join(f"{b} -> {a}" for b, a in sorted(found.items()))
         )
+
+
+def test_the_title_page_describes_the_supplement_that_exists(text, supplement):
+    """The title page is uploaded, and nothing was reading what it claims.
+
+    It said the supplementary file contains "the optional organ-dose layer, the detailed
+    stratified analyses and Figures S1-S3". The organ layer was withdrawn from this
+    submission in revision 1 and the supplement has never had a figure, so two of the
+    three were false for two submissions. The declarations on it had also kept the
+    British spellings the manuscript has now dropped.
+    """
+    page = (PAPER / "title_page_jacmp.md").read_text(encoding="utf-8")
+
+    # Figures: the claim must match the file.
+    supplement_figures = re.findall(r"\*\*Figure S\d", supplement)
+    if not supplement_figures:
+        assert "Figures S1" not in page and "Figure S1" not in page, (
+            "the title page announces supplementary figures the supplement does not have"
+        )
+        assert "contains no figures" in page, (
+            "the title page should say the supplement has no figures, so a reader is "
+            "not left looking for them"
+        )
+
+    # The withdrawn organ layer must not be announced anywhere on an uploaded document.
+    for term in ORGAN_TERMS:
+        assert term.lower() not in page.lower(), (
+            f"the title page announces {term!r}, which was withdrawn from this submission"
+        )
+
+    # Every section the supplement actually has should be discoverable from the page.
+    headings = re.findall(r"^### S\d+\.\d+ (.+)$", supplement, flags=re.MULTILINE)
+    assert headings, "the supplement has no subsections to describe"
+    assert "GE validation arm" in page, (
+        "the GE arm is the Section Editor's request and must be announced"
+    )
+
+    # And the page must agree with the manuscript on the type and keywords.
+    assert "**Article type:** Technical Note" in page
+    keywords = re.search(r"\*\*Keywords:\*\* (.+)", text).group(1)
+    assert keywords in page, "the title page and the manuscript disagree on the keywords"
+
+
+def test_the_title_page_uses_us_spelling():
+    """It is uploaded alongside the manuscript and had its own copies of the wording."""
+    page = (PAPER / "title_page_jacmp.md").read_text(encoding="utf-8")
+    found = sorted(
+        british
+        for british in US_SPELLING
+        if re.search(rf"\b{british}\b", page, flags=re.IGNORECASE)
+    )
+    for stem in BRITISH_STEMS:
+        pattern = rf"\b{stem}(?:{'|'.join(BRITISH_ENDINGS)})\b"
+        found += [m.group(0) for m in re.finditer(pattern, page, flags=re.IGNORECASE)]
+    assert not found, f"British spellings on the title page: {sorted(set(found))}"
 
 
 def test_the_uncertainty_on_the_headline_claim_is_quoted_correctly(text):
@@ -841,16 +913,38 @@ def test_the_current_letters_quote_the_limits_from_the_guidelines(text, letter):
     tables = len(set(re.findall(r"\*\*Table (\d)\.\*\*", text)))
     refs = len(re.findall(r"^(\d+)\. ", text, flags=re.MULTILINE))
 
-    assert str(WORD_LIMIT) in body, f"{letter} does not state the {WORD_LIMIT}-word limit"
     for value, what in (
         (len(text.split()), "the manuscript's word count"),
         (figures, "the figure count"),
         (tables, "the table count"),
         (refs, "the reference count"),
+        (WORD_LIMIT, "the word limit"),
         (REFERENCE_LIMIT, "the reference limit"),
         (FIGURE_AND_TABLE_LIMIT, "the display-item limit"),
     ):
         assert _states(body, value), f"{letter} does not quote {what} ({value})"
+
+    # A second needle for the same fact, bound to the count it limits.
+    #
+    # This letter states the word limit twice -- once in the correction explaining that
+    # the previous revision used the Case Report row, and once in the summary of counts
+    # against limits -- so a check for "is 5000 anywhere in the letter" stayed green
+    # when the summary was changed to 3000. Where a fact is written in two places, take
+    # two needles. Each limit is therefore required in the same passage as the count it
+    # governs, which works whether the letter says it in prose or in a table row.
+    passages = [p for p in re.split(r"(?<=[.])\s|\n", body) if p.strip()]
+    for count, limit, what in (
+        (len(text.split()), WORD_LIMIT, "the word count against the word limit"),
+        (refs, REFERENCE_LIMIT, "the reference count against the reference limit"),
+    ):
+        together = [
+            p for p in passages if _states(p, count) and "limit" in p.lower()
+        ]
+        assert together, f"{letter} never states {what}"
+        assert any(_states(p, limit) for p in together), (
+            f"{letter} states {what} with the wrong limit; it should be {limit}. "
+            f"Passage(s): {[p.strip()[:120] for p in together]}"
+        )
 
 
 def test_the_previous_rounds_letters_are_kept_as_the_record(text):
@@ -878,13 +972,21 @@ def test_the_previous_rounds_letters_are_kept_as_the_record(text):
     "name",
     [
         "ctdose-core_jacmp_technote_masked.pdf",
+        "ctdose-core_jacmp_technote_masked_r1.md",
         "ctdose-core_jacmp_technote_supplement.pdf",
         "ctdose-core_jacmp_technote_tracked_changes.pdf",
         "response_to_editor_jacmp_r1.pdf",
+        f"response_to_editor_jacmp_{CURRENT_ROUND}.pdf",
     ],
 )
 def test_every_review_facing_pdf_names_nobody(name):
-    """One leak in any of the four defeats the double-masked review."""
+    """One leak in any of these defeats the double-masked review.
+
+    The list has to grow with the submission. For revision 2 that means the new
+    point-by-point response, and the frozen r1 masked manuscript that the
+    tracked-changes diff is built from -- which is a review-facing input even though it
+    is not itself uploaded, because anything identifying in it would reach the diff.
+    """
     pdf = PAPER / name
     if not pdf.exists():
         pytest.skip(f"{name} not built")

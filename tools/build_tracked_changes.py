@@ -35,7 +35,19 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-OLD = REPO / "paper" / "ctdose-core_jacmp_masked.md"
+#: The baseline is **what was uploaded last time**, not the newest thing that happens to
+#: be on disk. For revision 1 that was the masked Research Article. For revision 2 it is
+#: the masked Technical Note as submitted in revision 1, which is kept as its own file
+#: because rebuilding the masked manuscript overwrites it -- and a diff against the
+#: rebuilt file would be a diff of a document against itself, which is empty and passes.
+#: Each round's submitted masked manuscript is frozen here as it goes out.
+SUBMITTED = {
+    "r1": REPO / "paper" / "ctdose-core_jacmp_masked.md",
+    "r2": REPO / "paper" / "ctdose-core_jacmp_technote_masked_r1.md",
+}
+CURRENT_ROUND = "r2"
+
+OLD = SUBMITTED[CURRENT_ROUND]
 NEW = REPO / "paper" / "ctdose-core_jacmp_technote_masked.md"
 OUT_MD = REPO / "paper" / "ctdose-core_jacmp_technote_tracked_changes.md"
 OUT_PDF = REPO / "paper" / "ctdose-core_jacmp_technote_tracked_changes.pdf"

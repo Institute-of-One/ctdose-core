@@ -158,16 +158,49 @@ SAFE_SUBSTITUTIONS = {
 }
 
 
+#: Characters worth keeping when the embedded font can actually draw them.
+#:
+#: Substituting U+2212 for a hyphen defeats the reason it is in the source. A hyphen is
+#: a line-break opportunity, so "-59.4%" can be split across two lines as "-" and
+#: "59.4%", which is how a reported negative number becomes a dangling dash in a
+#: reviewer's copy. The substitution exists because the base-14 PDF fonts are limited to
+#: WinAnsi, which has no U+2212 and would draw a black square. When a TrueType family is
+#: embedded and the glyph is present in it, there is nothing to protect against, and the
+#: character the source asked for should reach the page.
+PRESERVE_IF_DRAWABLE = ("−",)
+
+
+def _font_can_draw(char: str) -> bool:
+    """Whether the active body font has a glyph for this character."""
+    try:
+        face = pdfmetrics.getFont(BODY_FONT).face
+    except Exception:  # pragma: no cover - font not registered
+        return False
+    # A base-14 face has no TrueType character map and is WinAnsi-limited.
+    cmap = getattr(face, "charToGlyph", None)
+    return cmap is not None and ord(char) in cmap
+
+
 def sanitise(text: str) -> str:
     for bad, good in SAFE_SUBSTITUTIONS.items():
+        if bad in PRESERVE_IF_DRAWABLE and _font_can_draw(bad):
+            continue
         text = text.replace(bad, good)
     return text
 
 
 def unencodable(text: str) -> list[str]:
-    """Characters that would render as a black square, after substitution."""
+    """Characters that would render as a black square, after substitution.
+
+    The test is what the *active* font can draw, not cp1252. With the base-14 fallback
+    the two are the same, because those faces are WinAnsi-limited; with an embedded
+    TrueType family the font's character map is wider, and holding it to cp1252 would
+    reject characters it draws perfectly well -- U+2212 among them.
+    """
     out = []
     for ch in sanitise(text):
+        if _font_can_draw(ch):
+            continue
         try:
             ch.encode("cp1252")
         except UnicodeEncodeError:
@@ -260,6 +293,10 @@ class Line:
     col_w: list[float] = field(default_factory=list)
     rule_below: bool = False
     rule_above: bool = False
+    #: Keep this line on the same page as the one after it. Set by :func:`keep_groups`
+    #: for table captions, headings and table header rows -- the places where a page
+    #: break separates something from the thing it introduces.
+    keep_with_next: bool = False
 
 
 # --- inline markup ---------------------------------------------------------------------------
@@ -634,7 +671,63 @@ def build_lines(markdown: str, work_dir: Path, *, include_figures: bool = True) 
             i += 1
         para(" ".join(buf))
 
+    mark_keep_groups(lines)
     return lines
+
+
+def mark_keep_groups(lines: list[Line]) -> None:
+    """Flag the lines that must not be separated from what follows them.
+
+    Three cases, each one a way a page break puts a label on one page and the thing it
+    labels on the next:
+
+    * **a table caption and its table.** "Table 2." sat alone at the foot of a page with
+      its table overleaf. The caption is a paragraph like any other to the renderer, so
+      nothing connected the two.
+    * **a heading and its first line of text.** The manuscript gates read the Markdown,
+      where a page does not exist, so an orphaned heading is invisible to every check
+      except looking at the printed page.
+    * **a table's header row and its first data row**, for the same reason: a header row
+      alone at a page foot repeats nothing useful.
+
+    Marked here rather than at emission because it is a property of a line's neighbour,
+    and the emitter writes each block without looking ahead.
+    """
+    def text_of(line: Line) -> str:
+        return "".join(run.text for run in line.runs)
+
+    for index, line in enumerate(lines[:-1]):
+        following = lines[index + 1]
+
+        # A table row keeps with the row after it when it is the header.
+        if line.row is not None:
+            line.keep_with_next = bool(line.row.header)
+            continue
+
+        # A caption paragraph, where a table or image follows. The whole paragraph has
+        # to keep with it, not only its final line: a caption wraps to three or four
+        # lines, and marking just the last one lets the first three break away and sit
+        # at the foot of the previous page.
+        if following.row is not None or following.image:
+            line.keep_with_next = True
+            k = index
+            while (
+                k > 0
+                and lines[k].space_before == 0.0
+                and lines[k].row is None
+                and not lines[k].image
+            ):
+                k -= 1
+                lines[k].keep_with_next = True
+            continue
+
+        # A heading keeps with the line after it.
+        if line.runs and all(
+            run.font in (BOLD_FONT,) for run in line.runs if run.text.strip()
+        ):
+            size = max((run.size for run in line.runs), default=BODY_SIZE)
+            if size > BODY_SIZE:
+                line.keep_with_next = True
 
 
 # --- pagination and drawing ----------------------------------------------------------------------
@@ -675,13 +768,22 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
         c.setLineWidth(0.5)
         c.line(x_at, baseline + offset, x_at + run.width(), baseline + offset)
 
-    for line in lines:
+    def height_of(line: Line) -> float:
         if line.row is not None:
-            needed = line.row.height + line.space_before
-        elif line.image:
-            needed = line.image_h + line.space_before
-        else:
-            needed = LEADING + line.space_before
+            return line.row.height + line.space_before
+        if line.image:
+            return line.image_h + line.space_before
+        return LEADING + line.space_before
+
+    for index, line in enumerate(lines):
+        # A line marked keep_with_next must have room for itself and for everything it
+        # is keeping with, or the break goes before it instead of after it. Without
+        # this, "Table 2." sat alone at the foot of a page with its table overleaf.
+        needed = height_of(line)
+        j = index
+        while lines[j].keep_with_next and j + 1 < len(lines):
+            j += 1
+            needed += height_of(lines[j])
         if y - needed < MARGIN_B:
             footer()
             c.showPage()
