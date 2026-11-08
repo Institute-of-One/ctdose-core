@@ -115,6 +115,12 @@ def stale() -> list[str]:
     out = []
     for built, source in ARTEFACTS.items():
         b, s = PAPER / built, PAPER / source
+        if not s.is_file():
+            # The cover letter and the point-by-point response are correspondence and
+            # are gitignored, so a clone has neither the source nor the built PDF.
+            # Reporting that as staleness would cry wolf on every clone.
+            out.append(f"{built}: its source {source} is not in this checkout")
+            continue
         if not b.is_file():
             out.append(f"{built} has not been built")
         elif b.stat().st_mtime < s.stat().st_mtime:

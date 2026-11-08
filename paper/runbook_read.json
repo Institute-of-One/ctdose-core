@@ -1,12 +1,12 @@
 {
   "_why": "The submission runbook was read before this manuscript was worked on. tests/test_runbook_was_read.py fails while the runbook on disk has a different sha256 from the one recorded here, which covers both never having read it and its having changed since. The runbook is not public and none of its content is stored here.",
   "runbook": "IoO_Submission_Runbook.md",
-  "sha256": "cd0c299109aa49b0c39789f5f64439f8e56e111055221249cea1c12a59cfff35",
+  "sha256": "ea4fc7b84ea09c5fd15a74fd9086cb88a1497ff73c57d44201bb9036b8e1277c",
   "sections": [
     "2",
     "11"
   ],
   "read_on": "2026-11-08",
   "by": "Claude Opus 5, for the JACMP revision 2 (2026-10019A)",
-  "note": "Sections 2 and 11 read before touching the manuscript. Section 11's 'confirm the word limit from the template or guidelines themselves' and section 2.2's 'read the distributed file, not prose about it' found the limit error: the Technical Note had been held to 3000 words for all of revision 1, which is the Case Report row of the journal's Table 3. The Technical Note limit is 5000, with 6 figures+tables and 20 references; the latter two had no gate at all. Section 2.6 confirmed the review is double-masked, which revision 2 must stay. Section 2.4.1 settled that line numbering is ours to supply and the portal's own column does not replace it."
+  "note": "Re-read after extending the runbook with this revision's three failures: section 2.2.1 (reading the wrong row of the right limits table, and gating the whole row), section 3.4.3 (defects that exist only on the built page - the builder converting U+2212 back to a hyphen, and a table caption separated from its table - plus the two mistakes made while writing those gates), and section 5.3.1 (a needle bound to 'the value appears anywhere' let two stale figures through on the same day). Section 11's checklist gained six items."
 }
