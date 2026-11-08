@@ -49,6 +49,19 @@ WORD_LIMIT = 5000
 FIGURE_AND_TABLE_LIMIT = 6
 REFERENCE_LIMIT = 20
 
+#: The structured-abstract headings, in order, as the editorial office named them in the
+#: Initial Quality Check of 2026-07-28 that returned this manuscript before review:
+#: "The abstract does not meet the journal requirements for Research Articles/Technical
+#: Notes. Please revise it to include the following structured headings: Background,
+#: Purpose, Methods, Results, Conclusion."
+#:
+#: The Author Guidelines page says "Conclusions". The instruction is specific to this
+#: manuscript, is the reason it was returned, and was complied with; the page is generic.
+#: One constant, used by every gate that checks this, because the mistake that put the
+#: plural here survived a full green suite: two gates asserted opposite things about the
+#: same journal and never met, since they read different documents.
+ABSTRACT_HEADINGS = ("Background", "Purpose", "Methods", "Results", "Conclusion")
+
 #: Terms that would betray the withdrawn organ layer. Checked against both documents,
 #: because the whole point of withdrawing it is that none of it appears in JACMP.
 ORGAN_TERMS = (
@@ -201,17 +214,30 @@ def test_the_references_are_numbered_contiguously_and_all_cited(text):
 
 
 def test_the_structured_abstract_uses_the_headings_the_journal_specifies(text):
-    """"Background, Purpose, Methods, Results, and Conclusions", per the guidelines.
+    """The five headings the editorial office named, in the order they named them.
 
-    The last was "Conclusion" here for two submissions. The journal's own Author
-    Guidelines give the Technical Note abstract as "Background, Purpose, Methods,
-    Results, and Conclusions", so the manuscript was right to change and this test was
-    wrong to require the singular: where a test and the journal disagree, the journal is
-    correct.
+    Two sources inside the journal disagree, and the specific one wins.
+
+    The Author Guidelines page lists the structured abstract as "Background, Purpose,
+    Methods, Results, and **Conclusions**". The editorial office's Initial Quality Check
+    of 2026-07-28, which returned this manuscript before review, listed them as
+    "Background / Purpose / Methods / Results / **Conclusion**" and said so of "Research
+    Articles/Technical Notes" explicitly. That is an instruction to this manuscript, it
+    is why it was returned, and it was accepted into review after complying.
+
+    This test required the plural for part of a day, because the guidelines page was
+    read and the instruction was not. Changing an item the editorial office had already
+    named is how a manuscript gets returned twice for the same thing. The constant lives
+    in ABSTRACT_HEADINGS so this file and test_manuscript_pdf.py cannot drift into
+    asserting opposite things about the same journal, which is what let the mistake
+    through: the two gates read different documents, so the suite stayed green.
     """
     abstract = text[text.index("## Abstract"):text.index("\n---\n", text.index("## Abstract"))]
     headings = re.findall(r"\*\*(\w+):\*\*", abstract)
-    assert headings == ["Background", "Purpose", "Methods", "Results", "Conclusions"]
+    assert headings == list(ABSTRACT_HEADINGS), (
+        f"the abstract headings are {headings}; the editorial office asked for "
+        f"{list(ABSTRACT_HEADINGS)}"
+    )
     # Max 500 words, from the same row of the same table as the other limits.
     assert len(abstract.split()) <= 500, (
         f"the structured abstract is {len(abstract.split())} words; the limit is 500"

@@ -202,9 +202,11 @@ def test_the_structured_abstract_carries_the_headings_jacmp_requires():
     end = text.index("\n---\n", start)
     abstract = text[start:end]
     headings = re.findall(r"\*\*(\w+):\*\*", abstract)
-    assert headings == ["Background", "Purpose", "Methods", "Results", "Conclusion"], (
-        f"the abstract headings are {headings}; JACMP requires Background, Purpose, "
-        "Methods, Results, Conclusion"
+    from tests.test_technote_consistency import ABSTRACT_HEADINGS
+
+    assert headings == list(ABSTRACT_HEADINGS), (
+        f"the abstract headings are {headings}; the editorial office asked for "
+        f"{list(ABSTRACT_HEADINGS)} in its Initial Quality Check of 2026-07-28"
     )
     # The submission form's abstract box is filled from this file, so it must not drift
     # from the manuscript.

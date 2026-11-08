@@ -36,7 +36,7 @@ Methods: An open-source Python package (MIT License) computes CTDIvol, dose-leng
 
 Results: All 14 RDSR objects parsed, ~~two~~ ++and both internal++ consistency checks ~~passing on~~ ++held in++ 14 of 14 files. CTDIvol was absent from the image header in 206 of 400 series (51.5%), ++ranging++ from 24.0% to 100.0% by manufacturer; of those 206, 42 (20.4%) ~~were reconstructable,~~ ++could still be reconstructed,++ making 236 of 400 (59.0%) dose-recoverable. Against ++the archive's own++ recorded values (n = 46) the median relative error was −8.7%, and −5.7% (95% CI −12.4% to +7.8%) ~~where~~ ++in++ the ~~header~~ ++stratum whose headers++ recorded the total collimation. ++Reconstruction over-estimated in 18 of those 46 cases and under-estimated in 28, so the error is two-sided rather than conservative. On GE, where no archive series supplies a reference, the reconstruction fell within 20% of all four recorded values (median +11.6%).++
 
-~~Conclusion:~~ ++Conclusions:++ Dose indices can be recovered when no recorded value survives, but only as far as the metadata and ++the++ available open measurements allow, and provenance keeps a recovered value from being read as a recorded one.
+Conclusion: Dose indices can be recovered when no recorded value survives, but only as far as the metadata and ++the++ available open measurements allow, and provenance keeps a recovered value from being read as a recorded one.
 
 ---
 

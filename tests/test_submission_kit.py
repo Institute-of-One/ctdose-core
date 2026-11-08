@@ -207,6 +207,35 @@ def test_the_kit_carries_the_affiliation_and_the_licences(kit):
         assert forbidden not in kit, f"{forbidden!r} must not appear in the kit"
 
 
+def test_the_kit_names_the_abstract_headings_the_editorial_office_asked_for(kit, manuscript):
+    """And names them in order, from the one constant the gates share.
+
+    The kit told the author to paste an abstract "with the five headings the guidelines
+    specify", and listed the guidelines page's plural. The editorial office had named
+    the singular, in writing, as the reason this manuscript was returned. A kit is read
+    at the moment of pasting, so a wrong heading list there is a wrong heading list in
+    the portal.
+    """
+    from tests.test_technote_consistency import ABSTRACT_HEADINGS
+
+    section = kit[: kit.index("## 2.")]
+    for heading in ABSTRACT_HEADINGS:
+        assert re.search(rf"\b{heading}\b", section), (
+            f"the kit does not name the abstract heading {heading!r}"
+        )
+    # The plural must not come back, in the kit or in the manuscript.
+    assert "Conclusions." not in section and "Results, Conclusions" not in section, (
+        "the kit lists the Author Guidelines page's plural; the editorial office named "
+        "the singular for this manuscript"
+    )
+    abstract = manuscript[
+        manuscript.index("## Abstract") : manuscript.index(
+            "\n---\n", manuscript.index("## Abstract")
+        )
+    ]
+    assert re.findall(r"\*\*(\w+):\*\*", abstract) == list(ABSTRACT_HEADINGS)
+
+
 def test_the_kit_points_at_the_runbook_gate(kit):
     assert "record_runbook_read.py" in kit
     assert "§2 and §11" in kit or "section 2 and section 11" in kit.lower()
