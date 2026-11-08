@@ -130,12 +130,27 @@ def test_the_pdf_is_current_with_the_source():
     )
 
 
-def test_the_pdf_builder_runs_clean():
-    """End to end, so a refactor of the renderer cannot break the build silently."""
+def test_the_pdf_builder_runs_clean(tmp_path):
+    """End to end, so a refactor of the renderer cannot break the build silently.
+
+    ``--out`` matters: without it the builder writes over ``paper/ctdose-core_jacmp.pdf``,
+    the file that gets uploaded. Running the suite then rewrites the submitted artefact
+    with new PDF internals every time, so ``git status`` is never clean and a real change
+    to the manuscript is indistinguishable from test churn.
+    """
     pytest.importorskip("reportlab", reason="reportlab is needed to build the PDF")
+    before = PDF.read_bytes() if PDF.exists() else None
     result = subprocess.run(
-        [sys.executable, str(REPO / "tools" / "build_manuscript_pdf.py")],
+        [
+            sys.executable,
+            str(REPO / "tools" / "build_manuscript_pdf.py"),
+            "--out",
+            str(tmp_path / "built.pdf"),
+        ],
         cwd=REPO, capture_output=True, text=True,
+    )
+    assert (PDF.read_bytes() if PDF.exists() else None) == before, (
+        "building the PDF must not touch the committed submission file"
     )
     assert result.returncode == 0, result.stderr
     assert "table(s)" in result.stdout

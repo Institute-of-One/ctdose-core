@@ -1,0 +1,704 @@
+{
+  "provenance": {
+    "generated_by": "tools/evaluate_ge_rdsr.py",
+    "question": "Does the open-table reconstruction predict GE CTDIvol? The archive cannot answer this because GE records CTDIvol in no sampled image header, so the reference is taken from the scanner's own Radiation Dose SR instead.",
+    "what_this_tests": "the dose model (table coefficient, mAs per rotation, pitch) on GE scanners. It does NOT test the metadata-gap recovery path, because the technique is read from a structured report rather than reconstructed from a de-identified image header.",
+    "independence": "Events are not independent patients. The comparison draws several events from each study, and events within a study share a scanner, a calibration and a session.",
+    "coefficients": {
+      "name": "MIRDct normalized CTDI database",
+      "citation": "Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. J Appl Clin Med Phys. 2026;27(2):e70473. doi:10.1002/acm2.70473",
+      "doi": "10.1002/acm2.70473",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "source_file": "ACM2-27-e70473-s001.xlsx",
+      "source_sheet": "MIRDct",
+      "source_sha256": "83cf1973490786958e0f732deeaa228b0fcdc90791920779992e30338d68cf68",
+      "extracted_by": "tools/extract_mirdct_coefficients.py",
+      "quantity": "CTDIw",
+      "unit": "mGy per 100 mAs at pitch 1.0",
+      "usage": "CTDIvol = nctdi_w_mgy_per_100mas * (mAs_rot / 100) / pitch. The annex tabulates CTDIw at pitch 1.0, where CTDIw and CTDIvol coincide; CTDIw is pitch-independent, so the pitch division is applied by the caller.",
+      "collimation_note": "Collimation is tabulated directly, so no over-beaming correction is applied to these values -- the collimation dependence is measured.",
+      "model_name_note": "Model names are verbatim from the annex, including the source spellings 'Aquiliion ONE' and 'Defintion Edge'."
+    },
+    "sample_source": "OpenREM test objects (GPL-3.0), openrem/remapp/tests/test_files/CT-*.dcm, and a PixelMed sample. The objects are third-party and are not redistributed here; this file holds only measurements read out of them.",
+    "sample_directory": "D:\\DevGit\\CT-ExposureDose\\openrem_ct_dose_samples",
+    "eligibility_rules": [
+      "the event records a CTDIvol (DCM 113830)",
+      "the scanner model resolves in the open coefficient database, exactly or by an alias denoting the same machine",
+      "the acquisition has table feed (helical), because the formula models one rotation's output spread along the feed",
+      "tube potential, mean tube current, exposure time per rotation, pitch, total collimation and the CTDIw phantom code are all recorded"
+    ]
+  },
+  "formula_input_check": {
+    "question": "does estimate_ctdivol_open depend on slice thickness or scan range, which an RDSR does not record and this script therefore supplies?",
+    "estimate_with_5mm_slice_100mm_range": 5.28,
+    "estimate_with_0.625mm_slice_700mm_range": 5.28,
+    "invariant": true
+  },
+  "summary": {
+    "n_files": 3,
+    "n_events_seen": 35,
+    "n_events_with_ctdivol": 15,
+    "n_evaluated": 4,
+    "n_excluded": 31,
+    "exclusions_by_reason": {
+      "no recorded CTDIvol to compare against": 20,
+      "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it": 9,
+      "scanner not in the open coefficient database": 2
+    },
+    "by_model": {
+      "LightSpeed VCT": {
+        "n": 2,
+        "median": 16.240665215252328,
+        "mean": 16.240665215252328,
+        "min": 16.059617250198453,
+        "max": 16.421713180306202,
+        "mean_absolute": 16.240665215252328,
+        "within_20_percent": 1.0,
+        "within_50_percent": 1.0,
+        "stdev": 0.25604048761923953
+      },
+      "Optima 660": {
+        "n": 2,
+        "median": 6.5745857083820525,
+        "mean": 6.5745857083820525,
+        "min": 6.064073226544619,
+        "max": 7.085098190219485,
+        "mean_absolute": 6.5745857083820525,
+        "within_20_percent": 1.0,
+        "within_50_percent": 1.0,
+        "stdev": 0.7219736755752459
+      }
+    },
+    "n_exact_table_match": 0,
+    "overall": {
+      "n": 4,
+      "median": 11.57235772020897,
+      "mean": 11.40762546181719,
+      "min": 6.064073226544619,
+      "max": 16.421713180306202,
+      "mean_absolute": 11.40762546181719,
+      "within_20_percent": 1.0,
+      "within_50_percent": 1.0,
+      "stdev": 5.598210897321318
+    },
+    "implied_coefficient_mgy_per_100mas": {
+      "n": 4,
+      "median": 8.580458333333333,
+      "mean": 8.594679166666666,
+      "min": 8.4778,
+      "max": 8.74,
+      "mean_absolute": 8.594679166666666,
+      "within_20_percent": 1.0,
+      "within_50_percent": 1.0,
+      "stdev": 0.1248983166975798
+    },
+    "collimation_sensitivity": {
+      "note": "sensitivity only; the headline result uses the collimation the RDSR records. Choosing the best-agreeing row would fit a free parameter.",
+      "by_collimation_mm": {
+        "10mm": {
+          "n": 4,
+          "median": 11.57235772020896,
+          "mean": 11.407625461817183,
+          "min": 6.0640732265446085,
+          "max": 16.421713180306206,
+          "mean_absolute": 11.407625461817183,
+          "within_20_percent": 1.0,
+          "within_50_percent": 1.0,
+          "stdev": 5.598210897321321
+        },
+        "20mm": {
+          "n": 4,
+          "median": -1.2453760888248064,
+          "mean": -1.3888066129089465,
+          "min": -6.864988558352403,
+          "max": 3.80051428436623,
+          "mean_absolute": 5.027900219212958,
+          "within_20_percent": 1.0,
+          "within_50_percent": 1.0,
+          "stdev": 5.818738372425285
+        },
+        "40mm": {
+          "n": 4,
+          "median": -7.716660254665059,
+          "mean": -7.850816385559898,
+          "min": -12.929061784897023,
+          "max": -3.0408832480124492,
+          "mean_absolute": 7.850816385559898,
+          "within_20_percent": 1.0,
+          "within_50_percent": 1.0,
+          "stdev": 5.3922018425970535
+        }
+      }
+    }
+  },
+  "files": [
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "Optima CT660",
+      "n_events": 6,
+      "n_events_with_ctdivol": 2,
+      "table_model": "GE Optima 660",
+      "model_refusal": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "LightSpeed VCT",
+      "n_events": 27,
+      "n_events_with_ctdivol": 11,
+      "table_model": "GE LightSpeed VCT",
+      "model_refusal": ""
+    },
+    {
+      "file": "CT-RDSR-GEPixelMed.dcm",
+      "manufacturer_raw": "GE MEDICAL SYSTEMS",
+      "model_raw": "LightSpeed RT16",
+      "n_events": 2,
+      "n_events_with_ctdivol": 2,
+      "table_model": null,
+      "model_refusal": "GE MEDICAL SYSTEMS 'LightSpeed RT16' is not in the open coefficient database; this series is unrecoverable by reconstruction"
+    }
+  ],
+  "cases": [
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "event_index": 2,
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "Optima CT660",
+      "table_vendor": "GE",
+      "table_model": "Optima 660",
+      "acquisition_type": "Spiral Acquisition",
+      "protocol": "",
+      "phantom_cm": 32,
+      "kvp": 120.0,
+      "mean_tube_current_ma": 85.0,
+      "exposure_time_per_rotation_s": 0.6,
+      "mas_per_rotation": 51.0,
+      "pitch": 1.38,
+      "recorded_collimation_mm": 5.0,
+      "scanning_length_mm": 418.75,
+      "modulation_type": "",
+      "recorded_ctdivol_mgy": 3.23,
+      "estimated_ctdivol_mgy": 3.425869565217391,
+      "percent_error": 6.064073226544619,
+      "table_ctdiw_mgy_per_100mas": 9.27,
+      "table_collimation_mm": 10.0,
+      "table_kvp": 120.0,
+      "table_bowtie": "small",
+      "exact_table_match": false,
+      "assumptions": [
+        "bowtie not recorded in DICOM; the 'medium' filter usual for the 32 cm phantom is not tabulated for this model, so 'small' was used (available: small, large)",
+        "collimation 5.0 mm is not tabulated; used the nearest measured value, 10.0 mm (tabulated: 10, 20, 40)"
+      ],
+      "implied_nctdi_w_mgy_per_100mas": 8.74,
+      "table_at_every_collimation": {
+        "10mm": {
+          "nctdi_w_mgy_per_100mas": 9.27,
+          "bowtie": "small"
+        },
+        "20mm": {
+          "nctdi_w_mgy_per_100mas": 8.14,
+          "bowtie": "small"
+        },
+        "40mm": {
+          "nctdi_w_mgy_per_100mas": 7.61,
+          "bowtie": "small"
+        }
+      },
+      "beam_width_consistency": {
+        "scanning_length_mm": 418.75,
+        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
+        "at_collimation_mm": {
+          "5": {
+            "rotations": 60.68840579710145,
+            "scan_duration_s": 36.41304347826087,
+            "is_the_recorded_value": true
+          },
+          "10": {
+            "rotations": 30.344202898550726,
+            "scan_duration_s": 18.206521739130434,
+            "is_the_recorded_value": false
+          },
+          "20": {
+            "rotations": 15.172101449275363,
+            "scan_duration_s": 9.103260869565217,
+            "is_the_recorded_value": false
+          },
+          "40": {
+            "rotations": 7.586050724637682,
+            "scan_duration_s": 4.551630434782608,
+            "is_the_recorded_value": false
+          }
+        }
+      }
+    },
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "event_index": 5,
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "Optima CT660",
+      "table_vendor": "GE",
+      "table_model": "Optima 660",
+      "acquisition_type": "Spiral Acquisition",
+      "protocol": "",
+      "phantom_cm": 32,
+      "kvp": 120.0,
+      "mean_tube_current_ma": 100.0,
+      "exposure_time_per_rotation_s": 0.6,
+      "mas_per_rotation": 60.0,
+      "pitch": 0.98,
+      "recorded_collimation_mm": 5.0,
+      "scanning_length_mm": 443.75,
+      "modulation_type": "",
+      "recorded_ctdivol_mgy": 5.3,
+      "estimated_ctdivol_mgy": 5.6755102040816325,
+      "percent_error": 7.085098190219485,
+      "table_ctdiw_mgy_per_100mas": 9.27,
+      "table_collimation_mm": 10.0,
+      "table_kvp": 120.0,
+      "table_bowtie": "small",
+      "exact_table_match": false,
+      "assumptions": [
+        "bowtie not recorded in DICOM; the 'medium' filter usual for the 32 cm phantom is not tabulated for this model, so 'small' was used (available: small, large)",
+        "collimation 5.0 mm is not tabulated; used the nearest measured value, 10.0 mm (tabulated: 10, 20, 40)"
+      ],
+      "implied_nctdi_w_mgy_per_100mas": 8.656666666666666,
+      "table_at_every_collimation": {
+        "10mm": {
+          "nctdi_w_mgy_per_100mas": 9.27,
+          "bowtie": "small"
+        },
+        "20mm": {
+          "nctdi_w_mgy_per_100mas": 8.14,
+          "bowtie": "small"
+        },
+        "40mm": {
+          "nctdi_w_mgy_per_100mas": 7.61,
+          "bowtie": "small"
+        }
+      },
+      "beam_width_consistency": {
+        "scanning_length_mm": 443.75,
+        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
+        "at_collimation_mm": {
+          "5": {
+            "rotations": 90.56122448979592,
+            "scan_duration_s": 54.33673469387755,
+            "is_the_recorded_value": true
+          },
+          "10": {
+            "rotations": 45.28061224489796,
+            "scan_duration_s": 27.168367346938776,
+            "is_the_recorded_value": false
+          },
+          "20": {
+            "rotations": 22.64030612244898,
+            "scan_duration_s": 13.584183673469388,
+            "is_the_recorded_value": false
+          },
+          "40": {
+            "rotations": 11.32015306122449,
+            "scan_duration_s": 6.792091836734694,
+            "is_the_recorded_value": false
+          }
+        }
+      }
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 5,
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "LightSpeed VCT",
+      "table_vendor": "GE",
+      "table_model": "LightSpeed VCT",
+      "acquisition_type": "Spiral Acquisition",
+      "protocol": "",
+      "phantom_cm": 32,
+      "kvp": 120.0,
+      "mean_tube_current_ma": 200.0,
+      "exposure_time_per_rotation_s": 0.5,
+      "mas_per_rotation": 100.0,
+      "pitch": 0.97,
+      "recorded_collimation_mm": 2.5,
+      "scanning_length_mm": 468.12,
+      "modulation_type": "",
+      "recorded_ctdivol_mgy": 8.74,
+      "estimated_ctdivol_mgy": 10.175257731958762,
+      "percent_error": 16.421713180306202,
+      "table_ctdiw_mgy_per_100mas": 9.87,
+      "table_collimation_mm": 10.0,
+      "table_kvp": 120.0,
+      "table_bowtie": "medium",
+      "exact_table_match": false,
+      "assumptions": [
+        "bowtie not recorded in DICOM; used the 'medium' filter, the usual choice for the 32 cm phantom",
+        "collimation 2.5 mm is not tabulated; used the nearest measured value, 10.0 mm (tabulated: 10, 20, 40)"
+      ],
+      "implied_nctdi_w_mgy_per_100mas": 8.4778,
+      "table_at_every_collimation": {
+        "10mm": {
+          "nctdi_w_mgy_per_100mas": 9.87,
+          "bowtie": "medium"
+        },
+        "20mm": {
+          "nctdi_w_mgy_per_100mas": 8.8,
+          "bowtie": "medium"
+        },
+        "40mm": {
+          "nctdi_w_mgy_per_100mas": 8.22,
+          "bowtie": "medium"
+        }
+      },
+      "beam_width_consistency": {
+        "scanning_length_mm": 468.12,
+        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
+        "at_collimation_mm": {
+          "2.5": {
+            "rotations": 193.03917525773198,
+            "scan_duration_s": 96.51958762886599,
+            "is_the_recorded_value": true
+          },
+          "10": {
+            "rotations": 48.259793814432996,
+            "scan_duration_s": 24.129896907216498,
+            "is_the_recorded_value": false
+          },
+          "20": {
+            "rotations": 24.129896907216498,
+            "scan_duration_s": 12.064948453608249,
+            "is_the_recorded_value": false
+          },
+          "40": {
+            "rotations": 12.064948453608249,
+            "scan_duration_s": 6.0324742268041245,
+            "is_the_recorded_value": false
+          }
+        }
+      }
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 6,
+      "manufacturer_raw": "GE Medical Systems",
+      "model_raw": "LightSpeed VCT",
+      "table_vendor": "GE",
+      "table_model": "LightSpeed VCT",
+      "acquisition_type": "Spiral Acquisition",
+      "protocol": "",
+      "phantom_cm": 32,
+      "kvp": 120.0,
+      "mean_tube_current_ma": 200.0,
+      "exposure_time_per_rotation_s": 0.4,
+      "mas_per_rotation": 80.0,
+      "pitch": 1.38,
+      "recorded_collimation_mm": 2.5,
+      "scanning_length_mm": 468.12,
+      "modulation_type": "",
+      "recorded_ctdivol_mgy": 4.93,
+      "estimated_ctdivol_mgy": 5.721739130434783,
+      "percent_error": 16.059617250198453,
+      "table_ctdiw_mgy_per_100mas": 9.87,
+      "table_collimation_mm": 10.0,
+      "table_kvp": 120.0,
+      "table_bowtie": "medium",
+      "exact_table_match": false,
+      "assumptions": [
+        "bowtie not recorded in DICOM; used the 'medium' filter, the usual choice for the 32 cm phantom",
+        "collimation 2.5 mm is not tabulated; used the nearest measured value, 10.0 mm (tabulated: 10, 20, 40)"
+      ],
+      "implied_nctdi_w_mgy_per_100mas": 8.504249999999999,
+      "table_at_every_collimation": {
+        "10mm": {
+          "nctdi_w_mgy_per_100mas": 9.87,
+          "bowtie": "medium"
+        },
+        "20mm": {
+          "nctdi_w_mgy_per_100mas": 8.8,
+          "bowtie": "medium"
+        },
+        "40mm": {
+          "nctdi_w_mgy_per_100mas": 8.22,
+          "bowtie": "medium"
+        }
+      },
+      "beam_width_consistency": {
+        "scanning_length_mm": 468.12,
+        "formula": "rotations = L / (collimation * pitch); duration = rotations * t_rot",
+        "at_collimation_mm": {
+          "2.5": {
+            "rotations": 135.68695652173915,
+            "scan_duration_s": 54.27478260869566,
+            "is_the_recorded_value": true
+          },
+          "10": {
+            "rotations": 33.92173913043479,
+            "scan_duration_s": 13.568695652173915,
+            "is_the_recorded_value": false
+          },
+          "20": {
+            "rotations": 16.960869565217394,
+            "scan_duration_s": 6.784347826086957,
+            "is_the_recorded_value": false
+          },
+          "40": {
+            "rotations": 8.480434782608697,
+            "scan_duration_s": 3.3921739130434787,
+            "is_the_recorded_value": false
+          }
+        }
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "event_index": 0,
+      "model_raw": "Optima CT660",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "event_index": 1,
+      "model_raw": "Optima CT660",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "event_index": 3,
+      "model_raw": "Optima CT660",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_Optima.dcm",
+      "event_index": 4,
+      "model_raw": "Optima CT660",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 0,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 1,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 2,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 3,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 4,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Stationary Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 5.0 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 7,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 8,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 9,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 10,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 11,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Stationary Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 5.0 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 12,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Sequenced Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Sequenced Acquisition', pitch 1.0, scanning length 397.5 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 13,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 14,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 15,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 16,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 17,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 18,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 19,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 20,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Constant Angle Acquisition",
+      "reason": "no recorded CTDIvol to compare against",
+      "detail": ""
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 21,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Stationary Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 5.0 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 22,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Stationary Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Stationary Acquisition', pitch 1.0, scanning length 18.75 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 23,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Sequenced Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 24,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Sequenced Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 25,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Sequenced Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
+    },
+    {
+      "file": "CT-ESR-GE_VCT.dcm",
+      "event_index": 26,
+      "model_raw": "LightSpeed VCT",
+      "acquisition_type": "Sequenced Acquisition",
+      "reason": "no table feed, so the recorded CTDIvol accumulates over the dwell and mAs per rotation does not describe the exposure behind it",
+      "detail": "acquisition type 'Sequenced Acquisition', pitch 0.1, scanning length 0.0 mm"
+    },
+    {
+      "file": "CT-RDSR-GEPixelMed.dcm",
+      "event_index": 0,
+      "model_raw": "LightSpeed RT16",
+      "acquisition_type": "Spiral Acquisition",
+      "reason": "scanner not in the open coefficient database",
+      "detail": "GE MEDICAL SYSTEMS 'LightSpeed RT16' is not in the open coefficient database; this series is unrecoverable by reconstruction"
+    },
+    {
+      "file": "CT-RDSR-GEPixelMed.dcm",
+      "event_index": 1,
+      "model_raw": "LightSpeed RT16",
+      "acquisition_type": "Stationary Acquisition",
+      "reason": "scanner not in the open coefficient database",
+      "detail": "GE MEDICAL SYSTEMS 'LightSpeed RT16' is not in the open coefficient database; this series is unrecoverable by reconstruction"
+    }
+  ]
+}

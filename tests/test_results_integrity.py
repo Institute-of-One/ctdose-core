@@ -194,3 +194,169 @@ def test_survey_records_the_parameters_needed_to_reproduce_it():
     provenance = _load("survey.json")["provenance"]
     assert provenance["archive"].startswith("The Cancer Imaging Archive")
     assert provenance["access_started_utc"]
+
+
+# --- the GE validation arm -----------------------------------------------------------
+
+
+def test_ge_arm_accounts_for_every_event_it_saw():
+    """Evaluated plus excluded must equal the events seen, with no event counted twice."""
+    payload = _load("ge_rdsr_accuracy.json")
+    summary = payload["summary"]
+
+    assert summary["n_files"] == len(payload["files"])
+    assert summary["n_events_seen"] == sum(f["n_events"] for f in payload["files"])
+    assert summary["n_events_with_ctdivol"] == sum(
+        f["n_events_with_ctdivol"] for f in payload["files"]
+    )
+    assert summary["n_evaluated"] == len(payload["cases"])
+    assert summary["n_excluded"] == len(payload["excluded"])
+    assert summary["n_evaluated"] + summary["n_excluded"] == summary["n_events_seen"]
+    assert sum(summary["exclusions_by_reason"].values()) == summary["n_excluded"]
+
+    seen = {(e["file"], e["event_index"]) for e in payload["excluded"]}
+    seen |= {(c["file"], c["event_index"]) for c in payload["cases"]}
+    assert len(seen) == summary["n_events_seen"], "an event was counted twice"
+
+
+def test_ge_arm_percent_error_is_reproducible_from_the_two_values():
+    """The recorded value is the denominator, recomputed here from the row itself."""
+    for case in _load("ge_rdsr_accuracy.json")["cases"]:
+        recorded = case["recorded_ctdivol_mgy"]
+        estimated = case["estimated_ctdivol_mgy"]
+        assert case["percent_error"] == pytest.approx(
+            100.0 * (estimated - recorded) / recorded
+        ), f"{case['file']} #{case['event_index']}"
+
+
+def test_ge_arm_estimate_is_reproducible_from_the_formula():
+    """CTDIvol = CTDIw * (mAs_rot / 100) / pitch, and mAs_rot = mean mA * t_rot."""
+    for case in _load("ge_rdsr_accuracy.json")["cases"]:
+        assert case["mas_per_rotation"] == pytest.approx(
+            case["mean_tube_current_ma"] * case["exposure_time_per_rotation_s"]
+        )
+        assert case["estimated_ctdivol_mgy"] == pytest.approx(
+            case["table_ctdiw_mgy_per_100mas"]
+            * (case["mas_per_rotation"] / 100.0)
+            / case["pitch"]
+        ), f"{case['file']} #{case['event_index']}"
+        # And the implied coefficient inverts it, which is what makes the narrow band
+        # of implied values evidence about the formula rather than about the table.
+        assert case["implied_nctdi_w_mgy_per_100mas"] == pytest.approx(
+            case["recorded_ctdivol_mgy"] * case["pitch"] / (case["mas_per_rotation"] / 100.0)
+        )
+
+
+def test_ge_arm_only_compared_helical_ge_events():
+    """Every row satisfies the eligibility rules the provenance block states."""
+    payload = _load("ge_rdsr_accuracy.json")
+    for case in payload["cases"]:
+        assert case["acquisition_type"].lower() == "spiral acquisition"
+        assert case["table_vendor"] == "GE"
+        assert case["recorded_ctdivol_mgy"] > 0
+        assert case["phantom_cm"] in (16, 32)
+        assert case["pitch"] > 0
+        assert case["kvp"] > 0
+
+
+def test_ge_arm_separates_the_dose_model_from_the_recovery_path():
+    """The provenance must say which claim this arm supports, and name its dependence.
+
+    The technique here is read from a structured report, not reconstructed from a
+    de-identified image header, so this validates the dose model and not the
+    metadata-gap recovery the paper is about. The manuscript must not merge the two, and
+    the events are not independent patients.
+    """
+    provenance = _load("ge_rdsr_accuracy.json")["provenance"]
+    assert provenance["generated_by"].endswith("evaluate_ge_rdsr.py")
+    assert "does NOT test the metadata-gap recovery path" in provenance["what_this_tests"]
+    assert "not independent patients" in provenance["independence"]
+    assert "OpenREM" in provenance["sample_source"]
+    assert "GPL" in provenance["sample_source"]
+    assert "not redistributed here" in provenance["sample_source"]
+    assert len(provenance["eligibility_rules"]) >= 4
+
+
+def test_ge_arm_readme_counts_come_from_the_results_file():
+    """The README's prose about this arm must be resolved from the numbers, not recalled.
+
+    "Of 35 GE irradiation events, 15 record a CTDIvol and 4 enter the comparison" is the
+    kind of sentence that stays in a README for two revisions after the run changed. Each
+    figure it states is checked against the file here, so the prose cannot drift.
+    """
+    payload = _load("ge_rdsr_accuracy.json")
+    summary = payload["summary"]
+    readme = (RESULTS / "README.md").read_text(encoding="utf-8")
+    section = readme.split("## Reading the GE arm", 1)
+    assert len(section) == 2, "the README no longer documents the GE arm"
+    text = section[1]
+
+    assert f"{summary['n_events_seen']} GE irradiation events" in text
+    assert f"{summary['n_events_with_ctdivol']} record a CTDIvol" in text
+    assert f"{summary['n_evaluated']} enter the comparison" in text
+
+    refused = sum(
+        1 for e in payload["excluded"]
+        if e["reason"] == "scanner not in the open coefficient database"
+    )
+    assert "Two more are refused" in text and refused == 2
+
+    # The scan-duration figures the README quotes, rounded as it quotes them.
+    worst = max(
+        payload["cases"],
+        key=lambda c: c["beam_width_consistency"]["at_collimation_mm"][
+            f"{c['recorded_collimation_mm']:g}"
+        ]["scan_duration_s"],
+    )
+    at = worst["beam_width_consistency"]["at_collimation_mm"]
+    recorded_key = f"{worst['recorded_collimation_mm']:g}"
+    assert (
+        f"{worst['beam_width_consistency']['scanning_length_mm']:.0f} mm helical pass"
+        in text
+    )
+    assert f"{at[recorded_key]['scan_duration_s']:.0f} s of continuous rotation" in text
+    assert f"at 40 mm it needs {at['40']['scan_duration_s']:.0f} s" in text
+
+
+def test_ge_arm_proved_the_formula_ignores_the_fields_it_invented():
+    """An RDSR records no slice thickness or scan range; the check must have run."""
+    check = _load("ge_rdsr_accuracy.json")["formula_input_check"]
+    assert check["invariant"] is True
+    assert (
+        check["estimate_with_5mm_slice_100mm_range"]
+        == check["estimate_with_0.625mm_slice_700mm_range"]
+    )
+
+
+def test_ge_arm_collimation_sensitivity_is_marked_as_sensitivity():
+    """The headline must be the recorded collimation, not the best-agreeing row.
+
+    The recorded 2.5-5 mm beams snap to the narrowest row tabulated for these two
+    models, 10 mm (it is 5 mm for Revolution CT ES), and the
+    20 mm row would agree far better. Picking it would fit one free parameter to four
+    observations, so the alternatives are reported and labelled.
+    """
+    summary = _load("ge_rdsr_accuracy.json")["summary"]
+    sensitivity = summary["collimation_sensitivity"]
+    assert "sensitivity only" in sensitivity["note"]
+    assert "fit a free parameter" in sensitivity["note"]
+    assert summary["overall"]["n"] == sum(
+        1 for _ in _load("ge_rdsr_accuracy.json")["cases"]
+    )
+    # Every case used the collimation the report recorded, not a chosen one. Where the
+    # table had no such row, the substitution must be written on the case, naming both
+    # the recorded width and the row actually used.
+    for case in _load("ge_rdsr_accuracy.json")["cases"]:
+        recorded = case["recorded_collimation_mm"]
+        used = case["table_collimation_mm"]
+        if recorded == used:
+            continue
+        expected = (
+            f"collimation {recorded:.1f} mm is not tabulated; used the nearest "
+            f"measured value, {used:.1f} mm"
+        )
+        assert any(expected in a for a in case["assumptions"]), (
+            f"{case['file']} #{case['event_index']}: the substitution from the recorded "
+            f"collimation must be recorded as an assumption naming both widths; got "
+            f"{case['assumptions']}"
+        )

@@ -9,6 +9,7 @@ carries a `provenance` block naming the script, the input and the access date.
 | `rdsr_layer1.json` / `.csv` | `tools/make_rdsr_layer1.py` | Layer 1: per-file and per-irradiation-event recorded dose read from real CT Radiation Dose SR objects across four vendors, plus two internal consistency checks |
 | `survey.json` / `survey.csv` | `tools/run_tcia_survey.py` | Layer 2 (a): per-series screening of public CT from TCIA — is CTDIvol present, is the physics reconstruction feasible at all — stratified by manufacturer |
 | `open_fallback.json` | `tools/evaluate_open_fallback.py` | Layer 2 (b): per-series comparison of the physics reconstruction against the scanner's own recorded CTDIvol, on every screened series the open coefficient table covers |
+| `ge_rdsr_accuracy.json` | `tools/evaluate_ge_rdsr.py` | The GE arm: per-irradiation-event comparison of the predicted CTDIvol against the figure a GE scanner recorded in its own Radiation Dose SR, because no GE series in the archive carries a reference. Tests the **dose model** on GE, not the metadata-gap recovery path |
 | `size_and_dose.json` / `.csv` | `tools/make_size_and_dose_layer.py` | Water-equivalent diameter, TG-204 conversion factor, SSDE and effective dose on the same archive series, with the inclusion criteria and every exclusion flag |
 | `inferential_stats.json` | `tools/make_inferential_stats.py` | A bootstrap interval on the headline error median and a χ² test with effect size for the manufacturer difference, each with the caveat that the sample is not independent |
 
@@ -16,6 +17,7 @@ carries a `provenance` block naming the script, the input and the access date.
 
 ```bash
 CTDOSE_RDSR_SAMPLES=/path/to/CT-RDSR-samples python tools/make_rdsr_layer1.py
+CTDOSE_RDSR_SAMPLES=/path/to/CT-RDSR-samples python tools/evaluate_ge_rdsr.py
 python tools/run_tcia_survey.py --screen-per-vendor 100
 python tools/evaluate_open_fallback.py
 python tools/make_size_and_dose_layer.py --series-root .tcia_work/series
@@ -38,9 +40,43 @@ changes — it depends only on which attributes a header carries.
   stay in TCIA; the RDSR objects stay with OpenREM. Each surveyed series is identified by
   its Series Instance UID and its licence, which is what a data-availability statement
   needs.
-- **No third-party files.** `rdsr_layer1.*` is derived from OpenREM's GPL-3.0 test
-  objects; only the measurements read out of them appear here, with the source attributed
-  in the file's provenance block.
+- **No third-party files.** `rdsr_layer1.*` and `ge_rdsr_accuracy.json` are derived from
+  OpenREM's GPL-3.0 test objects and a PixelMed sample; only the measurements read out of
+  them appear here, with the source attributed in each file's provenance block.
+
+## Reading the GE arm
+
+`ge_rdsr_accuracy.json` exists because the archive cannot supply a GE reference: GE
+records CTDIvol in no sampled image header, which is both the reason this package exists
+and the reason Layer 2 (b) has no GE case. The scanner's own Radiation Dose SR carries
+the CTDIvol *and* the technique, so the prediction can be checked against it.
+
+Read three things before quoting a number from it:
+
+- **`provenance.what_this_tests`.** This validates the dose model — table coefficient,
+  mAs per rotation, pitch. It does **not** validate the metadata-gap recovery path,
+  because the technique is read from a structured report rather than reconstructed from a
+  de-identified image header. They are different claims.
+- **`summary.exclusions_by_reason`.** Of 35 GE irradiation events, 15 record a CTDIvol
+  and 4 enter the comparison. Events without table feed (stationary and cine) are
+  excluded because their recorded CTDIvol accumulates over the dwell, so mAs per rotation
+  does not describe the exposure behind it. Two more are refused because `LightSpeed RT16`
+  is not the diagnostic `LightSpeed 16`.
+- **`cases[].beam_width_consistency`.** The reports record a 2.5 or 5.0 mm total
+  collimation on 64-slice scanners. Taken literally, one 468 mm helical pass would need
+  97 s of continuous rotation; at 40 mm it needs 6 s. The recorded field is therefore not
+  a total beam width, and because the narrowest beam tabulated for these two models is
+  10 mm, every case carries that substitution as an assumption. (It is not 10 mm for
+  every GE model — Revolution CT ES is tabulated at 5 mm — so a report from that scanner
+  would match exactly and hide the same recording defect behind a clean lookup. The check
+  therefore tests the recorded width against the scan duration, not against the
+  table.) `summary.collimation_sensitivity` shows
+  what the other tabulated rows would give — as a sensitivity, not as a result. Choosing
+  the best-agreeing row would fit one free parameter to four observations.
+
+`summary.implied_coefficient_mgy_per_100mas` is the coefficient obtained by inverting the
+formula on the recorded value. It lands in a narrow band across both models and both
+pitches, which is evidence about the formula's *structure* rather than about the table.
 
 ## Reading the survey
 
