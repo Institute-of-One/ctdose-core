@@ -656,60 +656,13 @@ def test_every_figure_referenced_exists(text):
         assert (figdir / f"{stem}.png").exists(), f"missing figure file: {stem}.png"
 
 
-def test_submission_kit_agrees_with_the_manuscript(text):
-    """The kit quotes the manuscript's headline numbers into the cover letter."""
-    kit_path = REPO / "paper" / "jacmp_submission_kit.md"
-    if not kit_path.exists():
-        pytest.skip("submission kit not written")
-    kit = kit_path.read_text(encoding="utf-8")
-
-    words = len(text.split())
-    n_refs = len(re.findall(r"^\d+\. ", text, flags=re.MULTILINE))
-    n_figs = len(re.findall(r"\*\*Figure \d\.\*\*", text))
-
-    # Read the compliance table's *actual* column rather than searching the whole file:
-    # "| 7500 |" also matches the limit column, so a manuscript sitting exactly on the
-    # limit made this assertion pass without the kit having been updated at all.
-    def kit_row(label: str) -> tuple[str, str]:
-        m = re.search(rf"^\|\s*{re.escape(label)}[^|]*\|([^|]*)\|([^|]*)\|", kit, re.MULTILINE)
-        assert m, f"the kit has no compliance row for {label!r}"
-        return m.group(1).strip(), m.group(2).strip()
-
-    limit, actual = kit_row("Total word count")
-    assert actual == str(words), (
-        f"the kit's word count is stale: it says {actual}, the manuscript has {words}"
-    )
-    assert int(words) <= int(limit), f"{words} words exceeds the kit's own stated limit"
-
-    _, actual_refs = kit_row("References")
-    assert actual_refs == str(n_refs), (
-        f"the kit's reference count is stale: it says {actual_refs}, there are {n_refs}"
-    )
-    assert f"{n_figs} figures" in kit, f"the kit's figure count is stale ({n_figs})"
-
-    # Figures quoted in the cover letter must be the ones the manuscript reports.
-    survey = json.loads((RESULTS / "survey.json").read_text(encoding="utf-8"))
-    overall = survey["tag_absence"]["overall"]
-    rates = [100 * b["ctdivol_absence_rate"] for b in survey["tag_absence"]["by_vendor"].values()]
-    for value in (
-        f"{100 * overall['ctdivol_absence_rate']:.1f}%",
-        f"{min(rates):.1f}% to {max(rates):.1f}%",
-        f"{overall['n_series_screened']} public CT series",
-    ):
-        assert value in kit, f"cover letter is stale: {value!r}"
-
-
-def test_submission_kit_declares_what_is_unverified():
-    """Anything the kit could not confirm from a primary source must say so."""
-    kit_path = REPO / "paper" / "jacmp_submission_kit.md"
-    if not kit_path.exists():
-        pytest.skip("submission kit not written")
-    kit = kit_path.read_text(encoding="utf-8")
-    assert "[verify]" in kit
-    assert "Institute of One, LISIT Co., Ltd., Tokyo, Japan" in kit
-    assert "CC BY" in kit and "MIT" in kit
-    for forbidden in ("National Cancer Center", "NCC", "国立がん研究センター"):
-        assert forbidden not in kit, f"{forbidden!r} must not appear"
+# The two submission-kit tests that stood here read the kit against the Research
+# Article in this file (``ctdose-core_jacmp.md``) and against the cover letter the kit
+# used to embed. Neither holds any more: the kit describes the Technical Note that is
+# actually submitted, and the letter lives in its own file so there is one copy to keep
+# current. They are not dropped -- tests/test_submission_kit.py checks the same things
+# against the manuscript that is being submitted, and more besides, including the names
+# of the files to upload, which is what the old kit got wrong.
 
 
 def test_within_the_jacmp_limits(text):
