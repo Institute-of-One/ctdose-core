@@ -259,3 +259,220 @@ def test_the_manuscript_line_numbering_is_continuous_from_the_first_page():
     assert not restarts, f"line numbering restarts {len(restarts)} time(s)"
     gaps = [(a, b) for a, b in zip(numbers, numbers[1:], strict=False) if b - a != 1]
     assert not gaps, f"line numbering skips: {gaps[:5]}"
+
+
+#: Markup that must never survive into a rendered page: the math delimiters, the bold
+#: and strike and insert markers, and a LaTeX macro with its braces.
+UNRENDERED_MARKUP = re.compile(r"\$|\*\*|~~|\+\+|\\[a-zA-Z]+\{")
+
+#: Punctuation that closes the word before it and therefore cannot begin a line.
+ORPHANED_PUNCTUATION = re.compile(r"^[.,;:)%]")
+
+
+@pytest.mark.parametrize("name", UPLOADED)
+def test_no_table_is_printed_as_markdown(name: str) -> None:
+    """A table must be typeset as a table in every file that is uploaded.
+
+    There was a gate for this, on the superseded Research Article's PDF only. The
+    tracked-changes file -- the one the editor opens to see what changed -- printed both
+    of its tables as raw pipe rows, alignment rows included, because the diff gives each
+    row its own block and every block was joined with a blank line, so nothing
+    downstream could see a table. An added row made it worse: wrapped whole in the
+    insertion marker, it was not even a row any more.
+    """
+    offenders = [
+        (number, line.strip()[:80])
+        for number, text in enumerate(pages(name), 1)
+        for line in text.splitlines()
+        if line.strip().startswith("|") or re.match(r"^\s*\|?\s*:?-{3,}:?\s*\|", line)
+    ]
+    assert not offenders, (
+        f"{len(offenders)} line(s) of {name} print Markdown table syntax: {offenders[:3]}"
+    )
+
+
+@pytest.mark.parametrize("name", UPLOADED)
+def test_no_line_begins_with_the_punctuation_that_closes_the_word_before_it(
+    name: str,
+) -> None:
+    """A run boundary is not a word boundary, and the wrapper used to think it was.
+
+    The supplement printed a line ending ``39 of the 41`` -- a bold span -- and the next
+    line beginning ``. The two exceptions``. The source has no space there; the full
+    stop was simply in a different run. The same break was possible after an inline
+    equation, which would have put a semicolon at the start of a line.
+    """
+    path = PAPER / name
+    if not path.is_file():
+        pytest.skip(f"{name} is not built")
+    offenders = orphaned_punctuation_in(path)
+    assert not offenders, (
+        f"{len(offenders)} line(s) of {name} begin with punctuation that belongs to the "
+        f"previous line: {offenders[:3]}"
+    )
+
+
+def orphaned_punctuation_in(path: Path) -> list[tuple[int, str]]:
+    offenders: list[tuple[int, str]] = []
+    with fitz.open(path) as doc:
+        for number, page in enumerate(doc, 1):
+            # An inline equation is an image, and the text after it is extracted as a
+            # new line even though it is drawn on the same one. Those are artefacts of
+            # reading the page, not defects on it, so a line whose own band has an
+            # image to its left is passed over. A genuine break puts that image at the
+            # end of the *previous* line, where it does not overlap this line's band.
+            images = [
+                r
+                for info in page.get_images()
+                for r in page.get_image_rects(info[0])
+            ]
+            for block in page.get_text("dict")["blocks"]:
+                for line in block.get("lines", []):
+                    text = "".join(s["text"] for s in line["spans"]).strip()
+                    if not ORPHANED_PUNCTUATION.match(text):
+                        continue
+                    x0, y0, x1, y1 = line["bbox"]
+                    beside = any(
+                        r.x1 <= x0 + 2 and r.y0 < y1 and y0 < r.y1 for r in images
+                    )
+                    if not beside:
+                        offenders.append((number, text))
+    return offenders
+
+
+#: A page holding fewer than this many lines of text, and no picture, is a page that
+#: should not have been started. Measured against the documents as they stand: the
+#: sparsest legitimate page is the manuscript's last, which carries a figure.
+MINIMUM_LINES_ON_A_PAGE = 3
+
+
+@pytest.mark.parametrize("name", [*UPLOADED, "cover_letter_jacmp_r2.pdf"])
+def test_no_page_is_nearly_empty(name: str) -> None:
+    """A page with a line or two on it means something was split that should not be.
+
+    The cover letter ran to four pages with two lines of the signature block alone on
+    the last: the letterhead had been spaced out to fix a run-on, and the signature went
+    over the break. Both halves of that -- a nearly blank page, and a signature block
+    split across pages -- are defects the SOP names.
+    """
+    path = PAPER / name
+    if not path.is_file():
+        pytest.skip(f"{name} is not built")
+    sparse: list[tuple[int, int]] = []
+    with fitz.open(path) as doc:
+        for number, page in enumerate(doc, 1):
+            lines = [
+                line
+                for block in page.get_text("dict")["blocks"]
+                for line in block.get("lines", [])
+                if "".join(s["text"] for s in line["spans"]).strip()
+                and not "".join(s["text"] for s in line["spans"]).strip().isdigit()
+            ]
+            if len(lines) < MINIMUM_LINES_ON_A_PAGE and not page.get_images():
+                sparse.append((number, len(lines)))
+    assert not sparse, (
+        f"{name} has a nearly empty page: {sparse} (page, lines of text). Something is "
+        f"split across the break that should be kept together."
+    )
+
+
+def test_the_nearly_empty_page_gate_is_not_vacuous(tmp_path: Path) -> None:
+    """Draw a document that ends on a two-line page and require that it is reported."""
+    import importlib.util
+    import sys
+    import tempfile
+
+    spec = importlib.util.spec_from_file_location(
+        "bmp_sparse", REPO / "tools" / "build_manuscript_pdf.py"
+    )
+    bmp = importlib.util.module_from_spec(spec)
+    sys.modules["bmp_sparse"] = bmp
+    spec.loader.exec_module(bmp)
+
+    # Long enough to fill one page and spill a couple of lines onto a second.
+    filler = "The reconstruction reads the technique from the header. " * 46
+    out = tmp_path / "sparse.pdf"
+    with tempfile.TemporaryDirectory() as work:
+        lines = bmp.build_lines(
+            f"# Fixture\n\n{filler}\n\nSincerely,\n\nShuji Yamamoto\n",
+            Path(work), include_figures=False,
+        )
+        bmp.draw(lines, out, "fixture")
+
+    with fitz.open(out) as doc:
+        counts = [
+            len([
+                line
+                for block in page.get_text("dict")["blocks"]
+                for line in block.get("lines", [])
+                if "".join(s["text"] for s in line["spans"]).strip()
+                and not "".join(s["text"] for s in line["spans"]).strip().isdigit()
+            ])
+            for page in doc
+        ]
+    assert len(counts) > 1, f"the fixture fitted on one page: {counts}"
+    assert min(counts) < MINIMUM_LINES_ON_A_PAGE, (
+        f"the fixture has no nearly empty page, so it tests nothing: {counts}"
+    )
+
+
+def test_the_orphaned_punctuation_gate_is_not_vacuous(tmp_path: Path) -> None:
+    """Draw a page that has the defect, and require that it is reported.
+
+    Every uploaded file passes this gate, which on its own says nothing. What is
+    injected here is the defect **as it appears on the page** -- a line beginning with
+    the full stop that closed the previous one -- rather than the wrapper bug that
+    produced it. Reproducing that bug would need the bold span to end within one
+    full stop's width of the measure, which no filler of a fixed word happens to do;
+    ``tests/test_inline_markup.py`` pins the wrapper itself, at a width that was
+    measured for exactly that.
+    """
+    import importlib.util
+    import sys
+    import tempfile
+
+    spec = importlib.util.spec_from_file_location(
+        "bmp_orphan", REPO / "tools" / "build_manuscript_pdf.py"
+    )
+    bmp = importlib.util.module_from_spec(spec)
+    sys.modules["bmp_orphan"] = bmp
+    spec.loader.exec_module(bmp)
+
+    source = (
+        "# Fixture\n\n"
+        "It could be computed for 39 of the 41\n\n"
+        ". The two exceptions are a finding in themselves.\n"
+    )
+    out = tmp_path / "orphan.pdf"
+    with tempfile.TemporaryDirectory() as work:
+        lines = bmp.build_lines(source, Path(work), include_figures=False)
+        bmp.draw(lines, out, "fixture")
+
+    found = orphaned_punctuation_in(out)
+    assert any(text.startswith(".") for _, text in found), (
+        f"a line beginning with a full stop was not reported: {found}"
+    )
+
+
+@pytest.mark.parametrize("name", UPLOADED)
+def test_no_markup_survives_into_the_rendered_page(name: str) -> None:
+    """The source is Markdown; the reader must never see any of it.
+
+    Found by looking at the pages, after every gate was green. The inline splitter is a
+    flat alternation, so the first delimiter to open swallowed everything to its close
+    and whatever was nested inside printed literally. Two uploaded files carried it: the
+    Article File printed ``$w$ refutes, and does not select.`` where a bold sentence
+    opened with an inline formula, and the tracked-changes file -- in which *every*
+    insertion is wrapped in a marker -- delivered its entire new section to the editor as
+    raw Markdown, asterisks, dollar signs and backslashes included.
+    """
+    offenders = [
+        (number, line.strip())
+        for number, text in enumerate(pages(name), 1)
+        for line in text.splitlines()
+        if UNRENDERED_MARKUP.search(line)
+    ]
+    assert not offenders, (
+        f"{len(offenders)} line(s) of {name} show unrendered Markdown on the page: "
+        f"{offenders[:3]}"
+    )

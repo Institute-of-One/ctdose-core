@@ -1,16 +1,16 @@
-# Tracked changes — Revision 1
+# Tracked changes — Revision 2
 
 **Manuscript:** An open-source, provenance-aware framework for reconstructing missing CT
-dose indices from DICOM metadata. **Article type:** Technical Note (changed from Research
-Article at the Section Editor's request).
+dose indices from DICOM metadata. **Article type:** Technical Note, unchanged.
 
-This file compares the previously submitted masked manuscript with the masked Technical
-Note submitted now. ~~Struck-through text~~ was removed from the main text; ++underlined
-text++ is new. Text with no marking is unchanged.
+This file compares the masked manuscript submitted at the previous revision with the one
+submitted now. ~~Struck-through text~~ was removed; ++underlined text++ is new. Text with
+no marking is unchanged.
 
-The condensation is a relocation, not a re-analysis: no number changed, and the material
-removed here is reproduced verbatim in the Supplementary Material file and in the public
-repository. Both documents are anonymous for double-masked review.
+The changes answer the reviewers and the Section Editor, and they are not only editorial:
+a third validation arm was added, the manuscript was rewritten against the word limit its
+article type actually carries, and two claims were withdrawn. The point-by-point response
+gives the full account. Both documents are anonymous for double-masked review.
 
 ---
 
@@ -64,7 +64,7 @@ The parser is written against the coded content items of DICOM PS3.16 templates 
 
 ### [added] 2.3 Physics reconstruction when no recorded dose exists
 
-Where no recorded CTDIvol is ~~available~~ ++available,++ it is reconstructed from an openly licensed table of ~~*measured* normalised~~ ++normalized++ CTDI values: Dinwiddie et al. published under CC BY 4.0 the weighted CTDI per 100 mAs at pitch 1 for 17 scanner models from four manufacturers, tabulated by tube voltage, total collimation, reference phantom and bowtie filter [7]. ++Those values are what the scanner consoles reported, and a console figure is pre-set by the manufacturer from in-factory measurements [7] — a survey of what these scanners display, not an independent measurement of them, which bounds what §2.7 and §4 can claim.++ From one ~~row,~~ ++row of that table,++
+Where no recorded CTDIvol is ~~available~~ ++available,++ it is reconstructed from an openly licensed table of ~~measured normalised~~ ++normalized++ CTDI values: Dinwiddie et al. published under CC BY 4.0 the weighted CTDI per 100 mAs at pitch 1 for 17 scanner models from four manufacturers, tabulated by tube voltage, total collimation, reference phantom and bowtie filter [7]. ++Those values are what the scanner consoles reported, and a console figure is pre-set by the manufacturer from in-factory measurements [7] — a survey of what these scanners display, not an independent measurement of them, which bounds what §2.7 and §4 can claim.++ From one ~~row,~~ ++row of that table,++
 
 ### [removed] 2.1 Dose engine, provenance and RDSR parsing
 
@@ -72,7 +72,7 @@ Where no recorded CTDIvol is ~~available~~ ++available,++ it is reconstructed fr
 
 $$\mathrm{CTDI_{vol}} = \frac{n\mathrm{CTDI_w}}{100}\cdot\frac{I\,t_{rot}}{p}, \qquad \mathrm{DLP} = \mathrm{CTDI_{vol}}\cdot\frac{L_{img}}{10}, \qquad E = \mathrm{DLP}\cdot k,$$
 
-with n\mathrm{CTDI_w} the tabulated value for the series' voltage, collimation, phantom and bowtie, I the mean tube current, t_{rot} the rotation time, p the pitch, L_{img} the imaged scan length in ~~mm~~ ++mm,++ and k the ~~conversion factor~~ ++region- and age-specific DLP-to-effective-dose coefficient++ of ++AAPM Report 96, Table 3 [8]. Those coefficients rest on ICRP Publication 60 tissue weighting, by way of the European Guidelines and the Monte Carlo organ doses Report 96 derived them from;++ ICRP Publication 103 ~~[8].~~ ++[9] revised several weighting factors, so an effective dose reported here is not an ICRP 103 quantity and says so in its own provenance. The sex-specific ICRP 103 coefficients of Deak et al. [10] are also shipped.++ Because the table is ~~measured~~ ++tabulated++ at the voltage and collimation in question, neither an over-beaming factor nor a ~~tube-voltage~~ ++voltage++ extrapolation enters. ~~The reconstructed DLP omits helical over-ranging, so it and the effective dose from it are a conservative underestimate, recorded as an assumption on the value.~~
+with $n\mathrm{CTDI_w}$ the tabulated value for the series' voltage, collimation, phantom and bowtie, $I$ the mean tube current, $t_{rot}$ the rotation time, $p$ the pitch, $L_{img}$ the imaged scan length in ~~mm~~ ++mm,++ and $k$ the ~~conversion factor~~ ++region- and age-specific DLP-to-effective-dose coefficient++ of ++AAPM Report 96, Table 3 [8]. Those coefficients rest on ICRP Publication 60 tissue weighting, by way of the European Guidelines and the Monte Carlo organ doses Report 96 derived them from;++ ICRP Publication 103 ~~[8].~~ ++[9] revised several weighting factors, so an effective dose reported here is not an ICRP 103 quantity and says so in its own provenance. The sex-specific ICRP 103 coefficients of Deak et al. [10] are also shipped.++ Because the table is ~~measured~~ ++tabulated++ at the voltage and collimation in question, neither an over-beaming factor nor a ~~tube-voltage~~ ++voltage++ extrapolation enters. ~~The reconstructed DLP omits helical over-ranging, so it and the effective dose from it are a conservative underestimate, recorded as an assumption on the value.~~
 
 ++The reconstructed DLP uses the imaged scan length and so omits helical over-ranging, the extra rotations at each end that irradiate beyond the reconstructed volume. For a given CTDIvol this biases the DLP low, but does not make it an underestimate overall, because the CTDIvol it is built on carries a two-sided error of its own (§3.3), so neither a DLP nor an effective dose from one is a bound in either direction. The omission is recorded as an assumption on the value rather than presented as a direction of error.++
 
@@ -80,7 +80,7 @@ with n\mathrm{CTDI_w} the tabulated value for the series' voltage, collimation, 
 
 ### [added] 2.4 Size-specific dose estimate
 
-The water-equivalent diameter is computed from an automatically extracted body contour as D_w = 2\sqrt{(\overline{\mathrm{HU}}/1000 + 1)\,A_{ROI}/\pi} ~~[9],~~ ++[11],++ using a fixed attenuation threshold, largest-connected-component selection and hole filling, so it is deterministic and needs no deep-learning dependency; SSDE is \mathrm{CTDI_{vol}} \cdot f(D_w), ~~with~~ f from the AAPM TG-204 tables ~~[10].~~ ++[12].++
+The water-equivalent diameter is computed from an automatically extracted body contour as $D_w = 2\sqrt{(\overline{\mathrm{HU}}/1000 + 1)\,A_{ROI}/\pi}$ ~~[9],~~ ++[11],++ using a fixed attenuation threshold, largest-connected-component selection and hole filling, so it is deterministic and needs no deep-learning dependency; SSDE is $\mathrm{CTDI_{vol}} \cdot f(D_w)$, ~~with~~ $f$ from the AAPM TG-204 tables ~~[10].~~ ++[12].++
 
 ### [added] 2.5 Archive sample, and what makes a series recoverable
 
@@ -120,24 +120,18 @@ Of 15 sample objects, 14 parsed as CT Radiation Dose Structured Reports; the fif
 
 ### 3.2 Recorded-dose availability in a public archive
 
-~~Four hundred CT series were screened, 100 per manufacturer, across 92 collections.~~ CTDIvol was absent from the image header in 206 of ++the++ 400 ++screened++ series (51.5%), but the pooled figure conceals the dominant effect (Figure 2A): 100.0% for GE, 48.0% for Siemens, 34.0% for Philips and 24.0% for Canon/Toshiba. Availability ++of a recorded CTDIvol++ was strongly associated with manufacturer (\chi^2(3) = 137.2, nominal p < 0.001, Cramér's V = 0.59); because series from ~~the same~~ ++one++ collection may not be independent, that p-value should be read cautiously and the effect size ~~emphasised.~~ ++emphasized.++ No series carried a usable DLP record in the dose comment.
+~~Four hundred CT series were screened, 100 per manufacturer, across 92 collections.~~ CTDIvol was absent from the image header in 206 of ++the++ 400 ++screened++ series (51.5%), but the pooled figure conceals the dominant effect (Figure 2A): 100.0% for GE, 48.0% for Siemens, 34.0% for Philips and 24.0% for Canon/Toshiba. Availability ++of a recorded CTDIvol++ was strongly associated with manufacturer ($\chi^2$(3) = 137.2, nominal p < 0.001, Cramér's V = 0.59); because series from ~~the same~~ ++one++ collection may not be independent, that p-value should be read cautiously and the effect size ~~emphasised.~~ ++emphasized.++ No series carried a usable DLP record in the dose comment.
 
-~~A series with no recorded dose can still be surveyed if its~~ ++Of the two conditions for reconstruction (§2.5), the++ acquisition ~~is described completely enough *and* its scanner is in the coefficient table: the~~ description was complete enough in 52.5% of the ~~400,~~ ++400 series and++ the scanner ~~in the table~~ ++tabulated++ in 28.8%. Of the 206 series that lacked a recorded CTDIvol, 42 (20.4%) retained enough ~~acquisition~~ metadata to reconstruct one, a conditional rate far more manufacturer-dependent than the marginal one (Table 1). By either route 236 of 400 series (59.0%) were dose-recoverable, leaving 164 (41.0%) ~~that~~ no method here can ~~survey.~~ ++recover.++
+~~A series with no recorded dose can still be surveyed if its~~ ++Of the two conditions for reconstruction (§2.5), the++ acquisition ~~is described completely enough and its scanner is in the coefficient table: the~~ description was complete enough in 52.5% of the ~~400,~~ ++400 series and++ the scanner ~~in the table~~ ++tabulated++ in 28.8%. Of the 206 series that lacked a recorded CTDIvol, 42 (20.4%) retained enough ~~acquisition~~ metadata to reconstruct one, a conditional rate far more manufacturer-dependent than the marginal one (Table 1). By either route 236 of 400 series (59.0%) were dose-recoverable, leaving 164 (41.0%) ~~that~~ no method here can ~~survey.~~ ++recover.++
 
 **Table 1.** Recorded-dose availability and reconstructability by manufacturer, in 400 public CT series (100 each).
 
 | Manufacturer | CTDIvol absent | Of those, reconstructable | Conditional rate |
-
 | --- | ---: | ---: | ---: |
-
 | GE | 100 / 100 (100.0%) | 37 | **37.0%** |
-
 | Siemens | 48 / 100 (48.0%) | 0 | **0.0%** |
-
 | Philips | 34 / 100 (34.0%) | 0 | **0.0%** |
-
 | Canon/Toshiba | 24 / 100 (24.0%) | 5 | **20.8%** |
-
 | **All** | **206 / 400 (51.5%)** | **42** | **20.4%** |
 
 Tube current, slice thickness and slice location ~~are near-universal;~~ ++were present in nearly every series;++ total collimation and pitch ~~are~~ ++were++ not, and those two limit feasibility (Figure 2B). Scanner coverage is the larger constraint: the table resolved 115 model names, found 0 ambiguous and did not cover 285, and a further 122 series were described completely enough to reconstruct but sat on a scanner ~~it~~ ++the table++ lacks.
@@ -162,19 +156,13 @@ Tube current, slice thickness and slice location ~~are near-universal;~~ ++were 
 
 ++**Table 2.** Reconstruction against the CTDIvol recorded by GE scanners in their own dose reports, for the five events meeting the criteria of §2.7, at 120 kVp. The measured collimation is $L\,t_{rot}/(T\,p)$. Where it contradicts the recorded width, that width is refused and the span covers every tabulated collimation and filter; where it agrees, the recorded width stands and only the filter varies.++
 
-++| Scanner | Phantom | Recorded (mGy) | Collimation: stated / measured (mm) | Collimation | Span over assumptions |++
-
-++| --- | ---: | ---: | ---: | --- | ---: |++
-
-++| Optima CT660 | 32 cm | 3.23 | 5.0 / 34.5 | refuted | −12.9% to +21.3% |++
-
-++| Optima CT660 | 32 cm | 5.30 | 5.0 / 36.4 | refuted | −12.1% to +22.4% |++
-
-++| LightSpeed VCT | 32 cm | 8.74 | 2.5 / 19.0 | refuted | −17.9% to +16.4% |++
-
-++| LightSpeed VCT | 32 cm | 4.93 | 2.5 / 18.6 | refuted | −18.2% to +16.1% |++
-
-++| LightSpeed VCT | 16 cm | 22.26 | **40.0 / 39.8** | **stands** | **−0.0% to +12.7%** |++
+| ++Scanner++ | ++Phantom++ | ++Recorded (mGy)++ | ++Collimation: stated / measured (mm)++ | ++Verdict++ | ++Span over assumptions++ |
+| --- | ---: | ---: | ---: | --- | ---: |
+| ++Optima CT660++ | ++32 cm++ | ++3.23++ | ++5.0 / 34.5++ | ++refuted++ | ++−12.9% to +21.3%++ |
+| ++Optima CT660++ | ++32 cm++ | ++5.30++ | ++5.0 / 36.4++ | ++refuted++ | ++−12.1% to +22.4%++ |
+| ++LightSpeed VCT++ | ++32 cm++ | ++8.74++ | ++2.5 / 19.0++ | ++refuted++ | ++−17.9% to +16.4%++ |
+| ++LightSpeed VCT++ | ++32 cm++ | ++4.93++ | ++2.5 / 18.6++ | ++refuted++ | ++−18.2% to +16.1%++ |
+| ++LightSpeed VCT++ | ++16 cm++ | ++22.26++ | ++**40.0 / 39.8**++ | ++**stands**++ | ++**−0.0% to +12.7%**++ |
 
 ### [removed] 3.3 Accuracy of the physics reconstruction
 
@@ -218,20 +206,20 @@ Use of artificial intelligence. A generative AI assistant (Claude, Anthropic) su
 
 ## References
 
-1. National Council on Radiation Protection and Measurements. *Medical Radiation Exposure of Patients in the United States*. NCRP Report No. 184. Bethesda, MD: NCRP; 2019. 2. International Electrotechnical Commission. *Medical Electrical Equipment — Part 2-44: Particular Requirements for CT*. IEC 60601-2-44. Geneva: IEC. 3. National Electrical Manufacturers Association. *DICOM Standard, Part 16: Content Mapping Resource*. Templates TID 10011–10013, CT Radiation Dose. Rosslyn, VA: NEMA. 4. OpenREM: open-source radiation exposure monitoring [software]. GPL-3.0. https://openrem.org (accessed 27 July 2026). 5. American Association of Physicists in Medicine. *Estimating Patient Organ Dose with Computed Tomography: A Review of Present Methodology and Required DICOM Information*. AAPM Report No. 246. College Park, MD: AAPM; 2019. 6. Stamm G, Nagel HD. CT-Expo — a novel program for dose evaluation in CT. *Rofo*. 2002;174(12):1570–1576. doi:10.1055/s-2002-35937 7. Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. *J Appl Clin Med Phys*. 2026;27(2):e70473. doi:10.1002/acm2.70473 8. ++American Association of Physicists in Medicine. *The Measurement, Reporting, and Management of Radiation Dose in CT*. AAPM Report No. 96. College Park, MD: AAPM; 2008. 9.++ International Commission on Radiological Protection. *The 2007 Recommendations of the ICRP*. ICRP Publication 103. Ann ICRP. 2007;37(2–4). ~~9.~~ ++10. Deak PD, Smal Y, Kalender WA. Multisection CT protocols: sex- and age-specific conversion factors used to determine effective dose from dose-length product. *Radiology*. 2010;257(1):158–166. doi:10.1148/radiol.10100047 11.++ American Association of Physicists in Medicine. *Use of Water Equivalent Diameter for Calculating Patient Size and Size-Specific Dose Estimates (SSDE) in CT*. AAPM Report No. 220. College Park, MD: AAPM; 2014. ~~10.~~ ++12.++ American Association of Physicists in Medicine. *Size-Specific Dose Estimates (SSDE) in Pediatric and Adult Body CT Examinations*. AAPM Report No. 204. College Park, MD: AAPM; 2011. ~~11.~~ ++13.++ Clark K, Vendt B, Smith K, et al. The Cancer Imaging Archive (TCIA): maintaining and operating a public information repository. *J Digit Imaging*. 2013;26(6):1045–1057. doi:10.1007/s10278-013-9622-7
+1. National Council on Radiation Protection and Measurements. Medical Radiation Exposure of Patients in the United States. NCRP Report No. 184. Bethesda, MD: NCRP; 2019. 2. International Electrotechnical Commission. Medical Electrical Equipment — Part 2-44: Particular Requirements for CT. IEC 60601-2-44. Geneva: IEC. 3. National Electrical Manufacturers Association. DICOM Standard, Part 16: Content Mapping Resource. Templates TID 10011–10013, CT Radiation Dose. Rosslyn, VA: NEMA. 4. OpenREM: open-source radiation exposure monitoring [software]. GPL-3.0. https://openrem.org (accessed 27 July 2026). 5. American Association of Physicists in Medicine. Estimating Patient Organ Dose with Computed Tomography: A Review of Present Methodology and Required DICOM Information. AAPM Report No. 246. College Park, MD: AAPM; 2019. 6. Stamm G, Nagel HD. ~~CT-Expo~~ ++[CT-Expo++ — a novel program for dose evaluation in ~~CT.~~ ++CT].++ Rofo. 2002;174(12):1570–1576. doi:10.1055/s-2002-35937 7. Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. J Appl Clin Med Phys. 2026;27(2):e70473. doi:10.1002/acm2.70473 8. ++American Association of Physicists in Medicine. The Measurement, Reporting, and Management of Radiation Dose in CT. AAPM Report No. 96. College Park, MD: AAPM; 2008. 9.++ International Commission on Radiological Protection. The 2007 Recommendations of the ICRP. ICRP Publication 103. Ann ICRP. 2007;37(2–4). ~~9.~~ ++10. Deak PD, Smal Y, Kalender WA. Multisection CT protocols: sex- and age-specific conversion factors used to determine effective dose from dose-length product. Radiology. 2010;257(1):158–166. doi:10.1148/radiol.10100047 11.++ American Association of Physicists in Medicine. Use of Water Equivalent Diameter for Calculating Patient Size and Size-Specific Dose Estimates (SSDE) in CT. AAPM Report No. 220. College Park, MD: AAPM; 2014. ~~10.~~ ++12.++ American Association of Physicists in Medicine. Size-Specific Dose Estimates (SSDE) in Pediatric and Adult Body CT Examinations. AAPM Report No. 204. College Park, MD: AAPM; 2011. ~~11.~~ ++13.++ Clark K, Vendt B, Smith K, et al. The Cancer Imaging Archive (TCIA): maintaining and operating a public information repository. J Digit Imaging. 2013;26(6):1045–1057. doi:10.1007/s10278-013-9622-7
 
 ---
 
 ## Figure legends and figures
 
-Figure 1. ~~Vendor-neutral~~ ++*Vendor-neutral++ parsing of recorded dose from real CT Radiation Dose Structured Reports. (A) Per-event CTDIvol from 14 objects spanning four manufacturers; marker shape is the ++stated++ reference ~~phantom stated.~~ ++phantom.++ (B) Sum of the per-event DLPs against the accumulated DLP recorded independently in the same object.
+Figure 1. Vendor-neutral parsing of recorded dose from real CT Radiation Dose Structured Reports. (A) Per-event CTDIvol from 14 objects spanning four manufacturers; marker shape is the ++stated++ reference ~~phantom stated.~~ ++phantom.++ (B) Sum of the per-event DLPs against the accumulated DLP recorded independently in the same object.
 
 ![Figure 1](figures/fig1_layer1_rdsr_agreement.png)
 
-Figure 2. ~~Recorded-dose~~ ++*Recorded-dose++ availability in 400 public CT series, 100 per manufacturer, across 92 TCIA collections. (A) Percentage with CTDIvol absent from the header, with metadata complete enough to reconstruct it, and ~~with the dose~~ recoverable ~~by~~ either ~~route.~~ ++way.++ (B) Percentage carrying each acquisition attribute.
+Figure 2. Recorded-dose availability in 400 public CT series, 100 per manufacturer, across 92 TCIA collections. (A) Percentage with CTDIvol absent from the header, with metadata complete enough to reconstruct it, and ~~with the dose~~ recoverable ~~by~~ either ~~route.~~ ++way.++ (B) Percentage carrying each acquisition attribute.
 
 ![Figure 2](figures/fig2_recorded_dose_availability.png)
 
-Figure 3. ~~Accuracy~~ ++*Accuracy++ of the reconstruction against the scanner's recorded CTDIvol (n = 46). (A) Reconstructed against recorded, identity line dashed, factors of two dotted; circles are the ~~headline~~ ++primary++ stratum. ++Points above the identity line are the 18 over-estimates.++ (B) Relative-error distribution by stratum, median marked.
+Figure 3. Accuracy of the reconstruction against the scanner's recorded CTDIvol (n = 46). (A) Reconstructed against recorded, identity line dashed, factors of two dotted; circles are the ~~headline~~ ++primary++ stratum. ++Points above the identity line are the 18 over-estimates.++ (B) Relative-error distribution by stratum, median marked.
 
 ![Figure 3](figures/fig3_fallback_error.png)

@@ -143,7 +143,7 @@ The three GE objects hold 35 irradiation events, 15 of which record a CTDIvol. B
 
 **Table 2.** Reconstruction against the CTDIvol recorded by GE scanners in their own dose reports, for the five events meeting the criteria of §2.7, at 120 kVp. The measured collimation is $L\,t_{rot}/(T\,p)$. Where it contradicts the recorded width, that width is refused and the span covers every tabulated collimation and filter; where it agrees, the recorded width stands and only the filter varies.
 
-| Scanner | Phantom | Recorded (mGy) | Collimation: stated / measured (mm) | Collimation | Span over assumptions |
+| Scanner | Phantom | Recorded (mGy) | Collimation: stated / measured (mm) | Verdict | Span over assumptions |
 | --- | ---: | ---: | ---: | --- | ---: |
 | Optima CT660 | 32 cm | 3.23 | 5.0 / 34.5 | refuted | −12.9% to +21.3% |
 | Optima CT660 | 32 cm | 5.30 | 5.0 / 36.4 | refuted | −12.1% to +22.4% |
@@ -194,7 +194,7 @@ A CT dose index can be recovered from acquisition metadata when no recorded valu
 3. National Electrical Manufacturers Association. *DICOM Standard, Part 16: Content Mapping Resource*. Templates TID 10011–10013, CT Radiation Dose. Rosslyn, VA: NEMA.
 4. OpenREM: open-source radiation exposure monitoring [software]. GPL-3.0. https://openrem.org (accessed 27 July 2026).
 5. American Association of Physicists in Medicine. *Estimating Patient Organ Dose with Computed Tomography: A Review of Present Methodology and Required DICOM Information*. AAPM Report No. 246. College Park, MD: AAPM; 2019.
-6. Stamm G, Nagel HD. CT-Expo — a novel program for dose evaluation in CT. *Rofo*. 2002;174(12):1570–1576. doi:10.1055/s-2002-35937
+6. Stamm G, Nagel HD. [CT-Expo — a novel program for dose evaluation in CT]. *Rofo*. 2002;174(12):1570–1576. doi:10.1055/s-2002-35937
 7. Dinwiddie LE, Baggett JM, Kofler JM, et al. Survey of normalized CTDIvol values across four major computed tomography vendors for use in the MIRDct software. *J Appl Clin Med Phys*. 2026;27(2):e70473. doi:10.1002/acm2.70473
 8. American Association of Physicists in Medicine. *The Measurement, Reporting, and Management of Radiation Dose in CT*. AAPM Report No. 96. College Park, MD: AAPM; 2008.
 9. International Commission on Radiological Protection. *The 2007 Recommendations of the ICRP*. ICRP Publication 103. Ann ICRP. 2007;37(2–4).

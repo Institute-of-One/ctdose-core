@@ -1,0 +1,10 @@
+{
+  "_why": "Where what the manuscript prints deliberately differs from what the DOI registry carries. Each entry records the registered string as well as the printed one, so tools/check_references.py can require that the registry is STILL wrong -- or still different -- in the recorded way. Without that condition an override becomes a permanent licence to print something nobody will check again, and a publisher's correction would go unnoticed.",
+
+  "10.1055/s-2002-35937": {
+    "registered_title": "CT-Expo - ein neuartiges Programm zur Dosisevaluierung in der CT",
+    "printed_title": "[CT-Expo — a novel program for dose evaluation in CT]",
+    "printed_first_author": "Stamm",
+    "why": "The article is in German (Europe PMC records language 'ger'; PMID 12471531). AMA style, which JACMP follows, gives the English translation of a non-English title in square brackets, and PubMed prints exactly '[CT-expo--a novel program for dose evaluation in CT].' Crossref carries only the German original, so the two cannot match and the difference is intended. Checked against Europe PMC and Crossref on 2026-11-09."
+  }
+}

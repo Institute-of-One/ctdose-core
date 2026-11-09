@@ -209,8 +209,23 @@ def test_the_kit_declares_what_it_could_not_verify(kit):
 
 
 def test_the_kit_carries_the_affiliation_and_the_licences(kit):
-    """Also carried over: the one affiliation, and the two licences, stated correctly."""
-    assert "Institute of One, LISIT Co., Ltd., Tokyo, Japan" in kit
+    """Also carried over: the one affiliation, and the two licences, stated correctly.
+
+    The affiliation is resolved from the title page rather than quoted here. It was
+    quoted here, without the postcode, while three of the author's Crossref records
+    carry "Institute of One, LISIT Co., Ltd., Tokyo 150-0044, Japan" -- so the gate was
+    pinning the wrong string, and would have held the kit to it. What the title page
+    says is in turn checked against Crossref by tools/check_references.py.
+    """
+    title_page = (PAPER / "title_page_jacmp.md").read_text(encoding="utf-8")
+    affiliation = next(
+        line.strip()
+        for line in title_page.splitlines()
+        if line.startswith("Institute of One")
+    )
+    assert affiliation in kit, (
+        f"the kit does not carry the title page's affiliation {affiliation!r}"
+    )
     assert "CC BY" in kit and "MIT" in kit
     for forbidden in ("National Cancer Center", "NCC", "国立がん研究センター"):
         assert forbidden not in kit, f"{forbidden!r} must not appear in the kit"
@@ -260,19 +275,121 @@ def test_the_kit_uses_us_spelling(kit):
     assert not found, f"British spellings in the submission kit: {sorted(set(found))}"
 
 
-def test_the_kit_counts_the_build_steps_and_the_test_suite(kit):
-    """A number the kit states about the build must come from the build.
-
-    "20 stages and all gates green" was true of a build that had 22 stages and 19 gates
-    in another repository of this programme, and a stage that silently stopped running
-    looked like a complete build. Here the kit says how many artefacts the build ships.
-    """
+def _build_all():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("build_all", PAPER / "build_all.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert re.search(rf"\b{len(module.ARTEFACTS)}\b", kit), (
-        f"the kit does not state how many artefacts the build ships "
-        f"({len(module.ARTEFACTS)})"
+    return module
+
+
+def test_the_kit_counts_the_build_steps(kit):
+    """A number the kit states about the build must come from the build.
+
+    "20 stages and all gates green" was true of a build that had 22 stages and 19 gates
+    in another repository of this programme, and a stage that silently stopped running
+    looked like a complete build.
+
+    **Every** statement of the count is checked, not merely that the right number
+    appears somewhere. The earlier version of this gate asked only whether the artefact
+    count appeared in the document; it did, in the checklist -- while the opening
+    paragraph said the build "rebuilds all ten artefacts". A needle that asks where a
+    fact appears instead of where it is asserted is satisfied by the one correct copy.
+    """
+    for what, count, stated in _counts_stated_in(kit):
+        assert stated, f"the kit never says how many {what} the build has ({count})"
+        wrong = [s for s in stated if s != str(count)]
+        assert not wrong, (
+            f"the kit states the number of {what} as {wrong} somewhere; the build has "
+            f"{count}"
+        )
+
+
+def _counts_stated_in(kit: str) -> list[tuple[str, int, list[str]]]:
+    module = _build_all()
+    # A quoted string reports what some other document said; it does not assert the
+    # count. The note in the kit explaining this very defect quotes "ten artefacts",
+    # and a gate that reads a quotation as a claim is a gate that will be switched off.
+    # Same exemption, and the same reason, as the first-person gate's treatment of
+    # quoted reviewer comments.
+    prose = re.sub(r"\"[^\"\n]*\"", '""', kit)
+    return [
+        (what, count, re.findall(pattern, prose))
+        for what, count, pattern in (
+            ("artefacts", len(module.ARTEFACTS), r"(\w+|\d+) artefacts?\b"),
+            ("build steps", len(module.STEPS), r"(\w+|\d+) build steps?\b"),
+        )
+    ]
+
+
+def test_the_count_gate_is_not_vacuous(kit):
+    """Put the defect back: a second, wrong statement of the count must be caught."""
+    # Built from the resolved count, not from a sentence quoted here: quoting one is how
+    # a proof stops applying the moment the kit is edited, which this test did on the
+    # commit that took the build from 12 artefacts to 13.
+    count = len(_build_all().ARTEFACTS)
+    doctored = kit.replace(f"all {count} artefacts", "all ten artefacts", 1)
+    assert doctored != kit, (
+        f"the kit no longer says 'all {count} artefacts' anywhere, so this injection "
+        f"has nothing to break"
+    )
+    wrong = [
+        s
+        for what, count, stated in _counts_stated_in(doctored)
+        for s in stated
+        if s != str(count)
+    ]
+    assert wrong == ["ten"], (
+        f"a second, wrong statement of the artefact count was not caught: {wrong}"
+    )
+
+
+def test_every_document_agrees_on_which_revision_this_is(kit):
+    """The round is stated in several places and was stale in one of them.
+
+    The tracked-changes file -- the first thing the editor opens -- was headed
+    "Tracked changes — Revision 1" while revision 2 was being prepared, announced the
+    article-type change that had happened the round before, and said "no number
+    changed", which was true of that round and false of this one: an arm was added and
+    a headline withdrawn.
+    """
+    rounds = sorted(
+        int(m.group(1))
+        for path in PAPER.glob("cover_letter_jacmp_r*.md")
+        if (m := re.search(r"_r(\d+)\.md$", path.name))
+    )
+    if not rounds:
+        pytest.skip("the letters are correspondence and are not in this checkout")
+    current = rounds[-1]
+
+    tracked = PAPER / "ctdose-core_jacmp_technote_tracked_changes.md"
+    if tracked.is_file():
+        heading = tracked.read_text(encoding="utf-8").splitlines()[0]
+        assert f"Revision {current}" in heading, (
+            f"the tracked-changes file is headed {heading!r} while the current round "
+            f"is {current}"
+        )
+        header = tracked.read_text(encoding="utf-8")[:1200]
+        assert "no number changed" not in header, (
+            "the tracked-changes header still carries the previous round's claim that "
+            "no number changed"
+        )
+    assert re.search(rf"\bRevision {current}\b", kit), (
+        f"the kit does not say which revision this is ({current})"
+    )
+
+
+def test_the_kit_states_no_test_count(kit):
+    """A number nobody can resolve is worse than no number.
+
+    The kit said "pytest -q  # 435 tests" while the suite had 455. Nothing could have
+    caught that: the count changes at every commit and no gate can resolve it without
+    running the suite it is part of. So the kit states no count, and this keeps one from
+    coming back.
+    """
+    stated = re.findall(r"#\s*(\d+)\s+tests\b", kit)
+    assert not stated, (
+        f"the kit claims a test count ({stated}); no gate can resolve it, so it will "
+        f"be wrong by the next commit. Say 'the whole suite' instead."
     )

@@ -284,7 +284,10 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
         plt.Line2D([], [], marker="o", ls="", color="0.4", markersize=6,
                    label="diagnostic +\ncollimation recorded"),
         plt.Line2D([], [], marker="x", ls="", color="0.4", markersize=6,
-                   label="excluded from\nheadline stratum"),
+                   # "primary", not "headline": the manuscript dropped that word at this
+                   # revision and the figure kept it, which is how IORN-005 shipped a
+                   # legend saying "channelised" after the body had been converted.
+                   label="excluded from\nprimary stratum"),
     ]
     ax0.set_xscale("log")
     ax0.set_yscale("log")
@@ -324,9 +327,14 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
         )
         med = float(np.median(values))
         ax1.plot([med, med], [pos - 0.28, pos + 0.28], color="0.15", lw=2, zorder=4)
+        # Above the row, not beside it. These labels used to sit at the right-hand edge
+        # of the data area, where the widest errors reach +87%: two of them were printed
+        # with a data point on top of the digits -- "n=40" with a marker through the 4 --
+        # and that reached a built submission PDF. Vertical separation cannot collide,
+        # because the points are jittered by at most 0.13 and the median bar by 0.28.
         ax1.annotate(
-            f"n={len(values)}  median {med:+.1f}%",
-            xy=(155, pos), fontsize=7.5, va="center", ha="right", color="0.25",
+            f"n={len(values)}  median {med:+.1f}%".replace("-", "−"),
+            xy=(-108, pos + 0.36), fontsize=7.5, va="center", ha="left", color="0.25",
         )
     ax1.axvline(0, color="0.6", lw=1, ls="--")
     ax1.axvspan(-20, 20, color="0.9", zorder=0)
@@ -336,10 +344,14 @@ def figure_fallback_error(survey: dict) -> dict[str, Any]:
     ax1.set_xlabel("relative error of the reconstruction (%)")
     ax1.set_title("(B) Error distribution by stratum")
     ax1.grid(axis="x", alpha=0.25)
-    ax1.set_ylim(-0.6, len(strata) - 0.25)
+    ax1.set_ylim(-0.6, len(strata) - 0.1)
+    # Inside the axes, in the empty strip below the lowest row. It was under the axis,
+    # printed across the tick labels; appending it to the axis label instead ran it off
+    # the right edge of the figure.
     ax1.annotate(
-        "shaded band: ±20%",
-        xy=(0.5, -0.03), xycoords="axes fraction", fontsize=7, color="0.4", ha="center",
+        "shaded band ±20%",
+        xy=(0.985, 0.012), xycoords="axes fraction",
+        fontsize=7, color="0.4", ha="right", va="bottom",
     )
 
     fig.tight_layout()

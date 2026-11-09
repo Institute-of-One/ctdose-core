@@ -641,6 +641,98 @@ def test_the_manuscript_separates_the_dose_model_from_the_recovery_path(text):
     )
 
 
+#: Phrases that call the open coefficient table a measurement. It is a survey of the
+#: values consoles display, normalised to 100 mAs, so "measured" is the word this
+#: revision withdrew. These are the forms that were actually in the files; a blanket ban
+#: on "measured" would fire on the beam width, which really is measured, and on the
+#: in-factory measurements the console figures come from.
+THE_TABLE_IS_NOT_A_MEASUREMENT = (
+    r"the table measures",
+    r"filter was measured",
+    r"measured row",
+    r"measured,? openly licensed",
+    r"measured coefficients?",
+    r"table of measured",
+)
+
+
+def test_every_section_reference_resolves(text, supplement):
+    """A §-reference must name a section that exists, in every document that makes one.
+
+    The point-by-point response sent the editor to "Supplementary §S2.5 ... and its
+    collimation sensitivity" for an analysis the cross-review had removed. The section
+    exists, so this gate would not have caught that one -- but a reference to a section
+    that does not exist at all is the same mistake with nothing to stop it, and the
+    letters cite a dozen of them.
+    """
+    def headings(document: str) -> set[str]:
+        found = set()
+        for line in document.splitlines():
+            m = re.match(r"^#{2,}\s+(S?\d+(?:\.\d+)*)[.\s]", line.strip())
+            if m:
+                found.add(m.group(1).rstrip("."))
+        return found
+
+    main = headings(text)
+    supp = headings(supplement)
+    assert main and supp, f"no headings were found: {len(main)} main, {len(supp)} supp"
+
+    documents = [("manuscript", text), ("supplement", supplement)]
+    for name in ("response_to_editor_jacmp_r2.md", "cover_letter_jacmp_r2.md",
+                 "jacmp_submission_kit.md"):
+        path = PAPER / name
+        if path.is_file():
+            documents.append((name, path.read_text(encoding="utf-8")))
+
+    for name, document in documents:
+        # A line that names the submission runbook is citing the runbook's sections,
+        # not the manuscript's. The kit's "§2 and §11" is the runbook's.
+        body = "\n".join(
+            line for line in document.splitlines() if "Runbook" not in line
+        )
+        dangling = sorted(
+            {
+                ref
+                for ref in re.findall(r"§(S?\d+(?:\.\d+)*)", body)
+                if (ref not in supp if ref.startswith("S") else ref not in main)
+            }
+        )
+        assert not dangling, f"{name} cites sections that do not exist: {dangling}"
+
+
+def test_the_coefficient_table_is_never_called_measured(text, supplement):
+    """In every document that is submitted, and in the letters.
+
+    The finding of this revision is that neither accuracy arm has an independent
+    reference, because the open table is a survey of console figures. The manuscript was
+    corrected; the supplement and the point-by-point response were not, and the response
+    is the document that announces the correction -- it said "I have also corrected the
+    word 'measured' where the manuscript used it of that table" on one page and "more
+    than one filter was measured" two pages later.
+    """
+    documents = [("manuscript", text), ("supplement", supplement)]
+    for name in (
+        "response_to_editor_jacmp_r2.md",
+        "cover_letter_jacmp_r2.md",
+        "ctdose-core_jacmp_technote_masked.md",
+    ):
+        path = PAPER / name
+        if path.is_file():
+            documents.append((name, path.read_text(encoding="utf-8")))
+
+    for name, document in documents:
+        # A quotation of what the manuscript used to say is a report, not a claim.
+        body = re.sub(r'"[^"\n]*"', '""', document)
+        found = [
+            m.group(0)
+            for pattern in THE_TABLE_IS_NOT_A_MEASUREMENT
+            for m in re.finditer(pattern, body, flags=re.IGNORECASE)
+        ]
+        assert not found, (
+            f"{name} still calls the coefficient table measured: {sorted(set(found))}"
+        )
+
+
 def test_the_two_sided_error_claim_replaced_the_conservative_underestimate(text):
     """Reviewer 1: Figure 3A shows over-estimates, so "underestimate" was not supported.
 
@@ -745,6 +837,33 @@ def test_the_manuscript_is_written_in_the_first_person_singular(text):
     stray = re.findall(r"\b(we|our|us)\b", text, flags=re.IGNORECASE)
     assert not stray, f"authorial plural in a single-author manuscript: {stray}"
     assert "to my knowledge" in text
+
+
+def test_the_supplement_is_written_in_the_first_person_singular(supplement):
+    """The supplement is uploaded too, and the gate was reading only the manuscript.
+
+    It said "we excluded 3 scans of physical test objects", in a file the reviewers
+    read, through two revisions. Found by looking at the rendered page, not by any
+    gate: the one that existed had the manuscript as its only fixture.
+    """
+    stray = re.findall(r"\b(we|our|us)\b", supplement, flags=re.IGNORECASE)
+    assert not stray, f"authorial plural in the Supplementary Material: {stray}"
+
+
+def test_the_cover_letter_is_written_in_the_first_person_singular():
+    """The editor reads the letter first.
+
+    The point-by-point response is deliberately not covered: it quotes the reviewers,
+    who write "we", and a gate that forced those quotations to be rewritten would be
+    falsifying them.
+    """
+    letter = PAPER / "cover_letter_jacmp_r2.md"
+    if not letter.is_file():
+        pytest.skip("the cover letter is correspondence and is not in this checkout")
+    stray = re.findall(
+        r"\b(we|our|us)\b", letter.read_text(encoding="utf-8"), flags=re.IGNORECASE
+    )
+    assert not stray, f"authorial plural in the cover letter: {stray}"
 
 
 #: British spellings and their US forms. A named list, not a pattern over "-ised":
@@ -872,6 +991,38 @@ def test_the_title_page_describes_the_supplement_that_exists(text, supplement):
     assert "**Article type:** Technical Note" in page
     keywords = re.search(r"\*\*Keywords:\*\* (.+)", text).group(1)
     assert keywords in page, "the title page and the manuscript disagree on the keywords"
+
+
+def test_the_letters_use_us_spelling():
+    """The editor and the reviewers read the letters too.
+
+    The point-by-point response said "in the model's favour" while answering a reviewer
+    who had asked for American spelling. Quoted reviewer text is exempt -- one of the
+    comments quoted here *is* a request to change "optimisation" to "optimization", and
+    rewriting a quotation to satisfy a gate would be falsifying it.
+    """
+    for name in ("response_to_editor_jacmp_r2.md", "cover_letter_jacmp_r2.md"):
+        path = PAPER / name
+        if not path.is_file():
+            continue
+        body = "\n".join(
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith(">")
+        )
+        found = {
+            british: american
+            for british, american in US_SPELLING.items()
+            if re.search(rf"\b{british}\b", body, flags=re.IGNORECASE)
+        }
+        for stem in BRITISH_STEMS:
+            pattern = rf"\b{stem}(?:{'|'.join(BRITISH_ENDINGS)})\b"
+            for match in re.finditer(pattern, body, flags=re.IGNORECASE):
+                found[match.group(0)] = match.group(0).lower().replace("is", "iz", 1)
+        assert not found, (
+            f"British spellings in {name}: "
+            + ", ".join(f"{b} -> {a}" for b, a in sorted(found.items()))
+        )
 
 
 def test_the_title_page_uses_us_spelling():

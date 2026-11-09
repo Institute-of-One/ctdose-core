@@ -1,12 +1,12 @@
 {
   "_why": "The submission runbook was read before this manuscript was worked on. tests/test_runbook_was_read.py fails while the runbook on disk has a different sha256 from the one recorded here, which covers both never having read it and its having changed since. The runbook is not public and none of its content is stored here.",
   "runbook": "IoO_Submission_Runbook.md",
-  "sha256": "0838a766802ea52a948fec7c10836385480ae4654bb05d9fbdd146c5b180189d",
+  "sha256": "82fb2ad4e028f903d3a9e08191ff71bdc477dde8f139e1f05fd188332cc1201e",
   "sections": [
     "2",
     "11"
   ],
-  "read_on": "2026-11-08",
+  "read_on": "2026-11-09",
   "by": "Claude Opus 5",
-  "note": "re-read after adding section 5.15, the validation arm resting on a chosen constant, which this session's cross-review produced"
+  "note": "Read sections 2 and 11 again after adding 5.16, the thirteen defects the page-by-page look found."
 }

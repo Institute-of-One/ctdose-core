@@ -24,10 +24,39 @@ from pathlib import Path
 
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfgen import canvas as pdfcanvas
 
 REPO = Path(__file__).resolve().parents[1]
+
+# --- byte-reproducible output -------------------------------------------------------------
+#
+# Two rebuilds of an unchanged manuscript must give the same bytes, or a ledger recording
+# that a human opened a particular PDF can never stay true, `git status` reports six
+# modified files after every build, and a real content change cannot be told from noise.
+# Two things made the output differ run to run:
+#
+# * the document timestamps and the trailer /ID, handled by ReportLab's ``invariant``;
+# * the names of the embedded images. ``Canvas.drawImage`` names an XObject by digesting
+#   the *filename* when given a path, and the mathtext equations are rasterised into a
+#   ``TemporaryDirectory`` whose name is random -- so every build produced different
+#   XObject names in a different order. Given an ``ImageReader`` it digests the pixel
+#   data instead, which is exactly what we want it keyed on.
+#
+# ``tests/test_pdf_reproducible.py`` builds the same source twice and compares the bytes.
+
+
+def _image(path: Path | str) -> ImageReader:
+    """An ImageReader for ``path``, cached, so its XObject is named by its pixels."""
+    key = str(path)
+    reader = _IMAGE_CACHE.get(key)
+    if reader is None:
+        reader = _IMAGE_CACHE[key] = ImageReader(key)
+    return reader
+
+
+_IMAGE_CACHE: dict[str, ImageReader] = {}
 
 # --- page geometry -----------------------------------------------------------------------
 PAGE_W, PAGE_H = LETTER
@@ -314,31 +343,54 @@ def parse_runs(
     *,
     math_dir: Path | None = None,
     math_counter: list[int] | None = None,
+    underline: bool = False,
+    strike: bool = False,
 ) -> list[Run]:
     """Split a paragraph into styled runs, resolving **bold**, *italic*, `code`, $math$.
 
     Inline ``$...$`` is rasterised with mathtext when ``math_dir`` is given, so formulae
     read as formulae rather than as stripped LaTeX; otherwise it degrades to italic text.
+
+    **Nested spans are resolved by recursion.** ``INLINE`` is a flat alternation, so
+    whichever delimiter opens first swallows everything to its close and the markup
+    inside it used to be printed literally. Two uploaded files carried that:
+    ``**$w$ refutes, and does not select.**`` printed as ``$w$ refutes`` in the Article
+    File, and the whole of the tracked-changes file's inserted text -- every insertion
+    is wrapped in ``++...++`` -- reached the editor as raw Markdown, asterisks, dollars,
+    backslashes and all. Nothing that reads the source could see either one.
     """
     runs: list[Run] = []
+
+    def nested(inner: str, font: str, **flags) -> list[Run]:
+        return parse_runs(
+            inner, font, size,
+            math_dir=math_dir, math_counter=math_counter,
+            underline=flags.get("underline", underline),
+            strike=flags.get("strike", strike),
+        )
+
     for piece in INLINE.split(text):
         if not piece:
             continue
         if piece.startswith("~~") and piece.endswith("~~"):
-            runs.append(Run(piece[2:-2], base, size, strike=True))
+            runs.extend(nested(piece[2:-2], base, strike=True))
         elif piece.startswith("++") and piece.endswith("++"):
-            runs.append(Run(piece[2:-2], base, size, underline=True))
+            runs.extend(nested(piece[2:-2], base, underline=True))
         elif piece.startswith("**") and piece.endswith("**"):
-            runs.append(Run(piece[2:-2], BOLD_FONT, size))
+            runs.extend(nested(piece[2:-2], BOLD_FONT))
         elif piece.startswith("*") and piece.endswith("*"):
-            runs.append(Run(piece[1:-1], ITALIC_FONT, size))
+            runs.extend(nested(piece[1:-1], ITALIC_FONT))
         elif piece.startswith("`") and piece.endswith("`"):
-            runs.append(Run(piece[1:-1], MONO_FONT, size - 1.0))
+            runs.append(
+                Run(piece[1:-1], MONO_FONT, size - 1.0,
+                    underline=underline, strike=strike)
+            )
         elif piece.startswith("$") and piece.endswith("$"):
             run = _inline_math_run(piece[1:-1], size, math_dir, math_counter)
+            run.underline, run.strike = underline, strike
             runs.append(run)
         else:
-            runs.append(Run(piece, base, size))
+            runs.append(Run(piece, base, size, underline=underline, strike=strike))
     return runs
 
 
@@ -356,42 +408,68 @@ def _inline_math_run(
     return Run(plain, ITALIC_FONT, size)
 
 
-def wrap_runs(runs: list[Run], width: float) -> list[list[Run]]:
-    """Greedy word wrap over styled runs, preserving each run's font."""
-    lines: list[list[Run]] = [[]]
-    x = 0.0
+def _fragment_width(fragment: Run) -> float:
+    if fragment.image is not None:
+        return fragment.image_w
+    return pdfmetrics.stringWidth(fragment.text, fragment.font, fragment.size)
+
+
+def _words(runs: list[Run]) -> list[list[Run]]:
+    """Group the runs into words: a break is possible only at a space.
+
+    A run boundary is not a word boundary. Wrapping run by run let a line break fall
+    between a bold span and the punctuation that closes its sentence, and the supplement
+    printed a line ending ``39 of the 41`` with the next beginning ``. The two
+    exceptions``. The same break is possible after an inline equation -- ``w`` followed
+    by ``;`` -- which is how a semicolon could have started a line.
+    """
+    words: list[list[Run]] = []
+    pending: list[Run] = []
     for run in runs:
-        if run.image is not None:  # an inline equation is one unbreakable token
-            if x + run.image_w > width and lines[-1]:
-                while lines[-1] and lines[-1][-1].text == " ":
-                    lines[-1].pop()
-                lines.append([])
-                x = 0.0
-            lines[-1].append(run)
-            x += run.image_w
+        if run.image is not None:  # an inline equation: part of the word it sits in
+            pending.append(run)
             continue
         for token in re.split(r"(\s+)", run.text):
             if not token:
                 continue
-            w = pdfmetrics.stringWidth(token, run.font, run.size)
-            if token.isspace():
-                if lines[-1]:
-                    lines[-1].append(
-                        Run(" ", run.font, run.size, strike=run.strike,
-                            underline=run.underline)
-                    )
-                    x += pdfmetrics.stringWidth(" ", run.font, run.size)
-                continue
-            if x + w > width and lines[-1]:
-                while lines[-1] and lines[-1][-1].text == " ":
-                    lines[-1].pop()
-                lines.append([])
-                x = 0.0
-            lines[-1].append(
-                Run(token, run.font, run.size, strike=run.strike,
-                    underline=run.underline)
+            fragment = Run(
+                " " if token.isspace() else token,
+                run.font, run.size, strike=run.strike, underline=run.underline,
             )
-            x += w
+            if token.isspace():
+                if pending:
+                    words.append(pending)
+                    pending = []
+                words.append([fragment])
+            else:
+                pending.append(fragment)
+    if pending:
+        words.append(pending)
+    return words
+
+
+def _is_space(word: list[Run]) -> bool:
+    return len(word) == 1 and word[0].image is None and word[0].text == " "
+
+
+def wrap_runs(runs: list[Run], width: float) -> list[list[Run]]:
+    """Greedy word wrap over styled runs, preserving each run's font."""
+    lines: list[list[Run]] = [[]]
+    x = 0.0
+    for word in _words(runs):
+        w = sum(_fragment_width(fragment) for fragment in word)
+        if _is_space(word):
+            if lines[-1]:
+                lines[-1].extend(word)
+                x += w
+            continue
+        if x + w > width and lines[-1]:
+            while lines[-1] and lines[-1][-1].image is None and lines[-1][-1].text == " ":
+                lines[-1].pop()
+            lines.append([])
+            x = 0.0
+        lines[-1].extend(word)
+        x += w
     return [ln for ln in lines if ln]
 
 
@@ -661,15 +739,33 @@ def build_lines(markdown: str, work_dir: Path, *, include_figures: bool = True) 
             i += 1
             continue
 
-        # Ordinary paragraph: join until a blank line.
-        buf = [stripped]
+        # Ordinary paragraph: join until a blank line, except where a line ends with
+        # two spaces. That is Markdown's hard line break, and without it an address
+        # block has to be written as one paragraph per line -- which is how the cover
+        # letter came to print "Shuji Yamamoto Institute of One, LISIT Co., Ltd. Tokyo,
+        # Japan yamamoto@lisit.jp ORCID: ..." as a single run-on line, and why spacing
+        # it out instead pushed the signature onto a page of its own.
+        segments: list[list[str]] = [[stripped]]
+        hard_break = raw.rstrip("\r\n").endswith("  ")
         i += 1
         while i < len(blocks) and blocks[i].strip() and not re.match(
             r"^(#|>|\$\$|!\[|\d+\.\s|[-*]\s)", blocks[i].strip()
         ):
-            buf.append(blocks[i].strip())
+            if hard_break:
+                segments.append([])
+            segments[-1].append(blocks[i].strip())
+            hard_break = blocks[i].rstrip("\r\n").endswith("  ")
             i += 1
-        para(" ".join(buf))
+        first = len(lines)
+        for k, segment in enumerate(segments):
+            para(" ".join(segment), space=6.0 if k == 0 else 0.0)
+        if len(segments) > 1:
+            # Lines the author joined with hard breaks are one block -- a letterhead,
+            # an address, a signature -- and a page break inside one is the split the
+            # SOP forbids. The cover letter put "Sincerely, Shuji Yamamoto" at the foot
+            # of page 3 and the rest of the signature alone on page 4.
+            for line in lines[first:-1]:
+                line.keep_with_next = True
 
     mark_keep_groups(lines)
     return lines
@@ -821,6 +917,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
         pagesize=LETTER,
         initialFontName=BODY_FONT,
         initialFontSize=BODY_SIZE,
+        invariant=1,  # fixed timestamps and trailer /ID; see _image() above
     )
     c.setTitle(title)
     y = PAGE_H - MARGIN_T
@@ -897,7 +994,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
                         tx = cx + TABLE_PAD
                     for run in run_line:
                         if run.image is not None:
-                            c.drawImage(str(run.image), tx, cy - 0.28 * run.image_h,
+                            c.drawImage(_image(run.image), tx, cy - 0.28 * run.image_h,
                                         width=run.image_w, height=run.image_h, mask="auto")
                         else:
                             c.setFont(run.font, run.size)
@@ -911,7 +1008,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
 
         if line.image is not None:
             x = MARGIN_L + (COLUMN_W - line.image_w) / 2 if line.align == "center" else MARGIN_L
-            c.drawImage(str(line.image), x, y - line.image_h, width=line.image_w,
+            c.drawImage(_image(line.image), x, y - line.image_h, width=line.image_w,
                         height=line.image_h, mask="auto")
             y -= line.image_h + 4
             continue
@@ -928,7 +1025,7 @@ def draw(lines: list[Line], out_path: Path, title: str) -> Path:
             if run.image is not None:
                 # mathtext rasters carry a descender margin; drop the image slightly so
                 # its baseline lines up with the surrounding text.
-                c.drawImage(str(run.image), x, baseline - 0.28 * run.image_h,
+                c.drawImage(_image(run.image), x, baseline - 0.28 * run.image_h,
                             width=run.image_w, height=run.image_h, mask="auto")
             else:
                 c.setFont(run.font, run.size)

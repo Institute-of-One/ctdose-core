@@ -1,0 +1,22 @@
+{
+  "_why": "Written by tools/check_references.py. tests/test_references.py fails if this is missing, not PASS, or older than the reference list and affiliation it vouches for.",
+  "checked_at": "2026-11-09T00:48:20+00:00",
+  "manuscript": "paper/ctdose-core_jacmp_technote.md",
+  "references_sha256": "64efa7087c600cb49c4e9a4802c37d14c20bf42d536497f7814391e0bcac7383",
+  "affiliation_sha256": "6f0f20b4443523bf164675ca6dad1b9d3b4a4d6a326cc5b6fec284e46918eb9a",
+  "references": 20,
+  "with_doi": 6,
+  "resolved": 6,
+  "affiliation": {
+    "used_on_the_title_page": "Institute of One, LISIT Co., Ltd., Tokyo 150-0044, Japan",
+    "records_found": 4,
+    "records_matching": 3,
+    "distinct_registered": [
+      "Institute of One (supported by Lisit Co., Ltd., Japan; TexelCraft OÜ, Estonia)",
+      "Institute of One, LISIT Co., Ltd., Tokyo 150-0044, Japan"
+    ],
+    "ok": true
+  },
+  "status": "PASS",
+  "errors": []
+}

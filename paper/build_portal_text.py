@@ -78,8 +78,11 @@ def abstract_text() -> str:
 
 def cover_text() -> str:
     body = COVER.read_text(encoding="utf-8")
-    # The address block at the top is the letterhead; the box wants the letter.
-    marker = "To the Editors"
+    # The letterhead and the inside address are not the letter. They were cut at "To the
+    # Editors", which left that line and the journal's name to be joined into one
+    # paragraph -- "To the Editors Journal of Applied Clinical Medical Physics" -- in
+    # the box the editor reads. The portal already knows which journal it is.
+    marker = "Dear Editors,"
     if marker in body:
         body = body[body.index(marker) :]
     return one_paragraph_per_line(strip_markdown(body))

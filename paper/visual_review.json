@@ -1,0 +1,105 @@
+{
+  "_why": "Who has looked at the rendered pages of each uploaded PDF, and the sha256 of the page images they looked at. Written by tools/visual_review.py --record; checked by tools/visual_review.py --check and tests/test_visual_review.py. Pins the page images rather than the PDF so that a rebuild of unchanged content keeps a review current, and a content change makes exactly the affected document stale.",
+  "reviews": [
+    {
+      "by": "Claude Opus 5",
+      "role": "agent",
+      "at": "2026-11-09",
+      "note": "Read all 61 rendered pages of the six uploaded documents. Found and fixed: raw $w$ and whole-insertion Markdown printed in the Article File and the tracked-changes file; Table 1 and Table 2 printed as pipe rows in the tracked-changes file; a stray asterisk from the diff; a line beginning with the full stop of the previous word in the supplement; data markers drawn over the n=/median labels and a clipped axis label in Figure 3B; the Figure 3A legend still saying 'headline stratum'; a run-on letterhead and a signature block split onto a page of its own; the stale 'Revision 1' tracked-changes header; two near-colliding 'Collimation' headers in Table 2; 'we excluded' in the supplement and 'favour' in the response; the coefficient table still called 'measured' in three places; and a cross-reference to a collimation sensitivity that no longer exists.",
+      "dpi": 150,
+      "documents": {
+        "ctdose-core_jacmp_technote_masked.pdf": {
+          "pdf_sha256": "5f256641a880946fa5ecd7bb784e3cce0a7626cb49335a7aa6272cf60fbf46a2",
+          "page_sha256": [
+            "d62678b29eab0d00faa9f7ef5703ed4aaf8b95397f9766da989a6f5a725afe09",
+            "7c124b6e814a662d2e785c3f77643ca6939677ed4968f6f38442d08f23a9d260",
+            "58061647183748fd37e55ec399838ace67ea5313bb56e3225fcaa0db2712ee9b",
+            "64a27861dd15ca59c8fd976822466eaea44493636e86b43e785566da96b38778",
+            "f13f9b5f1c7507f1635b333076db64e49f85cdcfcce5a68ca02d31bd3d94a8ea",
+            "cc8bda7bece1078c30a951ed0b45a98f86c6f498c44f0c812b8c7e96b9bb316b",
+            "adc33088f29b4e3ac2209a09603b1f52f31589f27e84fa35c7f4d0db53eb0093",
+            "586418985f07e661223b080d594af7687ffe80c4e1d58371e2758e8c0c68c265",
+            "cfd63125a6a695d6043b523e86c4af8030743cab66b54c187a0ad9c47e43140f",
+            "5d1fec231480eec79cf9454c7580638db8e63053f931cc3f6e1a87b384170eca",
+            "ab25d05bba2df72593ee9d7f3f0b05d9f642d48d76b569c45543d437c427a75a",
+            "0904041edb2096dd6f87dc21fb3e15fca5343e0cfdefc3a9367f641ea7eb44d2",
+            "20ac48f2bbfa18fd0f38c04a10c168e6fd3090c4db66f7a4bca5561a01e8a384",
+            "d1deef48cd55c2c86122281c9fc1872ff3f3f286f1a928dd2205a718b51e7820",
+            "3945dc89375579ec19f7e111e9a956f4cc8d6bf5dcf5ea498ec21f49876d6785",
+            "1199c5fc0a253ea59af1033110b46ece876dc930a15260a1b52841eb712ed1c7"
+          ]
+        },
+        "ctdose-core_jacmp_technote_tracked_changes.pdf": {
+          "pdf_sha256": "25ac1ca71a560b7a0e1ebe59d705938818e402335381ffdb43fcad9f31ba008e",
+          "page_sha256": [
+            "85c588643e82be0c062dc637ce9b5a48b5fbb61b7a0e82ec8b5ac80bb1886b8d",
+            "999b1e1d08bc2a4d72133385c3f853d16752a2b40b3b47bf477dfc31bc267050",
+            "4419d4f54ff710daea0c08d5aa7258efa863bb60901daea3f9cd38331b536082",
+            "77daf81153a367e4fb853987b554f2c1e37597859c64ad6a366f0cbf74a6c683",
+            "9d3b2e5ec39ba562a7628caa5f27faa20e963e9352fbdb4940487500279b285b",
+            "5978bb2ad0142b00ab6eefec2fb70002eb7b147f9851fe94cec06e784b2bb1ce",
+            "a227ee68b82e8e2011f8ccf35df7fbdfc91633b551c30b41b306addc21956d93",
+            "2d0c863183c1c63565b335bcfb23c5a7828457783c4008a79a9d63534b9118de",
+            "08720f90621cdc9f5ebdf56a7718e2bf05bae2d9b6902a605314bffd6db24bb9",
+            "0b9e8c89971414e85e68c9eabb2dc21510cacaebf0220898da387b97a21118b4",
+            "5df047093fd06d7b693631650199a81ab2d8a55cfdfa563c16a29f1d365f2d2d",
+            "74f0eb338e415ec746b9afe1d9e3993ee422b3ff357c935f182bcfa3a2992a09",
+            "ce407b64e5669606e0c8f9295fee729c3a1e3174d65f0172dda2213dd5720ad2",
+            "c28e8f2a3d32c430bd0af23f065c75c0482d50d94ae59109271b6388b94abaee",
+            "3f2d64db076b7426ee61821e0978386137d375a0d6d2d01cab16cc6e25712180",
+            "7387d407617b6bdeed5878e7ee9238980719336c22e891837afe13276017381c",
+            "46cc939aad909e60301d4ef62a5c5a0e6de5f78e0d41fea2f24bb9704c8f4978"
+          ]
+        },
+        "ctdose-core_jacmp_technote_supplement.pdf": {
+          "pdf_sha256": "03399b2c0a35b47f46e3f4e095ee14553e680505eec4bf9823fc215b8df13029",
+          "page_sha256": [
+            "d4cb2c78ef00150ea8af9e8569e3c0345952b5d1db43247bc285838df24c5eb6",
+            "c873c4c606f0fd2e5a67322c35149673ebd9ad711bcba07b7860ec2a1949c297",
+            "64861258678bb23342d5e24ba244219f04e07b6b2b07078f7164b9cde7f6d373",
+            "ae9129ba2082d7194903781c49f06f7665577a9d6417e0fece2d1f2dacb2aaef",
+            "5659e97b5ffc04b8731b30217cd30914231b868af6e00914bad858ac41f74cbc",
+            "04320578699357479284525c7280f53a239983050b0ec523174c60b0b88a799a",
+            "39e78f16e905fc873be5a7fba0d268ae45e8f5c3e07b931b0210aaaa413dcc4e",
+            "f85d8dd80533cd96cc3b5f9ec6bdda3b2c27941ece6500c8b99af21d77d5915f",
+            "dfaced67c73a0d3f6e4d20efe98c2dcbdfe56e20df0fb4f69b8b6b5ed7aaea5e"
+          ]
+        },
+        "response_to_editor_jacmp_r2.pdf": {
+          "pdf_sha256": "ff09e4d7f821e2aba8d7e0dcde4b2d884e7b7e25c894fc684bc7f2fa57e1de61",
+          "page_sha256": [
+            "f12dc0f5c541906e73c24dc3bf1cc9b2a58ddddef569e854dcdac2692abe3069",
+            "cabb113aaa5fdfb094df4c4467f9a36f6e664f48c4983545e8da68f69da119cd",
+            "c743a5c181caf0c3cd8d58f8844177e9af0d3d627468375de874fbc2b8cd04fe",
+            "e4cb5fe0c71d499acd4900dfa5e0a4b6c1e146217cd34eeb2d4efb0d5e4b0121",
+            "5cabd164e7265946613175f107c591f45aa61f19c68c3b48064ed452d09c9824",
+            "92dd0031f8272ba5606dddf52c43005ffafb052e704cbfcf64151dabba346567",
+            "6ff7150d6e88deace9c2dbe22160228ba0886ce4ca15afe6a892a237958e452a",
+            "f3a438bd45eb610f2cfc02180931b18b2a488d42269efaa4e17a4f86a61178e4",
+            "acea514fe134a4600849c4e73ca6bf924f9e77c12f3600721e37f7b8dd59a27f",
+            "2a039317b0acf34c6666b5b53d6c0d3aa96eda09c3ebd54ed31565511b066b93",
+            "2ed2bc362558dd3be14767da10e31069ab5b7e71e67744cc136f132f49dccf7c",
+            "74636baaa5207dea194717bce4b44480ce012c76fe295980411751f39689bf4e",
+            "efbd04aeab65e9fe8dc2871f0517c1fcfb3231e2915abe72d9731d9a46316ccc",
+            "3b4ad1ec14417d34a09c69bf123e7045358fdb5e3db9d7e04fd1dce4dd2d9902"
+          ]
+        },
+        "title_page_jacmp.pdf": {
+          "pdf_sha256": "f78bd9defe0ef6a903d0e0b19f9c51a2f5010f03aca26e6927fb52ea191a6eec",
+          "page_sha256": [
+            "e2e037208c302a4be37fe42d530fa77f430746f98bba42b175df5c7f1329a273",
+            "72d0ed4dc80c185541032daa5bda51f2c583d9e253454ce7805b4aacbc685e9d"
+          ]
+        },
+        "cover_letter_jacmp_r2.pdf": {
+          "pdf_sha256": "6c5c1a5192f5297c6ebf8f0e15ebf95c60492da2d1297fafe9365ada4b89d0ec",
+          "page_sha256": [
+            "b0e2eecb0c316cec8e68037348857dd41981e918ffae24a8b7e27858422ec60d",
+            "fb84ac09e0f4640cc1c07557a75ec22cfe9562ced40b4dab8365bf589b7f1f14",
+            "92bb916a582dbfe016d1b819bc241302c5a2b12a2fc4a0502e70ab3b834f2e1a"
+          ]
+        }
+      }
+    }
+  ]
+}

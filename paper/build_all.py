@@ -42,6 +42,16 @@ DIFF = TOOLS / "build_tracked_changes.py"
 #: (description, command, the file it must produce). Order is dependency order.
 STEPS: tuple[tuple[str, list[str], str], ...] = (
     (
+        # First, because the manuscripts embed them. A figure has two sources -- the
+        # result files and the code that draws it -- and this step was missing, so a
+        # script announcing that it builds everything rebuilt the documents around
+        # figures somebody had last drawn by hand. The same gap in IORN-005 shipped a
+        # legend whose wording the body had abandoned, with every gate green.
+        "figures, from results/*.json",
+        [str(PAPER / "figures" / "make_figures.py")],
+        "figures/fig1_layer1_rdsr_agreement.png",
+    ),
+    (
         "masked Research Article (preserved; not submitted, but kept in step)",
         [str(MASK)],
         "ctdose-core_jacmp_masked.pdf",
@@ -95,11 +105,22 @@ STEPS: tuple[tuple[str, list[str], str], ...] = (
         [str(PAPER / "build_portal_text.py")],
         "build/abstract_for_portal.txt",
     ),
+    (
+        "one image per page of every uploaded PDF, for the look nobody can skip",
+        [str(TOOLS / "render_pdf_pages.py")],
+        "build/pages/index.json",
+    ),
 )
 
 #: Every built file this submission ships, and the source each is built from. Counted
 #: against STEPS so an artefact without a build step cannot go unnoticed.
 ARTEFACTS: dict[str, str] = {
+    # The three figures this Technical Note submits, each against the result file it is
+    # drawn from. Figures 4-6 belong to the organ layer withdrawn at revision 1 and need
+    # images that are not in the repository, so they are not built here.
+    "figures/fig1_layer1_rdsr_agreement.png": "../results/rdsr_layer1.json",
+    "figures/fig2_recorded_dose_availability.png": "../results/survey.json",
+    "figures/fig3_fallback_error.png": "../results/survey.json",
     "ctdose-core_jacmp_technote.pdf": "ctdose-core_jacmp_technote.md",
     "ctdose-core_jacmp_technote_masked.md": "ctdose-core_jacmp_technote.md",
     "ctdose-core_jacmp_technote_masked.pdf": "ctdose-core_jacmp_technote.md",
@@ -115,6 +136,12 @@ ARTEFACTS: dict[str, str] = {
     # should be pasted is current; paper/record_portal_fields.py pins what was.
     "build/abstract_for_portal.txt": "ctdose-core_jacmp_technote_masked.md",
     "build/cover_letter_for_portal.txt": "cover_letter_jacmp_r2.md",
+    # The pages as images. A gate that reads Markdown cannot see a heading stranded at
+    # the foot of a page or a figure carrying the wrong number, and this programme has
+    # shipped both. The index records each page's sha256, which is what
+    # paper/visual_review.json pins; the mtime link below only says the images are not
+    # older than the Article File, and tools/visual_review.py does the real comparison.
+    "build/pages/index.json": "ctdose-core_jacmp_technote_masked.pdf",
 }
 
 #: Inputs, not outputs. Rebuilding these would destroy what they record.

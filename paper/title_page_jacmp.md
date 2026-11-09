@@ -14,7 +14,7 @@
 
 Shuji Yamamoto
 
-Institute of One, LISIT Co., Ltd., Tokyo, Japan
+Institute of One, LISIT Co., Ltd., Tokyo 150-0044, Japan
 
 ORCID: 0000-0001-9211-1071
 
@@ -23,8 +23,9 @@ ORCID: 0000-0001-9211-1071
 **Corresponding author**
 
 Shuji Yamamoto
-Institute of One, LISIT Co., Ltd.
-Tokyo, Japan
+
+Institute of One, LISIT Co., Ltd., Tokyo 150-0044, Japan
+
 Email: yamamoto@lisit.jp
 
 ---

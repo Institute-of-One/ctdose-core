@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import re
 import subprocess
 import sys
@@ -57,19 +58,42 @@ OUT_PDF = REPO / "paper" / "ctdose-core_jacmp_technote_tracked_changes.pdf"
 #: right reading for a paragraph that was rewritten rather than edited.
 PAIR_THRESHOLD = 0.45
 
-HEADER = """# Tracked changes — Revision 1
+def _round() -> int:
+    """Which revision this is, resolved from the correspondence the build produces.
+
+    It was written into the header as a constant, and the header was still revision 1's
+    when revision 2 was being prepared: it announced the article-type change that had
+    happened the round before, and said "no number changed", which was true of that
+    round and false of this one -- an arm was added and a headline withdrawn. The
+    editor reads this page first.
+    """
+    rounds = [
+        int(m.group(1))
+        for path in (REPO / "paper").glob("cover_letter_jacmp_r*.md")
+        if (m := re.search(r"_r(\d+)\.md$", path.name))
+    ]
+    if not rounds:
+        raise SystemExit(
+            "no paper/cover_letter_jacmp_r<N>.md, so the revision number cannot be "
+            "resolved; it must not be guessed"
+        )
+    return max(rounds)
+
+
+def header() -> str:
+    return f"""# Tracked changes — Revision {_round()}
 
 **Manuscript:** An open-source, provenance-aware framework for reconstructing missing CT
-dose indices from DICOM metadata. **Article type:** Technical Note (changed from Research
-Article at the Section Editor's request).
+dose indices from DICOM metadata. **Article type:** Technical Note, unchanged.
 
-This file compares the previously submitted masked manuscript with the masked Technical
-Note submitted now. ~~Struck-through text~~ was removed from the main text; ++underlined
-text++ is new. Text with no marking is unchanged.
+This file compares the masked manuscript submitted at the previous revision with the one
+submitted now. ~~Struck-through text~~ was removed; ++underlined text++ is new. Text with
+no marking is unchanged.
 
-The condensation is a relocation, not a re-analysis: no number changed, and the material
-removed here is reproduced verbatim in the Supplementary Material file and in the public
-repository. Both documents are anonymous for double-masked review.
+The changes answer the reviewers and the Section Editor, and they are not only editorial:
+a third validation arm was added, the manuscript was rewritten against the word limit its
+article type actually carries, and two claims were withdrawn. The point-by-point response
+gives the full account. Both documents are anonymous for double-masked review.
 
 ---
 
@@ -125,15 +149,64 @@ def blocks(markdown: str) -> list[str]:
     return [b for b in out if b]
 
 
+#: Each ``$...$`` span met while diffing, keyed by a token that cannot be split by the
+#: word diff. Content-keyed, so the same formula on both sides of the diff compares
+#: equal and a changed one does not.
+_MATH: dict[str, str] = {}
+_MATH_TOKEN = re.compile(r"\x00m[0-9a-f]{10}\x00")
+
+
+def join_blocks(marked: list[str]) -> str:
+    """Join the marked blocks, keeping a table's rows adjacent.
+
+    Each table row is its own block, so that a changed row does not drag its neighbours
+    into the diff. Joining every block with a blank line then separates the rows, and a
+    renderer that recognises a table by contiguous rows no longer sees one: the
+    tracked-changes file submitted at revision 1 printed Table 1 to the editor as raw
+    Markdown, pipes, alignment row and all. The rows are joined with a single newline so
+    the table is still a table.
+    """
+    out: list[str] = []
+    for block in marked:
+        if out and block.startswith("|") and out[-1].splitlines()[-1].startswith("|"):
+            out[-1] = out[-1] + "\n" + block
+        else:
+            out.append(block)
+    return "\n\n".join(out)
+
+
 def plain(text: str) -> str:
-    """Drop emphasis and math delimiters before a word-level diff.
+    """Drop emphasis, and protect math, before a word-level diff.
 
     A revision mark can fall between a ``**`` and its partner, leaving markup the
     renderer then pairs across the mark and typesets wrongly. The tracked-changes file is
-    a diff rather than a typeset manuscript, so the delimiters are simply removed and
-    formulae read as their source; the manuscript itself keeps both.
+    a diff rather than a typeset manuscript, so the emphasis delimiters are removed; the
+    manuscript itself keeps them.
+
+    **The math delimiters used to be removed with them, and that reached the editor.**
+    Stripping the ``$`` leaves the LaTeX body behind as ordinary words, so the revision
+    sent at revision 1 printed ``with n\\mathrm{CTDI_w} the tabulated value`` and
+    ``2\\sqrt{(\\overline{\\mathrm{HU}}/1000 + 1)\\,A_{ROI}/\\pi}`` on the page. Each
+    span is now replaced by one opaque token, which the word diff cannot split and a
+    revision mark therefore cannot land inside, and put back after the diff.
     """
-    return re.sub(r"\*\*|(?<!\w)\*(?!\w)|\$", "", text)
+    def protect(match: re.Match[str]) -> str:
+        span = match.group(0)
+        key = "\x00m" + hashlib.sha256(span.encode("utf-8")).hexdigest()[:10] + "\x00"
+        _MATH[key] = span
+        return key
+
+    text = re.sub(r"\$[^$\n]+?\$", protect, text)
+    # Every asterisk, not only the ones flanked by non-word characters. The opening
+    # delimiter of an italic run is followed by a letter, so "*Recorded-dose" kept its
+    # asterisk and the editor read it on the page. Nothing in this manuscript uses a
+    # literal asterisk.
+    return re.sub(r"\*+", "", text)
+
+
+def restore_math(text: str) -> str:
+    """Put the protected ``$...$`` spans back, after the diff has been marked up."""
+    return _MATH_TOKEN.sub(lambda m: _MATH.get(m.group(0), m.group(0)), text)
 
 
 def word_diff(old: str, new: str) -> str:
@@ -148,7 +221,7 @@ def word_diff(old: str, new: str) -> str:
             pieces.append("~~" + " ".join(a[i1:i2]) + "~~")
         if tag in ("insert", "replace"):
             pieces.append("++" + " ".join(b[j1:j2]) + "++")
-    return " ".join(p for p in pieces if p)
+    return restore_math(" ".join(p for p in pieces if p))
 
 
 def similarity(old: str, new: str) -> float:
@@ -187,6 +260,19 @@ def mark(block: str, marker: str) -> str:
         if block.startswith("!["):
             return f"++[figure {label}: {block}]++" if label == "added" else \
                    f"~~[figure removed: {block}]~~"
+        if block.startswith("|"):
+            # Mark the cells, not the row. Wrapping the whole row in ++...++ stops it
+            # being a table row at all, and the renderer printed the pipes and the
+            # alignment row literally -- Table 2 reached the editor as raw Markdown in
+            # the file that is meant to show what changed. An alignment row carries no
+            # text to mark, so it is left alone.
+            cells = block.strip().strip("|").split("|")
+            if all(re.fullmatch(r"\s*:?-{3,}:?\s*", c) for c in cells):
+                return block
+            marked = "|".join(
+                f" {marker}{c.strip()}{marker} " if c.strip() else c for c in cells
+            )
+            return f"|{marked}|"
         return f"{marker}{block}{marker}"
     return f"{marker}{block}{marker}"
 
@@ -252,7 +338,7 @@ def main() -> int:
         blocks(old.read_text(encoding="utf-8")),
         blocks(new.read_text(encoding="utf-8")),
     )
-    document = HEADER + "\n\n".join(marked) + "\n"
+    document = header() + join_blocks(marked) + "\n"
     out_md.write_text(document, encoding="utf-8", newline="")
     print(f"wrote {out_md.relative_to(REPO)}  ({len(document.split())} words)")
 
