@@ -100,6 +100,22 @@
           ]
         }
       }
+    },
+    {
+      "by": "Claude Opus 5",
+      "role": "agent",
+      "at": "2026-11-09",
+      "note": "Re-read title_page_jacmp.pdf page 2 after the v0.2.0 release: the Data Availability statement now reads version 0.2.0 and https://doi.org/10.5281/zenodo.24081075, the version DOI of the archive cut today. The concept DOI stays on the README badge and in CITATION.cff.",
+      "dpi": 150,
+      "documents": {
+        "title_page_jacmp.pdf": {
+          "pdf_sha256": "7a81153adc4d5300ed404e72abba106e31554b90c88fb727c4c4fd1a5f7f27f8",
+          "page_sha256": [
+            "e2e037208c302a4be37fe42d530fa77f430746f98bba42b175df5c7f1329a273",
+            "d071bb476b9791d1dab2be47af245f7b5a787cbe7c4433081b38828c2b526ec1"
+          ]
+        }
+      }
     }
   ]
 }

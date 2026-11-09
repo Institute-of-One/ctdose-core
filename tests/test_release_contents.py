@@ -62,6 +62,36 @@ def test_the_cited_version_is_the_archived_one(report: dict) -> None:
     )
 
 
+def test_line_endings_are_normalised_but_content_is_not() -> None:
+    """The comparison has to ignore CRLF and nothing else.
+
+    A Windows checkout holds the result files with CRLF; the source archive GitHub
+    builds from the tag carries the LF that git stores. The first version of this check
+    compared raw bytes and reported all eleven files as different from an archive that
+    held exactly the right content -- a false alarm is how a gate gets switched off.
+    Normalising is only safe if it still sees a real difference, so both directions are
+    asserted here.
+    """
+    body = b'{"median": -5.7}\n'
+    assert rc.digest(body) == rc.digest(body.replace(b"\n", b"\r\n")), (
+        "a line-ending difference is reported as a content difference"
+    )
+    assert rc.digest(body) != rc.digest(b'{"median": -5.8}\n'), (
+        "a changed value is not reported"
+    )
+    # Binary content is compared byte for byte, CR included.
+    binary = b"\x89PNG\r\n\x1a\n\x00\x01"
+    assert rc.digest(binary) != rc.digest(binary.replace(b"\r\n", b"\n"))
+
+
+def test_the_comparison_reports_a_missing_and_a_changed_file() -> None:
+    here = {"results/a.json": "aaa", "results/b.json": "bbb"}
+    missing, stale = rc.compare(here, {"results/b.json": "ccc"})
+    assert missing == ["results/a.json"]
+    assert stale == ["results/b.json"]
+    assert rc.compare(here, here) == ([], [])
+
+
 def test_the_archive_holds_every_result_the_manuscript_reports(report: dict) -> None:
     missing = report["results_missing_from_the_archive"]
     stale = report["results_differing_from_the_archive"]

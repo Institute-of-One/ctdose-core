@@ -73,12 +73,43 @@ def fetch_json(url: str) -> dict:
         return json.load(response)
 
 
+def digest(data: bytes) -> str:
+    """Hash a file's content, with line endings normalised for text.
+
+    The result files are text -- JSON, CSV, Markdown -- and a Windows checkout holds
+    them with CRLF while the source archive GitHub builds from the tag carries the LF
+    that git stores. Comparing raw bytes reported all eleven as different from an
+    archive that contains exactly the right content, which is the kind of false alarm
+    that gets a gate switched off. Anything that is not valid UTF-8, or that holds a
+    NUL, is compared byte for byte.
+    """
+    if b"\x00" not in data:
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            pass
+        else:
+            data = data.replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
 def digests_of_results() -> dict[str, str]:
     return {
-        f"results/{p.name}": hashlib.sha256(p.read_bytes()).hexdigest()
+        f"results/{p.name}": digest(p.read_bytes())
         for p in sorted(RESULTS.iterdir())
         if p.is_file()
     }
+
+
+def compare(
+    here: dict[str, str], archived: dict[str, str]
+) -> tuple[list[str], list[str]]:
+    """(absent from the archive, present but different)."""
+    missing = sorted(name for name in here if name not in archived)
+    stale = sorted(
+        name for name in here if name in archived and archived[name] != here[name]
+    )
+    return missing, stale
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -119,17 +150,14 @@ def main(argv: list[str] | None = None) -> int:
             with zipfile.ZipFile(local) as z:
                 root = z.namelist()[0].split("/")[0] + "/"
                 archived = {
-                    name[len(root):]: hashlib.sha256(z.read(name)).hexdigest()
+                    name[len(root):]: digest(z.read(name))
                     for name in z.namelist()
                     if not name.endswith("/") and name.startswith(root)
                 }
         print(f"the archive holds {len(archived)} file(s)")
 
     here = digests_of_results()
-    missing = sorted(name for name in here if name not in archived)
-    stale = sorted(
-        name for name in here if name in archived and archived[name] != here[name]
-    )
+    missing, stale = compare(here, archived)
     for name in missing:
         problems.append(f"{name} is not in the archive at all")
     for name in stale:

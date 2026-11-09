@@ -1,39 +1,14 @@
 {
   "_why": "Written by tools/check_release_contents.py. tests/test_release_contents.py fails if this is missing, not PASS, or older than the result files it vouches for. A release that agrees with itself can still be a snapshot taken before the revision it is cited in.",
-  "checked_at": "2026-11-09T01:17:55+00:00",
-  "cited_version": "0.1.1",
-  "cited_record": "zenodo.21636719",
-  "archived_version": "0.1.1",
-  "archive_published": "2026-07-28",
+  "checked_at": "2026-11-09T11:09:16+00:00",
+  "cited_version": "0.2.0",
+  "cited_record": "zenodo.24081075",
+  "archived_version": "0.2.0",
+  "archive_published": "2026-11-09",
   "results_in_the_tree": 11,
-  "results_missing_from_the_archive": [
-    "results/ge_rdsr_accuracy.json"
-  ],
-  "results_differing_from_the_archive": [
-    "results/README.md",
-    "results/inferential_stats.json",
-    "results/open_fallback.json",
-    "results/rdsr_layer1.csv",
-    "results/rdsr_layer1.json",
-    "results/size_and_dose.csv",
-    "results/size_and_dose.json",
-    "results/survey.csv",
-    "results/survey.json",
-    "results/survey_fallback.csv"
-  ],
-  "results_sha256": "97c56380ee689ca5d14b677c4a1a761a803fdf605e207159a2b376edd49eaa77",
-  "status": "FAIL",
-  "problems": [
-    "results/ge_rdsr_accuracy.json is not in the archive at all",
-    "results/README.md in the archive is not the file this manuscript used",
-    "results/inferential_stats.json in the archive is not the file this manuscript used",
-    "results/open_fallback.json in the archive is not the file this manuscript used",
-    "results/rdsr_layer1.csv in the archive is not the file this manuscript used",
-    "results/rdsr_layer1.json in the archive is not the file this manuscript used",
-    "results/size_and_dose.csv in the archive is not the file this manuscript used",
-    "results/size_and_dose.json in the archive is not the file this manuscript used",
-    "results/survey.csv in the archive is not the file this manuscript used",
-    "results/survey.json in the archive is not the file this manuscript used",
-    "results/survey_fallback.csv in the archive is not the file this manuscript used"
-  ]
+  "results_missing_from_the_archive": [],
+  "results_differing_from_the_archive": [],
+  "results_sha256": "aedf0e65b6e296bbb0f2b1beabd1ac78d6f7371ed0379a1f977d77d1d547cbdf",
+  "status": "PASS",
+  "problems": []
 }
