@@ -31,10 +31,10 @@ keywords:
   - radiation dose structured report
   - reproducibility
 license: MIT
-version: 0.1.1
+version: 0.2.0
 # Set to the tag date when the release is cut; Zenodo takes the date from the
 # GitHub release, so this is the human-readable copy rather than the authority.
-date-released: '2026-07-28'
+date-released: '2026-11-09'
 # The *concept* DOI: it resolves to the latest version, which is what a citation of
 # the project should point at. The manuscript's data-availability statement cites the
 # *version* DOI instead, so the paper names the exact snapshot it was run on.

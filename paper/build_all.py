@@ -57,6 +57,15 @@ STEPS: tuple[tuple[str, list[str], str], ...] = (
         "ctdose-core_jacmp_masked.pdf",
     ),
     (
+        # The unmasked Research Article. It is not submitted, but it is tracked, a test
+        # requires it to be current with its source, and nothing here rebuilt it -- so
+        # the release bump left it stale and the suite found it rather than the build.
+        "canonical Research Article (preserved, unmasked)",
+        [str(PDF), "paper/ctdose-core_jacmp.md",
+         "--out", "paper/ctdose-core_jacmp.pdf"],
+        "ctdose-core_jacmp.pdf",
+    ),
+    (
         "masked Technical Note -- the Article File",
         [
             str(MASK),
@@ -131,6 +140,7 @@ ARTEFACTS: dict[str, str] = {
     "response_to_editor_jacmp_r2.pdf": "response_to_editor_jacmp_r2.md",
     "cover_letter_jacmp_r2.pdf": "cover_letter_jacmp_r2.md",
     "ctdose-core_jacmp_masked.pdf": "ctdose-core_jacmp.md",
+    "ctdose-core_jacmp.pdf": "ctdose-core_jacmp.md",
     # Typed into the submission form rather than uploaded, and therefore the one thing a
     # rebuild cannot reach once it has been pasted. Built here so at least the text that
     # should be pasted is current; paper/record_portal_fields.py pins what was.

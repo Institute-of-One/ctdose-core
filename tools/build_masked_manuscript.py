@@ -90,7 +90,7 @@ REPLACEMENTS: tuple[tuple[str, str], ...] = (
     (
         "**Data and code availability.** The software is available at "
         "https://github.com/Institute-of-One/ctdose-core under the MIT License. The version "
-        "used in this study (version 0.1.1) is archived at Zenodo "
+        "used in this study (version 0.2.0) is archived at Zenodo "
         "(https://doi.org/10.5281/zenodo.21636719). All numerical results reported here, "
         "including the rows they summarize, ship under `results/` with the scripts that "
         "generate them and the figure code.",

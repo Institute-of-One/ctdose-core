@@ -36,7 +36,7 @@ Email: yamamoto@lisit.jp
 
 **Ethics approval and consent.** Not applicable. This study used only publicly available, de-identified imaging data (TCIA collections released under Creative Commons licenses) and third-party sample files. No institutional review board approval and no informed consent were required.
 
-**Data and code availability.** The software is available at https://github.com/Institute-of-One/ctdose-core under the MIT License. The version used in this study (version 0.1.1) is archived at Zenodo (https://doi.org/10.5281/zenodo.21636719).
+**Data and code availability.** The software is available at https://github.com/Institute-of-One/ctdose-core under the MIT License. The version used in this study (version 0.2.0) is archived at Zenodo (https://doi.org/10.5281/zenodo.21636719).
 
 **Supplementary Material.** One supplementary file accompanies this Technical Note, containing the verification of the size layer and of the RDSR parser, the auditable diagnostic-reference-level comparison, the sample licensing and provenance, the scanner models the coefficient table does not cover, the stratified accuracy detail, the size-correction and effective-dose results, the data-quality findings, and the GE validation arm in full. It contains no figures.
 

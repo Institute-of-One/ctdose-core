@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctdose-core"
-version = "0.1.1"
+version = "0.2.0"
 description = "Open, auditable CT dose surveillance: CTDIvol, DLP, SSDE and effective dose from DICOM, with a physics fallback when the dose tags are missing."
 readme = "README.md"
 license = { text = "MIT" }
