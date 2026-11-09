@@ -1,9 +1,9 @@
 {
   "_why": "Written by tools/check_release_contents.py. tests/test_release_contents.py fails if this is missing, not PASS, or older than the result files it vouches for. A release that agrees with itself can still be a snapshot taken before the revision it is cited in.",
-  "checked_at": "2026-11-09T11:09:16+00:00",
-  "cited_version": "0.2.0",
-  "cited_record": "zenodo.24081075",
-  "archived_version": "0.2.0",
+  "checked_at": "2026-11-09T11:31:10+00:00",
+  "cited_version": "0.2.1",
+  "cited_record": "zenodo.24081544",
+  "archived_version": "0.2.1",
   "archive_published": "2026-11-09",
   "results_in_the_tree": 11,
   "results_missing_from_the_archive": [],

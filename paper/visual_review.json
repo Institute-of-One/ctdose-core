@@ -116,6 +116,22 @@
           ]
         }
       }
+    },
+    {
+      "by": "Claude Opus 5",
+      "role": "agent",
+      "at": "2026-11-09",
+      "note": "Re-read title_page_jacmp.pdf page 2 after v0.2.1: version 0.2.1, https://doi.org/10.5281/zenodo.24081544, the archive cut from the commit where CI is green on Linux and Windows.",
+      "dpi": 150,
+      "documents": {
+        "title_page_jacmp.pdf": {
+          "pdf_sha256": "8ddabd3051dd10fa256cef944b17d1f9982feb88a95bc30c85279d144cfd4b83",
+          "page_sha256": [
+            "e2e037208c302a4be37fe42d530fa77f430746f98bba42b175df5c7f1329a273",
+            "8821a9f2f906aa04b863cf1b4dc1fea2582450b37d818c078866c6f02f94c80b"
+          ]
+        }
+      }
     }
   ]
 }
