@@ -38,14 +38,59 @@ diff = _load("tracked_markup", REPO / "tools" / "build_tracked_changes.py")
 
 DELIMITERS = ("$", "**", "~~", "++", "\\mathrm{")
 
-#: Fixtures for the wrapping tests, with the column widths at which the *old* wrapper
-#: breaks at the run boundary. The widths were measured, not chosen: at an arbitrary
-#: width the line simply does not end there and the test passes with the defect put
-#: back, which is what the first version of these tests did.
+#: Fixtures for the wrapping tests. The column width that reproduces the defect is
+#: **searched for** rather than written down: it depends on the metrics of whichever
+#: serif face is available, so the width measured against Times New Roman on Windows
+#: reproduced nothing against DejaVu Serif on Linux and the test failed there -- while a
+#: width simply chosen reproduces nothing anywhere, and the tests pass with the defect
+#: put back, which is what the first version of this file did.
 BOLD_FIXTURE = "x " * 40 + "computed for **39 of the 41**. The two exceptions"
-BOLD_WIDTH = 150.1
 MATH_FIXTURE = "y " * 40 + "no precise $w$; saying which tabulated row follows"
-MATH_WIDTH = 386.5
+
+
+def old_wrap(runs, width: float):
+    """The wrapper as it was: one run at a time, so a run boundary could end a line."""
+    import re
+
+    from reportlab.pdfbase import pdfmetrics
+
+    lines: list[list[str]] = [[]]
+    x = 0.0
+    for run in runs:
+        if run.image is not None:
+            lines[-1].append("■")
+            x += run.image_w
+            continue
+        for token in re.split(r"(\s+)", run.text):
+            if not token:
+                continue
+            w = pdfmetrics.stringWidth(token, run.font, run.size)
+            if token.isspace():
+                if lines[-1]:
+                    lines[-1].append(" ")
+                    x += pdfmetrics.stringWidth(" ", run.font, run.size)
+                continue
+            if x + w > width and lines[-1]:
+                lines.append([])
+                x = 0.0
+            lines[-1].append(token)
+            x += w
+    return [ln for ln in lines if ln]
+
+
+def width_that_breaks_before(text: str, char: str) -> float | None:
+    """A column width at which the old wrapper starts a line with ``char``.
+
+    None when the fixture cannot reproduce the defect at any width, which is a fault in
+    the fixture and is asserted as one.
+    """
+    runs = bmp.parse_runs(text)
+    for tenths in range(800, 4000):
+        width = tenths / 10.0
+        starts = ["".join(line).lstrip() for line in old_wrap(runs, width)][1:]
+        if any(start.startswith(char) for start in starts):
+            return width
+    return None
 
 
 def rendered(text: str) -> str:
@@ -88,8 +133,12 @@ def test_a_line_never_breaks_inside_a_word_at_a_run_boundary() -> None:
     ``. The two exceptions``: the full stop after a bold span was wrapped as though it
     were a word of its own. The source is ``**39 of the 41**.`` with no space.
     """
-    runs = bmp.parse_runs(BOLD_FIXTURE)
-    lines = bmp.wrap_runs(runs, BOLD_WIDTH)
+    width = width_that_breaks_before(BOLD_FIXTURE, ".")
+    assert width is not None, (
+        "no column width makes the old wrapper break before the full stop, so this "
+        "fixture would pass with the defect put back"
+    )
+    lines = bmp.wrap_runs(bmp.parse_runs(BOLD_FIXTURE), width)
     assert len(lines) > 1, "the fixture did not wrap, so it tests nothing"
     starts = ["".join(r.text for r in line).lstrip() for line in lines[1:]]
     for start in starts:
@@ -99,46 +148,12 @@ def test_a_line_never_breaks_inside_a_word_at_a_run_boundary() -> None:
         )
 
 
-def test_the_wrapping_gate_is_not_vacuous() -> None:
-    """The old wrapper, on the same fixture, must produce the defect.
-
-    Wrapping each run separately is what shipped. Re-creating it here keeps the two
-    tests above from passing merely because the fixture does not happen to break at the
-    bold span.
-    """
-    import re
-
-    from reportlab.pdfbase import pdfmetrics
-
-    runs = bmp.parse_runs(BOLD_FIXTURE)
-    width = BOLD_WIDTH
-    lines: list[list] = [[]]
-    x = 0.0
-    for run in runs:  # the wrapper as it was
-        for token in re.split(r"(\s+)", run.text):
-            if not token:
-                continue
-            w = pdfmetrics.stringWidth(token, run.font, run.size)
-            if token.isspace():
-                if lines[-1]:
-                    lines[-1].append(" ")
-                    x += pdfmetrics.stringWidth(" ", run.font, run.size)
-                continue
-            if x + w > width and lines[-1]:
-                lines.append([])
-                x = 0.0
-            lines[-1].append(token)
-            x += w
-    starts = ["".join(line).lstrip() for line in lines if line][1:]
-    assert any(s.startswith(".") for s in starts), (
-        "the fixture does not reproduce the defect under the old wrapper, so the "
-        "tests above would pass with the defect put back"
-    )
-
-
 def test_an_inline_equation_keeps_the_punctuation_that_follows_it() -> None:
-    runs = bmp.parse_runs(MATH_FIXTURE)
-    lines = bmp.wrap_runs(runs, MATH_WIDTH)
+    width = width_that_breaks_before(MATH_FIXTURE, ";")
+    assert width is not None, (
+        "no column width makes the old wrapper break before the semicolon"
+    )
+    lines = bmp.wrap_runs(bmp.parse_runs(MATH_FIXTURE), width)
     assert len(lines) > 1, "the fixture did not wrap, so it tests nothing"
     starts = ["".join(r.text for r in line).lstrip() for line in lines[1:]]
     assert all(not s.startswith(";") for s in starts), starts
