@@ -124,11 +124,16 @@ def stage_version(version: str, date: str) -> int:
 
     # date-released is the tag date; Zenodo takes its own date from the Release, so this
     # is the human-readable copy and must not be left at the previous release's.
+    # Whether the line is there is a different question from whether it changed: a
+    # second release on the same day leaves it identical, and testing for a change
+    # reported the line as missing and left the bump half applied.
     text = CITATION.read_text(encoding="utf-8")
-    new = re.sub(r"date-released: '[^']*'", f"date-released: '{date}'", text, count=1)
-    if new == text:
+    pattern = re.compile(r"date-released: '[^']*'")
+    if not pattern.search(text):
         raise SystemExit("no date-released line in CITATION.cff")
-    CITATION.write_text(new, encoding="utf-8")
+    CITATION.write_text(
+        pattern.sub(f"date-released: '{date}'", text, count=1), encoding="utf-8"
+    )
 
     for path in PROSE:
         n = replace_in(path, f"version {old}", f"version {version}")
