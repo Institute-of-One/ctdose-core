@@ -27,11 +27,10 @@ spec = importlib.util.spec_from_file_location("vr", REPO / "tools" / "visual_rev
 vr = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(vr)
 
-spec = importlib.util.spec_from_file_location(
-    "render_pages", REPO / "tools" / "render_pdf_pages.py"
-)
-render_pages = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(render_pages)
+# tools/render_pdf_pages.py imports PyMuPDF, which is not a declared dependency of this
+# package -- the layout gates skip without it. Loading it here at import time turned a
+# skip into a collection error on any machine without it, CI included, and nothing in
+# this file needs it: the ledger and the page index are plain JSON.
 
 
 @pytest.fixture(scope="module")

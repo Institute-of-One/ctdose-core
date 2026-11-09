@@ -185,7 +185,6 @@ def test_an_event_with_no_tabulated_cell_is_excluded_rather_than_crashing() -> N
     """
     pytest.importorskip("pydicom")
     from ctdose_core.ctdi_table import CoefficientNotAvailable
-
     from tools.evaluate_ge_rdsr import evaluate_event  # noqa: PLC0415
 
     # 60 kVp is below every tabulated potential for this model, so the lookup refuses.

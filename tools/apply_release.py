@@ -184,7 +184,7 @@ def stage_doi(doi: str) -> int:
         with urllib.request.urlopen(request, timeout=60) as response:
             record = json.load(response)
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
-        raise SystemExit(f"{doi} does not resolve: {exc}")
+        raise SystemExit(f"{doi} does not resolve: {exc}") from exc
     version = current_version()
     registered = str(record.get("version") or "")
     if registered and registered.lstrip("v") != version:

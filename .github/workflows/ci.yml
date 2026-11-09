@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
       - name: Lint
-        run: ruff check ctdose_core tests tools examples paper
+        run: ruff check ctdose_core tests tools examples paper test_ge_arm_recompute.py
       - name: Test
         run: pytest --cov=ctdose_core --cov-report=term-missing
 

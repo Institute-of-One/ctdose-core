@@ -387,7 +387,7 @@ def main() -> int:
             print("BASELINE FAILED -- the test does not pass on the real result file")
             print(baseline.stderr[-3000:])
             return 1
-        ran = [l for l in baseline.stderr.splitlines() if l.startswith("Ran ")]
+        ran = [line for line in baseline.stderr.splitlines() if line.startswith("Ran ")]
         print(f"baseline: PASS ({ran[0] if ran else 'unknown count'})")
 
         for label, injure in INJECTIONS:
@@ -401,9 +401,9 @@ def main() -> int:
             print(f"  {'CAUGHT ' if caught else 'MISSED '} {label}")
             if caught:
                 named = [
-                    l.split(" ", 1)[1].split(" ")[0]
-                    for l in proc.stderr.splitlines()
-                    if l.startswith(("FAIL: ", "ERROR: "))
+                    line.split(" ", 1)[1].split(" ")[0]
+                    for line in proc.stderr.splitlines()
+                    if line.startswith(("FAIL: ", "ERROR: "))
                 ]
                 for n in dict.fromkeys(named):
                     print(f"            by {n}")

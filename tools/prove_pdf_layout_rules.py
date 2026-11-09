@@ -43,7 +43,7 @@ FILLER = (
 
 def document(filler_paragraphs: int, with_table: bool) -> str:
     parts = ["# A document built only to be broken across pages", ""]
-    for i in range(filler_paragraphs):
+    for _ in range(filler_paragraphs):
         parts += [FILLER * 6, ""]
     parts += ["## 9.9 A heading that must not be stranded", ""]
     parts += [FILLER * 4, ""]

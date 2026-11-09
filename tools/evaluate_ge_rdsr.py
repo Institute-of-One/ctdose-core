@@ -788,18 +788,14 @@ def _band_over_admitted_widths(
         # which is the recorded width itself unless the table lacks that width -- and a
         # substitution is written onto the case as an assumption either way.
         exact_rows = [c for c in tabulated if abs(c - recorded) < 1e-9]
-        if exact_rows:
-            admitted = exact_rows
-        else:
-            # The recorded width stands but the table does not hold it, so the
-            # coefficient is a choice the report does not settle -- exactly as for a
-            # refuted width -- and every tabulated row stays. Two earlier attempts at
-            # this branch were refused on 2026-11-08: substituting the nearest row (which
-            # hides the choice) and then the rows either side (which is no better
-            # evidenced than any other restriction). No event here reaches it, since the
-            # one corroborated width is 40.0 mm and tabulated.
-            admitted = tabulated
-        nearest = admitted[0]
+        # Where the table does not hold the recorded width, the coefficient is a choice
+        # the report does not settle -- exactly as for a refuted width -- so every
+        # tabulated row stays. Two earlier attempts at this branch were refused on
+        # 2026-11-08: substituting the nearest row (which hides the choice) and then the
+        # rows either side (which is no better evidenced than any other restriction). No
+        # event here reaches it, since the one corroborated width is 40.0 mm and
+        # tabulated.
+        admitted = exact_rows or tabulated
         exact = bool(exact_rows)
         out = span(admitted)
         out.update(

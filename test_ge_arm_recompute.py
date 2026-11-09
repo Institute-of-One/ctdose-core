@@ -641,7 +641,6 @@ class TheBeamWidthArgumentRestsOnAMeasuredTime(unittest.TestCase):
         the time the scanner measured by a wide margin. For the corroborated one the two
         must agree. Both sides are required, so neither can pass by accident.
         """
-        case_by_key = {(c["file"], c["event_index"]): c for c in CASES}
         refuted, corroborated = [], []
         for case in CASES:
             check = case["beam_width_consistency"]

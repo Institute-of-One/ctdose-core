@@ -253,24 +253,28 @@ def main(argv: list[str] | None = None) -> int:
                     problems.append(f"{field} printed as {want}, registered as {got}")
             pages, article = str(csl.get("page", "")), str(csl.get("article-number", ""))
             want = printed.group("pages").replace("–", "-")
-            if pages and normalise(want) != normalise(pages):
-                if not (article and normalise(want) == normalise(article)):
-                    problems.append(
-                        f"pages printed as {want}, registered as {pages}"
-                        + (f" (article number {article})" if article else "")
-                    )
+            printed_an_article_number = article and normalise(want) == normalise(article)
+            if pages and normalise(want) != normalise(pages) and not printed_an_article_number:
+                problems.append(
+                    f"pages printed as {want}, registered as {pages}"
+                    + (f" (article number {article})" if article else "")
+                )
         else:
             problems.append("no year;volume(issue):pages could be read from the entry")
 
         first_printed = entry.split()[0].rstrip(",")
-        if registered_family and normalise(first_printed) != normalise(registered_family):
-            if normalise(first_printed) != normalise(
-                (fix.get("printed_first_author") or "")
-            ):
-                problems.append(
-                    f"first author printed as {first_printed!r}, registered as "
-                    f"{registered_family!r}"
-                )
+        overridden = normalise(first_printed) == normalise(
+            fix.get("printed_first_author") or ""
+        )
+        if (
+            registered_family
+            and normalise(first_printed) != normalise(registered_family)
+            and not overridden
+        ):
+            problems.append(
+                f"first author printed as {first_printed!r}, registered as "
+                f"{registered_family!r}"
+            )
 
         record = {
             "n": number,
